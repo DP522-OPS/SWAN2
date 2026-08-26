@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swantex — Control de Producción</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f0f4ff;color:#1e293b;min-height:100vh}
+:root{
+  --blue:#2563eb;--blue-d:#1d4ed8;--blue-l:#eff6ff;
+  --purple:#7c3aed;--purple-l:#f5f3ff;
+  --teal:#0891b2;--teal-l:#ecfeff;
+  --green:#059669;--green-l:#ecfdf5;
+  --amber:#d97706;--amber-l:#fffbeb;
+  --red:#dc2626;--red-l:#fef2f2;
+  --gray:#64748b;--gray-l:#f8fafc;
+  --border:#e2e8f0;--white:#fff;
+  --shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.06);
+}
+
+/* NAV */
+nav{background:var(--blue);color:#fff;padding:0 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-md)}
+.nav-brand{font-weight:700;font-size:1.1rem;letter-spacing:-.3px;padding:1rem 0;flex-shrink:0}
+.nav-brand span{opacity:.7;font-weight:400}
+.nav-tabs{display:flex;margin-left:auto}
+.nav-tab{padding:.85rem 1.1rem;cursor:pointer;border-bottom:3px solid transparent;font-size:.875rem;font-weight:500;color:rgba(255,255,255,.75);transition:all .15s;white-space:nowrap}
+.nav-tab:hover{color:#fff;background:rgba(255,255,255,.1)}
+.nav-tab.active{color:#fff;border-bottom-color:#fff}
+
+/* LAYOUT */
+.view{display:none;padding:1.5rem;max-width:1100px;margin:0 auto}
+.view.active{display:block}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+@media(max-width:768px){
+  .grid-4,.grid-3{grid-template-columns:1fr 1fr}
+  .grid-2{grid-template-columns:1fr}
+  nav{padding:0 1rem}
+  .nav-brand{font-size:.9rem}
+  .nav-tab{padding:.85rem .6rem;font-size:.75rem}
+  .view{padding:1rem}
+}
+
+/* CARDS */
+.card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:1.25rem;box-shadow:var(--shadow)}
+.card-title{font-weight:600;font-size:.8rem;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.85rem}
+.stat-value{font-size:2rem;font-weight:700;line-height:1}
+.stat-label{font-size:.8rem;color:var(--gray)}
+.stat-sub{font-size:.75rem;color:var(--gray);margin-top:.3rem}
+
+/* FORM */
+.form-group{margin-bottom:1rem}
+.form-label{display:block;font-size:.85rem;font-weight:600;color:#374151;margin-bottom:.4rem}
+.form-control{width:100%;padding:.6rem .85rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;color:#1e293b;background:#fff;transition:border-color .15s;appearance:none;-webkit-appearance:none}
+.form-control:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+select.form-control{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .75rem center;padding-right:2.5rem}
+textarea.form-control{resize:vertical;min-height:64px}
+
+/* NFC FIELD */
+.nfc-field{display:flex;gap:.5rem;align-items:stretch}
+.nfc-field .form-control{flex:1}
+.btn-nfc{padding:.6rem .9rem;background:var(--blue-l);color:var(--blue);border:1.5px solid #bfdbfe;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:700;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:.3rem}
+.btn-nfc:hover{background:#dbeafe;border-color:var(--blue)}
+.btn-nfc.scanning{background:#fef9c3;border-color:#fbbf24;color:#92400e;animation:pulse .8s infinite}
+.btn-nfc.ok{background:var(--green-l);border-color:#6ee7b7;color:var(--green)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+
+/* BUTTONS */
+.btn{padding:.65rem 1.25rem;border-radius:8px;border:none;cursor:pointer;font-size:.875rem;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:.4rem}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:var(--blue-d)}
+.btn-outline{background:#fff;color:var(--gray);border:1.5px solid var(--border)}
+.btn-outline:hover{background:var(--gray-l)}
+.btn-sm{padding:.4rem .85rem;font-size:.8rem}
+.btn-block{width:100%;justify-content:center}
+.btn-danger{background:var(--red);color:#fff}
+
+/* BADGES */
+.badge{display:inline-block;padding:.2rem .55rem;border-radius:999px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.badge-blue{background:var(--blue-l);color:var(--blue)}
+.badge-purple{background:var(--purple-l);color:var(--purple)}
+.badge-teal{background:var(--teal-l);color:var(--teal)}
+.badge-green{background:var(--green-l);color:var(--green)}
+.badge-amber{background:var(--amber-l);color:var(--amber)}
+.badge-red{background:var(--red-l);color:var(--red)}
+.badge-gray{background:#f1f5f9;color:var(--gray)}
+
+/* TABLE */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{text-align:left;padding:.6rem .85rem;background:#f8fafc;border-bottom:2px solid var(--border);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);white-space:nowrap}
+td{padding:.6rem .85rem;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
+
+/* EFFICIENCY BAR */
+.eff-wrap{display:flex;align-items:center;gap:.5rem}
+.eff-bar{flex:1;height:7px;background:var(--border);border-radius:4px;overflow:hidden}
+.eff-fill{height:100%;border-radius:4px;transition:width .4s}
+.eff-good{background:var(--green)}
+.eff-ok{background:var(--amber)}
+.eff-low{background:var(--red)}
+.eff-lbl{font-size:.82rem;font-weight:700;min-width:2.8rem;text-align:right}
+
+/* PAROS */
+.paro-list{display:flex;flex-direction:column;gap:.4rem;margin-top:.5rem}
+.paro-item{display:flex;align-items:center;gap:.5rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;font-size:.85rem}
+.paro-reason{flex:1;font-weight:500}
+.paro-dur{color:var(--gray);font-size:.8rem;white-space:nowrap}
+.paro-del{color:var(--red);cursor:pointer;background:none;border:none;font-size:1rem;margin-left:.25rem;padding:0 .2rem;border-radius:4px}
+.paro-del:hover{background:var(--red-l)}
+
+/* SCAN OVERLAY */
+.scan-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:300;align-items:center;justify-content:center;flex-direction:column;gap:1.25rem;color:#fff;text-align:center;padding:2rem}
+.scan-overlay.open{display:flex}
+.scan-ring{width:130px;height:130px;border-radius:50%;border:4px solid rgba(255,255,255,.25);position:relative;display:flex;align-items:center;justify-content:center;font-size:3.5rem}
+.scan-ring::before{content:'';position:absolute;inset:-10px;border-radius:50%;border:4px solid transparent;border-top-color:#60a5fa;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.scan-title{font-size:1.4rem;font-weight:700}
+.scan-subtitle{color:rgba(255,255,255,.7);font-size:.95rem;max-width:320px}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:1rem}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto}
+.modal-title{font-size:1.1rem;font-weight:700;margin-bottom:1.25rem}
+.modal-actions{display:flex;gap:.75rem;margin-top:1.25rem;justify-content:flex-end}
+
+/* ALERTS */
+.alert{padding:.85rem 1.1rem;border-radius:10px;font-size:.875rem;margin-bottom:1rem;display:flex;align-items:flex-start;gap:.6rem;line-height:1.5}
+.alert-info{background:var(--blue-l);color:#1e40af;border:1px solid #bfdbfe}
+.alert-warning{background:var(--amber-l);color:#92400e;border:1px solid #fde68a}
+.alert-success{background:var(--green-l);color:#065f46;border:1px solid #a7f3d0}
+
+/* CONFIG TABS */
+.config-tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:1.25rem}
+.config-tab{padding:.65rem 1.1rem;cursor:pointer;font-size:.875rem;font-weight:500;color:var(--gray);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.config-tab:hover{color:var(--blue)}
+.config-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.config-panel{display:none}
+.config-panel.active{display:block}
+
+/* EFF PREVIEW */
+#effPreview{border:2px solid #bfdbfe;background:var(--blue-l)}
+
+/* MISC */
+.divider{height:1px;background:var(--border);margin:1rem 0}
+.text-muted{color:var(--gray);font-size:.85rem}
+.text-center{text-align:center}
+.mt-1{margin-top:.5rem}
+.mt-2{margin-top:1rem}
+.mb-2{margin-bottom:1rem}
+.flex{display:flex}
+.gap-1{gap:.5rem}
+.gap-2{gap:1rem}
+.items-center{align-items:center}
+.justify-between{justify-content:space-between}
+.flex-wrap{flex-wrap:wrap}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.section-title{font-size:1.1rem;font-weight:700}
+.empty-state{text-align:center;padding:2.5rem 1rem;color:var(--gray)}
+.empty-state .ei{font-size:3rem;margin-bottom:.75rem}
+.toast{position:fixed;bottom:2rem;right:2rem;background:#1e293b;color:#fff;padding:.85rem 1.25rem;border-radius:10px;font-size:.875rem;box-shadow:var(--shadow-md);z-index:400;display:none;align-items:center;gap:.5rem;animation:slideUp .2s ease}
+.toast.show{display:flex}
+@keyframes slideUp{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+code.tag{font-size:.72rem;background:#f1f5f9;padding:.15rem .4rem;border-radius:4px;font-family:monospace}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="nav-brand">Swantex <span>Producción</span></div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="showView('dashboard')">📊 Dashboard</div>
+    <div class="nav-tab" onclick="showView('registro')">📝 Registro</div>
+    <div class="nav-tab" onclick="showView('historial')">📋 Historial</div>
+    <div class="nav-tab" onclick="showView('config')">⚙️ Config</div>
+  </div>
+</nav>
+
+<!-- MODAL: Copiar JSON para NFC Tools -->
+<div class="modal-overlay" id="copyModal">
+  <div class="modal">
+    <div class="modal-title" id="copyModalTitle">📋 Contenido NFC</div>
+    <p style="font-size:.85rem;color:#475569;margin-bottom:.75rem;line-height:1.5">
+      Toque <strong>Copiar</strong>, luego vaya a <strong>NFC Tools → Escribir → Agregar registro → Texto</strong>, pegue el texto y grabe el sticker.
+    </p>
+    <div class="form-group">
+      <label class="form-label">Texto para grabar en el sticker</label>
+      <textarea class="form-control" id="copyModalJson" rows="2" readonly style="font-family:monospace;font-size:.9rem;background:#f8fafc"></textarea>
+    </div>
+    <div class="alert alert-info" style="margin-bottom:0">
+      📱 En NFC Tools: <strong>Escribir</strong> → <strong>Agregar un registro</strong> → <strong>Texto</strong> → pegar → <strong>Aceptar</strong> → <strong>Escribir</strong> → acercar sticker
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeCopyModal()">Cerrar</button>
+      <button class="btn btn-primary" onclick="copyJson()">📋 Copiar texto</button>
+    </div>
+  </div>
+</div>
+
+<!-- WRITE OVERLAY (grabar sticker) -->
+<div class="scan-overlay" id="writeOverlay" style="gap:1rem">
+  <div class="scan-ring" style="font-size:3rem">✍️</div>
+  <div class="scan-title">Acerque el sticker en BLANCO</div>
+  <div style="color:rgba(255,255,255,.8);font-size:.95rem;text-align:center;max-width:300px">
+    Chrome ya está listo para grabar.<br>Acerque el sticker ahora a la parte trasera del teléfono.
+  </div>
+  <div style="background:rgba(255,255,255,.12);border-radius:10px;padding:.75rem 1.25rem;text-align:center;max-width:340px">
+    <div style="font-size:.75rem;color:rgba(255,255,255,.6);margin-bottom:.25rem">Grabando</div>
+    <div id="writeOverlayLabel" style="font-weight:700;font-size:1rem"></div>
+    <div id="writeOverlayJson" style="font-size:.72rem;color:rgba(255,255,255,.6);font-family:monospace;margin-top:.3rem;word-break:break-all"></div>
+  </div>
+  <button class="btn btn-outline" id="btnCancelWrite">✕ Cancelar</button>
+</div>
+
+<!-- SCAN OVERLAY -->
+<div class="scan-overlay" id="scanOverlay">
+  <div class="scan-ring">📡</div>
+  <div class="scan-title" id="scanTitle">Acerque la etiqueta NFC</div>
+  <div class="scan-subtitle" id="scanSubtitle">Aproxime el lector o teléfono al sticker</div>
+  <button class="btn btn-outline" onclick="cancelScan()" style="margin-top:.5rem">✕ Cancelar</button>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: Paro -->
+<div class="modal-overlay" id="modalParo">
+  <div class="modal">
+    <div class="modal-title">➕ Agregar Paro</div>
+    <div class="form-group">
+      <label class="form-label">Motivo del paro</label>
+      <select class="form-control" id="paroMotivo" onchange="document.getElementById('paroOtroGrp').style.display=this.value==='Otro'?'block':'none'">
+        <option value="">Seleccionar motivo...</option>
+        <option>Cambio de referencia</option>
+        <option>Daño de máquina</option>
+        <option>Mantenimiento preventivo</option>
+        <option>Falta de hilo / materia prima</option>
+        <option>Falla eléctrica</option>
+        <option>Cambio de agujas</option>
+        <option>Almuerzo / descanso</option>
+        <option>Falta de personal</option>
+        <option>Limpieza</option>
+        <option>Cambio de bobina</option>
+        <option>Otro</option>
+      </select>
+    </div>
+    <div class="form-group" id="paroOtroGrp" style="display:none">
+      <label class="form-label">Especifique</label>
+      <input type="text" class="form-control" id="paroOtroTxt" placeholder="Describa el motivo">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Duración (minutos)</label>
+      <input type="number" class="form-control" id="paroDur" min="1" max="720" placeholder="Ej: 30">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeParo()">Cancelar</button>
+      <button class="btn btn-primary" onclick="addParo()">Agregar paro</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Config -->
+<div class="modal-overlay" id="modalCfg">
+  <div class="modal">
+    <div class="modal-title" id="modalCfgTitle"></div>
+    <div id="modalCfgBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeCfgModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCfgItem()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== DASHBOARD ===================== -->
+<div class="view active" id="view-dashboard">
+  <div class="section-header mb-2">
+    <div>
+      <div class="section-title">Dashboard de Producción</div>
+      <div class="text-muted" id="dashDate"></div>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="exportCSV()">📥 Exportar CSV</button>
+  </div>
+  <div class="grid-4 mb-2" id="statCards"></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Eficiencia por Equipo — Hoy</div>
+      <div id="teamEff"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Últimos turnos registrados</div>
+      <div id="recentShifts"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== REGISTRO ===================== -->
+<div class="view" id="view-registro">
+  <div class="section-title mb-2">📝 Registro de Turno</div>
+  <div id="nfcAlert"></div>
+  <div class="grid-2">
+    <!-- Columna izquierda -->
+    <div>
+      <div class="card mb-2">
+        <div class="card-title">Identificación del Turno</div>
+        <div class="form-group">
+          <label class="form-label">Fecha</label>
+          <input type="date" class="form-control" id="regFecha">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Equipo / Zona</label>
+          <div class="nfc-field">
+            <select class="form-control" id="regEquipo" onchange="onEquipoChange()">
+              <option value="">Seleccionar equipo...</option>
+            </select>
+            <button class="btn-nfc" id="btnNfcEq" onclick="startNfc('equipo')" title="Escanear sticker NFC del equipo">📡 NFC</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Colaborador</label>
+          <div class="nfc-field">
+            <select class="form-control" id="regOp">
+              <option value="">Seleccionar colaborador...</option>
+            </select>
+            <button class="btn-nfc" id="btnNfcOp" onclick="startNfc('operador')" title="Escanear tarjeta NFC del colaborador">📡 NFC</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Turno</label>
+          <select class="form-control" id="regTurno" onchange="updateEffPreview()">
+            <option value="">Seleccionar turno...</option>
+            <option value="A-8">Turno A — 6:00 a 14:00 (8h)</option>
+            <option value="B-8">Turno B — 14:00 a 22:00 (8h)</option>
+            <option value="C-8">Turno C — 22:00 a 6:00 (8h)</option>
+            <option value="DIA-12">Turno Día — 6:00 a 18:00 (12h)</option>
+            <option value="NOCHE-12">Turno Noche — 18:00 a 6:00 (12h)</option>
+          </select>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Producción</div>
+        <div class="form-group">
+          <label class="form-label">Referencia / Producto</label>
+          <div class="nfc-field">
+            <select class="form-control" id="regRef" onchange="updateEffPreview()">
+              <option value="">Seleccionar referencia...</option>
+            </select>
+            <button class="btn-nfc" id="btnNfcRef" onclick="startNfc('referencia')" title="Escanear sticker NFC de la referencia">📡 NFC</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unidades producidas</label>
+          <input type="number" class="form-control" id="regUnidades" min="0" placeholder="Ej: 1 240" oninput="updateEffPreview()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Máquinas activas en el turno</label>
+          <input type="number" class="form-control" id="regMaq" min="0" placeholder="Ej: 9" id="regMaq">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observaciones (opcional)</label>
+          <textarea class="form-control" id="regObs" placeholder="Novedades del turno..."></textarea>
+        </div>
+      </div>
+    </div>
+    <!-- Columna derecha -->
+    <div>
+      <div class="card mb-2">
+        <div class="section-header" style="margin-bottom:.5rem">
+          <div class="card-title" style="margin-bottom:0">Paros del Turno</div>
+          <button class="btn btn-outline btn-sm" onclick="openParo()">+ Agregar paro</button>
+        </div>
+        <div id="paroList" class="paro-list"></div>
+        <div class="divider"></div>
+        <div id="paroSummary" style="font-size:.85rem;color:var(--gray)">Total paros: <strong>0 min</strong></div>
+      </div>
+      <div class="card mb-2" id="effPreview" style="display:none">
+        <div class="card-title">Vista previa — Eficiencia</div>
+        <div id="effPreviewBody"></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="guardarTurno()" style="font-size:1rem;padding:.9rem">
+        💾 Guardar Turno
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== HISTORIAL ===================== -->
+<div class="view" id="view-historial">
+  <div class="section-header mb-2">
+    <div class="section-title">📋 Historial de Turnos</div>
+    <div class="flex gap-1 flex-wrap">
+      <select class="form-control" id="filtEq" style="width:auto" onchange="renderHistorial()">
+        <option value="">Todos los equipos</option>
+      </select>
+      <input type="date" class="form-control" id="filtFecha" style="width:auto" onchange="renderHistorial()">
+      <button class="btn btn-outline btn-sm" onclick="clearFiltros()">✕ Limpiar</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th><th>Equipo</th><th>Colaborador</th><th>Turno</th>
+            <th>Referencia</th><th>Unidades</th><th>Paros (min)</th>
+            <th>Ef. Tiempo</th><th>Ef. Prod.</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="histBody"></tbody>
+      </table>
+    </div>
+    <div id="histEmpty" class="empty-state" style="display:none">
+      <div class="ei">📋</div><p>No hay turnos registrados aún.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== CONFIG ===================== -->
+<div class="view" id="view-config">
+  <div class="section-title mb-2">⚙️ Configuración</div>
+  <div class="config-tabs">
+    <div class="config-tab active" onclick="showCfgTab('equipos')">🏭 Equipos</div>
+    <div class="config-tab" onclick="showCfgTab('operadores')">👷 Colaboradores</div>
+    <div class="config-tab" onclick="showCfgTab('referencias')">🏷️ Referencias</div>
+    <div class="config-tab" onclick="showCfgTab('nfc')">📡 NFC / Stickers</div>
+  </div>
+
+  <!-- Equipos -->
+  <div class="config-panel active" id="panel-equipos">
+    <div class="section-header mb-2">
+      <div class="text-muted">Equipos de producción de la planta</div>
+      <button class="btn btn-primary btn-sm" onclick="openCfgModal('equipo')">+ Agregar equipo</button>
+    </div>
+    <div class="card"><div class="table-wrap">
+      <table><thead><tr><th>Equipo</th><th>Tipo</th><th>Máquinas</th><th>Tag NFC</th><th></th></tr></thead>
+      <tbody id="tblEquipos"></tbody></table>
+    </div></div>
+  </div>
+
+  <!-- Operadores -->
+  <div class="config-panel" id="panel-operadores">
+    <div class="section-header mb-2">
+      <div class="text-muted">Colaboradores de la planta</div>
+      <button class="btn btn-primary btn-sm" onclick="openCfgModal('operador')">+ Agregar colaborador</button>
+    </div>
+    <div class="card"><div class="table-wrap">
+      <table><thead><tr><th>Nombre</th><th>Equipo habitual</th><th>Tag NFC</th><th></th></tr></thead>
+      <tbody id="tblOps"></tbody></table>
+    </div></div>
+  </div>
+
+  <!-- Referencias -->
+  <div class="config-panel" id="panel-referencias">
+    <div class="section-header mb-2">
+      <div class="text-muted">Catálogo de productos y referencias</div>
+      <button class="btn btn-primary btn-sm" onclick="openCfgModal('referencia')">+ Agregar referencia</button>
+    </div>
+    <div class="card"><div class="table-wrap">
+      <table><thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th>Máquina</th><th>Estándar 8h</th><th>Tag NFC</th><th></th></tr></thead>
+      <tbody id="tblRefs"></tbody></table>
+    </div></div>
+  </div>
+
+  <!-- NFC -->
+  <div class="config-panel" id="panel-nfc">
+    <div id="nfcPanelBody"></div>
+  </div>
+</div>
+
+<script>
+// ===================== DATA =====================
+const DB = {
+  get(k, d=[]) { try{ return JSON.parse(localStorage.getItem('swx_'+k))??d }catch{ return d } },
+  set(k,v) { localStorage.setItem('swx_'+k, JSON.stringify(v)) }
+};
+
+function initData(){
+  if(!DB.get('equipos').length){
+    DB.set('equipos',[
+      {id:'E1',name:'Equipo 1',type:'santoni',machines:9,nfcTag:null},
+      {id:'E2',name:'Equipo 2',type:'santoni',machines:9,nfcTag:null},
+      {id:'E3',name:'Equipo 3',type:'santoni',machines:9,nfcTag:null},
+      {id:'E4',name:'Equipo 4',type:'santoni',machines:9,nfcTag:null},
+      {id:'E5',name:'Equipo 5',type:'santoni',machines:8,nfcTag:null},
+      {id:'E6',name:'Equipo 6',type:'lonati',machines:16,nfcTag:null},
+      {id:'E7',name:'Equipo 7',type:'lonati',machines:16,nfcTag:null},
+      {id:'E8',name:'Equipo 8',type:'lonati',machines:16,nfcTag:null},
+    ]);
+  }
+  if(!DB.get('operadores').length){
+    DB.set('operadores',[
+      {id:'O1',name:'Operario 1',teamId:'E1',nfcTag:null},
+      {id:'O2',name:'Operario 2',teamId:'E2',nfcTag:null},
+    ]);
+  }
+  if(!DB.get('referencias').length){
+    DB.set('referencias',[
+      {id:'R1',code:'SEA-001',name:'Short Seamless Básico',category:'shapewear',machineType:'santoni',std8h:0,nfcTag:null},
+      {id:'R2',code:'SEA-002',name:'Licra Deportiva',category:'sportswear',machineType:'santoni',std8h:0,nfcTag:null},
+      {id:'R3',code:'LON-001',name:'Media Clásica',category:'calcetería',machineType:'lonati',std8h:0,nfcTag:null},
+    ]);
+  }
+}
+
+// ===================== STATE =====================
+let currentParos = [];
+let cfgModalType = '';
+let cfgEditId = null;
+let nfcTarget = null;
+let nfcAbort = null;
+
+// ===================== NAV =====================
+const VIEWS = ['dashboard','registro','historial','config'];
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.nav-tab')[VIEWS.indexOf(name)].classList.add('active');
+  if(name==='dashboard') renderDashboard();
+  if(name==='registro') initRegistro();
+  if(name==='historial') renderHistorial();
+  if(name==='config') renderConfig();
+}
+
+// ===================== DASHBOARD =====================
+function renderDashboard(){
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('dashDate').textContent = fmtDate(today);
+  const turnos=DB.get('turnos'), equipos=DB.get('equipos'), refs=DB.get('referencias');
+  const hoy = turnos.filter(t=>t.fecha===today);
+  const totalU = hoy.reduce((s,t)=>s+(t.unidades||0),0);
+  const totalP = hoy.reduce((s,t)=>s+sumaParos(t.paros),0);
+  const avgE = hoy.length ? Math.round(hoy.reduce((s,t)=>s+effT(t),0)/hoy.length) : 0;
+
+  document.getElementById('statCards').innerHTML = `
+    <div class="card"><div class="stat-label">Turnos hoy</div><div class="stat-value" style="color:var(--blue)">${hoy.length}</div><div class="stat-sub">de ${equipos.length*2}–${equipos.length*3} posibles</div></div>
+    <div class="card"><div class="stat-label">Unidades hoy</div><div class="stat-value" style="color:var(--purple)">${totalU.toLocaleString('es-CO')}</div><div class="stat-sub">suma todos los equipos</div></div>
+    <div class="card"><div class="stat-label">Ef. tiempo promedio</div><div class="stat-value" style="color:${effColor(avgE)}">${avgE}%</div><div class="stat-sub">${hoy.length?'promedio turnos hoy':'sin datos hoy'}</div></div>
+    <div class="card"><div class="stat-label">Min. paros hoy</div><div class="stat-value" style="color:var(--amber)">${totalP}</div><div class="stat-sub">${(totalP/60).toFixed(1)}h acumuladas</div></div>
+  `;
+
+  const teamData = equipos.map(eq=>{
+    const eqT = hoy.filter(t=>t.equipoId===eq.id);
+    const eff = eqT.length ? Math.round(eqT.reduce((s,t)=>s+effT(t),0)/eqT.length) : null;
+    const u = eqT.reduce((s,t)=>s+(t.unidades||0),0);
+    return {eq,eff,u,n:eqT.length};
+  });
+  document.getElementById('teamEff').innerHTML = teamData.map(({eq,eff,u,n})=>`
+    <div style="margin-bottom:.9rem">
+      <div class="flex justify-between items-center" style="margin-bottom:.3rem">
+        <span style="font-size:.85rem;font-weight:600">${eq.name} <span class="badge ${eq.type==='santoni'?'badge-purple':'badge-teal'}">${eq.type}</span></span>
+        <span style="font-size:.75rem;color:var(--gray)">${n} turno(s) · ${u.toLocaleString('es-CO')} u</span>
+      </div>
+      ${eff!==null?`<div class="eff-wrap"><div class="eff-bar"><div class="eff-fill ${effClass(eff)}" style="width:${eff}%"></div></div><span class="eff-lbl" style="color:${effColor(eff)}">${eff}%</span></div>`:
+      '<div style="font-size:.78rem;color:var(--gray);font-style:italic">Sin registro hoy</div>'}
+    </div>`).join('');
+
+  const recent=[...turnos].sort((a,b)=>b.createdAt-a.createdAt).slice(0,7);
+  document.getElementById('recentShifts').innerHTML = recent.length ? recent.map(t=>{
+    const eq=equipos.find(e=>e.id===t.equipoId);
+    const e=effT(t);
+    return `<div class="flex justify-between items-center" style="padding:.4rem 0;border-bottom:1px solid var(--border)">
+      <div><div style="font-size:.85rem;font-weight:600">${eq?.name||'—'}</div><div style="font-size:.75rem;color:var(--gray)">${fmtDate(t.fecha)} · ${t.turno}</div></div>
+      <div style="text-align:right"><div style="font-size:.9rem;font-weight:700;color:${effColor(e)}">${e}%</div><div style="font-size:.75rem;color:var(--gray)">${(t.unidades||0).toLocaleString('es-CO')} u</div></div>
+    </div>`;
+  }).join('') : '<div class="text-muted text-center" style="padding:1rem 0;font-size:.85rem">Sin turnos registrados</div>';
+}
+
+// ===================== REGISTRO =====================
+function initRegistro(){
+  document.getElementById('regFecha').value = new Date().toISOString().split('T')[0];
+  currentParos = [];
+  renderParos();
+  updateEffPreview();
+
+  const equipos=DB.get('equipos'), ops=DB.get('operadores'), refs=DB.get('referencias');
+  fillSel('regEquipo', equipos, e=>`<option value="${e.id}">${e.name} — ${e.type} (${e.machines} máq)</option>`);
+  fillSel('regOp', ops, o=>`<option value="${o.id}">${o.name}</option>`);
+  fillSel('regRef', refs, r=>`<option value="${r.id}">${r.code} — ${r.name}</option>`);
+
+  const nfcOk = 'NDEFReader' in window;
+  document.getElementById('nfcAlert').innerHTML = nfcOk
+    ? `<div class="alert alert-success">📡 <strong>NFC activo.</strong> Presione el botón 📡 NFC junto a cada campo y acerque el sticker al lector para llenarlo automáticamente.</div>`
+    : `<div class="alert alert-warning">⚠️ <strong>NFC no disponible en este dispositivo.</strong> Diligencie manualmente, o abra esta app en Chrome para Android con NFC habilitado para usar los stickers.</div>`;
+  document.querySelectorAll('.btn-nfc').forEach(b=>b.style.display=nfcOk?'':'none');
+}
+
+function onEquipoChange(){
+  const eq=DB.get('equipos').find(e=>e.id===document.getElementById('regEquipo').value);
+  if(eq) document.getElementById('regMaq').placeholder=`Activas (máx ${eq.machines})`;
+  updateEffPreview();
+}
+
+function openParo(){ document.getElementById('paroMotivo').value='';document.getElementById('paroDur').value='';document.getElementById('paroOtroTxt').value='';document.getElementById('paroOtroGrp').style.display='none';document.getElementById('modalParo').classList.add('open'); }
+function closeParo(){ document.getElementById('modalParo').classList.remove('open'); }
+
+function addParo(){
+  let motivo=document.getElementById('paroMotivo').value;
+  const dur=parseInt(document.getElementById('paroDur').value);
+  if(motivo==='Otro') motivo=document.getElementById('paroOtroTxt').value||'Otro';
+  if(!motivo){ showToast('⚠️ Seleccione un motivo'); return; }
+  if(!dur||dur<1){ showToast('⚠️ Ingrese la duración en minutos'); return; }
+  currentParos.push({id:Date.now(),motivo,dur});
+  closeParo(); renderParos(); updateEffPreview();
+}
+
+function deleteParo(id){ currentParos=currentParos.filter(p=>p.id!==id); renderParos(); updateEffPreview(); }
+
+function renderParos(){
+  const total=sumaParos(currentParos);
+  document.getElementById('paroList').innerHTML = currentParos.length
+    ? currentParos.map(p=>`<div class="paro-item"><span class="paro-reason">${p.motivo}</span><span class="paro-dur">⏱ ${p.dur} min</span><button class="paro-del" onclick="deleteParo(${p.id})">✕</button></div>`).join('')
+    : '<div class="text-muted text-center" style="padding:.6rem 0;font-size:.8rem">Sin paros registrados</div>';
+  document.getElementById('paroSummary').innerHTML=`Total paros: <strong>${total} min</strong> (${(total/60).toFixed(1)}h)`;
+}
+
+function updateEffPreview(){
+  const turno=document.getElementById('regTurno').value;
+  const u=parseInt(document.getElementById('regUnidades').value)||0;
+  const p=sumaParos(currentParos);
+  if(!turno){ document.getElementById('effPreview').style.display='none'; return; }
+  const dur=turno.includes('12')?720:480;
+  const eT=Math.max(0,Math.round((dur-p)/dur*100));
+  const refId=document.getElementById('regRef').value;
+  const ref=DB.get('referencias').find(r=>r.id===refId);
+  const std=ref?.std8h?(turno.includes('12')?ref.std8h*1.5:ref.std8h):0;
+  const eP=std&&u?Math.round(u/std*100):null;
+  document.getElementById('effPreview').style.display='block';
+  document.getElementById('effPreviewBody').innerHTML=`
+    <div style="margin-bottom:.6rem">
+      <div style="font-size:.8rem;color:var(--gray);margin-bottom:.3rem">⏱ Eficiencia de Tiempo</div>
+      <div class="eff-wrap"><div class="eff-bar"><div class="eff-fill ${effClass(eT)}" style="width:${Math.min(eT,100)}%"></div></div><span class="eff-lbl" style="color:${effColor(eT)}">${eT}%</span></div>
+      <div style="font-size:.75rem;color:var(--gray);margin-top:.2rem">${dur-p} min productivos de ${dur} disponibles</div>
+    </div>
+    ${eP!==null?`<div><div style="font-size:.8rem;color:var(--gray);margin-bottom:.3rem">📦 Eficiencia de Producción</div><div class="eff-wrap"><div class="eff-bar"><div class="eff-fill ${effClass(eP)}" style="width:${Math.min(eP,100)}%"></div></div><span class="eff-lbl" style="color:${effColor(eP)}">${eP}%</span></div><div style="font-size:.75rem;color:var(--gray);margin-top:.2rem">${u.toLocaleString('es-CO')} u producidas / ${std} estándar</div></div>`:
+    '<div style="font-size:.75rem;color:var(--gray);font-style:italic">⬆ Configure un estándar en la referencia para ver eficiencia de producción</div>'}
+  `;
+}
+
+function guardarTurno(){
+  const fecha=document.getElementById('regFecha').value;
+  const equipoId=document.getElementById('regEquipo').value;
+  const operadorId=document.getElementById('regOp').value;
+  const turno=document.getElementById('regTurno').value;
+  const referenciaId=document.getElementById('regRef').value;
+  const unidades=parseInt(document.getElementById('regUnidades').value)||0;
+  const maquinas=parseInt(document.getElementById('regMaq').value)||0;
+  const observaciones=document.getElementById('regObs').value.trim();
+  if(!fecha||!equipoId||!operadorId||!turno){ showToast('⚠️ Complete fecha, equipo, colaborador y turno'); return; }
+  const t={id:Date.now().toString(),fecha,equipoId,operadorId,turno,referenciaId,unidades,maquinas,observaciones,paros:[...currentParos],createdAt:Date.now()};
+  const all=DB.get('turnos'); all.push(t); DB.set('turnos',all);
+  ['regEquipo','regOp','regTurno','regRef','regUnidades','regMaq','regObs'].forEach(id=>{const el=document.getElementById(id);el.value='';});
+  currentParos=[]; renderParos(); updateEffPreview();
+  document.getElementById('regFecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('effPreview').style.display='none';
+  showToast('✅ Turno guardado correctamente');
+}
+
+// ===================== HISTORIAL =====================
+function renderHistorial(){
+  const equipos=DB.get('equipos'), ops=DB.get('operadores'), refs=DB.get('referencias');
+  const fe=document.getElementById('filtEq');
+  if(fe.options.length<=1) equipos.forEach(e=>{ const o=document.createElement('option'); o.value=e.id; o.textContent=e.name; fe.appendChild(o); });
+  const eqF=fe.value, dtF=document.getElementById('filtFecha').value;
+  let filtered=[...DB.get('turnos')].sort((a,b)=>b.createdAt-a.createdAt);
+  if(eqF) filtered=filtered.filter(t=>t.equipoId===eqF);
+  if(dtF) filtered=filtered.filter(t=>t.fecha===dtF);
+  const body=document.getElementById('histBody'), empty=document.getElementById('histEmpty');
+  if(!filtered.length){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  const cats={shapewear:'badge-purple',sportswear:'badge-teal','calcetería':'badge-amber','ropa interior':'badge-blue',pantyhose:'badge-gray'};
+  body.innerHTML=filtered.map(t=>{
+    const eq=equipos.find(e=>e.id===t.equipoId);
+    const op=ops.find(o=>o.id===t.operadorId);
+    const ref=refs.find(r=>r.id===t.referenciaId);
+    const pm=sumaParos(t.paros), eT=effT(t), eP=effP(t,refs);
+    return `<tr>
+      <td style="white-space:nowrap">${fmtDate(t.fecha)}</td>
+      <td><strong>${eq?.name||'—'}</strong><br><span class="badge ${eq?.type==='santoni'?'badge-purple':'badge-teal'}">${eq?.type||''}</span></td>
+      <td>${op?.name||'—'}</td>
+      <td style="white-space:nowrap">${t.turno||'—'}</td>
+      <td>${ref?`<span style="font-size:.78rem"><strong>${ref.code}</strong><br>${ref.name}</span>`:'—'}</td>
+      <td><strong>${(t.unidades||0).toLocaleString('es-CO')}</strong></td>
+      <td>${pm}</td>
+      <td><span style="font-weight:700;color:${effColor(eT)}">${eT}%</span></td>
+      <td>${eP!==null?`<span style="font-weight:700;color:${effColor(eP)}">${eP}%</span>`:'<span style="color:var(--gray);font-size:.78rem">Sin estándar</span>'}</td>
+      <td><button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="delTurno('${t.id}')">🗑</button></td>
+    </tr>`;
+  }).join('');
+}
+function delTurno(id){ if(!confirm('¿Eliminar este turno?')) return; DB.set('turnos',DB.get('turnos').filter(t=>t.id!==id)); renderHistorial(); }
+function clearFiltros(){ document.getElementById('filtEq').value=''; document.getElementById('filtFecha').value=''; renderHistorial(); }
+
+// ===================== CONFIG =====================
+function showCfgTab(tab){
+  document.querySelectorAll('.config-tab').forEach((t,i)=>t.classList.toggle('active',['equipos','operadores','referencias','nfc'][i]===tab));
+  document.querySelectorAll('.config-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  if(tab==='nfc') renderNfcPanel();
+}
+function renderConfig(){ renderTblEquipos(); renderTblOps(); renderTblRefs(); }
+
+function renderTblEquipos(){
+  const eq=DB.get('equipos');
+  document.getElementById('tblEquipos').innerHTML=eq.map(e=>`
+    <tr><td><strong>${e.name}</strong></td>
+    <td><span class="badge ${e.type==='santoni'?'badge-purple':'badge-teal'}">${e.type}</span></td>
+    <td>${e.machines}</td>
+    <td>${e.nfcTag?`<code class="tag">${e.nfcTag.substring(0,20)}…</code>`:'<span style="color:var(--gray);font-size:.8rem">Sin asignar</span>'}</td>
+    <td class="flex gap-1"><button class="btn btn-outline btn-sm" onclick="openCfgModal('equipo','${e.id}')">✏️</button><button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="delCfg('equipo','${e.id}')">🗑</button></td>
+    </tr>`).join('')||'<tr><td colspan="5" class="text-muted text-center">Sin equipos</td></tr>';
+}
+function renderTblOps(){
+  const ops=DB.get('operadores'),eqs=DB.get('equipos');
+  document.getElementById('tblOps').innerHTML=ops.map(o=>{
+    const eq=eqs.find(e=>e.id===o.teamId);
+    return `<tr><td><strong>${o.name}</strong></td><td>${eq?.name||'—'}</td>
+    <td>${o.nfcTag?`<code class="tag">${o.nfcTag.substring(0,20)}…</code>`:'<span style="color:var(--gray);font-size:.8rem">Sin asignar</span>'}</td>
+    <td class="flex gap-1"><button class="btn btn-outline btn-sm" onclick="openCfgModal('operador','${o.id}')">✏️</button><button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="delCfg('operador','${o.id}')">🗑</button></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="4" class="text-muted text-center">Sin colaboradores</td></tr>';
+}
+function renderTblRefs(){
+  const refs=DB.get('referencias');
+  const cats={shapewear:'badge-purple',sportswear:'badge-teal','calcetería':'badge-amber','ropa interior':'badge-blue',pantyhose:'badge-gray'};
+  document.getElementById('tblRefs').innerHTML=refs.map(r=>`
+    <tr><td><code class="tag">${r.code}</code></td><td>${r.name}</td>
+    <td><span class="badge ${cats[r.category]||'badge-gray'}">${r.category}</span></td>
+    <td><span class="badge ${r.machineType==='santoni'?'badge-purple':'badge-teal'}">${r.machineType}</span></td>
+    <td>${r.std8h?`<strong>${r.std8h}</strong> u`:'<span style="color:var(--gray);font-size:.8rem">Sin definir</span>'}</td>
+    <td>${r.nfcTag?`<code class="tag">${r.nfcTag.substring(0,20)}…</code>`:'<span style="color:var(--gray);font-size:.8rem">Sin asignar</span>'}</td>
+    <td class="flex gap-1"><button class="btn btn-outline btn-sm" onclick="openCfgModal('referencia','${r.id}')">✏️</button><button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="delCfg('referencia','${r.id}')">🗑</button></td>
+    </tr>`).join('')||'<tr><td colspan="7" class="text-muted text-center">Sin referencias</td></tr>';
+}
+
+function renderNfcPanel(){
+  const nfcOk='NDEFReader' in window;
+  const equipos=DB.get('equipos'),ops=DB.get('operadores'),refs=DB.get('referencias');
+  document.getElementById('nfcPanelBody').innerHTML=`
+    ${!nfcOk?`<div class="alert alert-warning">⚠️ <strong>Web NFC no disponible en este dispositivo.</strong><br>
+      Requiere: Chrome en Android 89+ con NFC habilitado en el teléfono/tablet.<br>
+      <strong>Alternativa manual:</strong> use la app <em>NFC Tools</em> (Android/iOS) para escribir el JSON que aparece en cada botón 📋 en los stickers en blanco.</div>`:
+    `<div class="alert alert-success">✅ Web NFC disponible. Puede grabar etiquetas directamente desde esta pantalla.</div>`}
+    <div class="alert alert-info">
+      📋 <strong>¿Cómo funcionan los stickers?</strong> Cada NFC guarda un texto JSON. Al escanearlo en el Registro de Turno, el campo correspondiente se llena solo.<br>
+      <strong>Formato equipo:</strong> <code style="font-size:.8rem">{"type":"equipo","id":"E1"}</code> &nbsp;·&nbsp;
+      <strong>Operario:</strong> <code style="font-size:.8rem">{"type":"operador","id":"O1"}</code> &nbsp;·&nbsp;
+      <strong>Referencia:</strong> <code style="font-size:.8rem">{"type":"referencia","id":"R1"}</code>
+    </div>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title">🏭 Stickers de Equipos</div>
+        ${equipos.map(e=>`
+          <div class="flex justify-between items-center" style="margin-bottom:.65rem;padding-bottom:.65rem;border-bottom:1px solid var(--border)">
+            <div><div style="font-size:.85rem;font-weight:600">${e.name}</div><div style="font-size:.72rem;color:var(--gray)">ID: ${e.id} · ${e.machines} máq</div></div>
+            <div class="flex gap-1">
+              ${nfcOk?`<button class="btn btn-outline btn-sm" onclick="writeNfc('equipo','${e.id}')">✍️</button>`:''}
+              <button class="btn btn-outline btn-sm" onclick="showJson('equipo','${e.id}')">📋</button>
+            </div>
+          </div>`).join('')}
+      </div>
+      <div class="card">
+        <div class="card-title">👷 Stickers de Colaboradores</div>
+        ${ops.map(o=>`
+          <div class="flex justify-between items-center" style="margin-bottom:.65rem;padding-bottom:.65rem;border-bottom:1px solid var(--border)">
+            <div><div style="font-size:.85rem;font-weight:600">${o.name}</div><div style="font-size:.72rem;color:var(--gray)">ID: ${o.id}</div></div>
+            <div class="flex gap-1">
+              ${nfcOk?`<button class="btn btn-outline btn-sm" onclick="writeNfc('operador','${o.id}')">✍️</button>`:''}
+              <button class="btn btn-outline btn-sm" onclick="showJson('operador','${o.id}')">📋</button>
+            </div>
+          </div>`).join('')}
+      </div>
+      <div class="card">
+        <div class="card-title">🏷️ Stickers de Referencias</div>
+        ${refs.map(r=>`
+          <div class="flex justify-between items-center" style="margin-bottom:.65rem;padding-bottom:.65rem;border-bottom:1px solid var(--border)">
+            <div><div style="font-size:.85rem;font-weight:600">${r.code}</div><div style="font-size:.72rem;color:var(--gray)">${r.name}</div></div>
+            <div class="flex gap-1">
+              ${nfcOk?`<button class="btn btn-outline btn-sm" onclick="writeNfc('referencia','${r.id}')">✍️</button>`:''}
+              <button class="btn btn-outline btn-sm" onclick="showJson('referencia','${r.id}')">📋</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="card mt-2">
+      <div class="card-title">📌 Guía de implementación</div>
+      <div style="font-size:.875rem;line-height:1.75;color:#374151">
+        <strong>1. Equipos/Zonas:</strong> Pegar sticker en lugar visible de la zona del equipo o en el computador central de ese equipo.<br>
+        <strong>2. Colaboradores:</strong> Sticker en el carné o casco del operario (o tarjeta física).<br>
+        <strong>3. Referencias:</strong> Sticker en la orden de producción impresa o en la bobina/carro de hilo.<br>
+        <strong>4. Para grabar:</strong> Desde Chrome Android, presionar ✍️ y acercar el sticker en blanco. O usar <em>NFC Tools</em> con el JSON del botón 📋.<br>
+        <strong>5. Stickers recomendados:</strong> NTAG213 o NTAG215 (disponibles en Amazon/MercadoLibre desde $500 COP c/u).
+      </div>
+    </div>`;
+}
+
+function showJson(type,id){
+  const j=JSON.stringify({type,id});
+  const nombres={equipo:'Equipo',operador:'Colaborador',referencia:'Referencia'};
+  document.getElementById('copyModalTitle').textContent='Sticker '+nombres[type]+': '+id;
+  document.getElementById('copyModalJson').value=j;
+  document.getElementById('copyModal').classList.add('open');
+  setTimeout(()=>{ const el=document.getElementById('copyModalJson'); el.focus(); el.select(); },150);
+}
+function closeCopyModal(){ document.getElementById('copyModal').classList.remove('open'); }
+function copyJson(){
+  const el=document.getElementById('copyModalJson');
+  el.select();
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(el.value).then(()=>{ showToast('\u2705 Copiado al portapapeles'); closeCopyModal(); }).catch(()=>{ document.execCommand('copy'); showToast('\u2705 Copiado'); closeCopyModal(); });
+    } else { document.execCommand('copy'); showToast('\u2705 Copiado'); closeCopyModal(); }
+  }catch(e){ document.execCommand('copy'); showToast('\u2705 Copiado'); closeCopyModal(); }
+}
+
+// ===================== CONFIG MODAL =====================
+const cfgForms={
+  equipo:(item)=>`
+    <div class="form-group"><label class="form-label">ID del Equipo</label><input class="form-control" id="cf_id" value="${item?.id||''}" placeholder="Ej: E1" ${item?'readonly':''}></div>
+    <div class="form-group"><label class="form-label">Nombre</label><input class="form-control" id="cf_name" value="${item?.name||''}" placeholder="Equipo 1"></div>
+    <div class="form-group"><label class="form-label">Tipo de máquina</label><select class="form-control" id="cf_type"><option value="santoni" ${item?.type==='santoni'?'selected':''}>Santoni Seamless</option><option value="lonati" ${item?.type==='lonati'?'selected':''}>Lonati Calcetería/Medias</option></select></div>
+    <div class="form-group"><label class="form-label">Número de máquinas</label><input type="number" class="form-control" id="cf_machines" value="${item?.machines||''}" min="1"></div>`,
+  operador:(item)=>{
+    const eqs=DB.get('equipos');
+    return `<div class="form-group"><label class="form-label">ID</label><input class="form-control" id="cf_id" value="${item?.id||''}" placeholder="Ej: O1" ${item?'readonly':''}></div>
+    <div class="form-group"><label class="form-label">Nombre completo</label><input class="form-control" id="cf_name" value="${item?.name||''}" placeholder="Nombre Apellido"></div>
+    <div class="form-group"><label class="form-label">Equipo habitual</label><select class="form-control" id="cf_teamId"><option value="">Sin equipo fijo</option>${eqs.map(e=>`<option value="${e.id}" ${item?.teamId===e.id?'selected':''}>${e.name}</option>`).join('')}</select></div>`;
+  },
+  referencia:(item)=>`
+    <div class="form-group"><label class="form-label">ID</label><input class="form-control" id="cf_id" value="${item?.id||''}" placeholder="Ej: R1" ${item?'readonly':''}></div>
+    <div class="form-group"><label class="form-label">Código</label><input class="form-control" id="cf_code" value="${item?.code||''}" placeholder="Ej: SEA-001"></div>
+    <div class="form-group"><label class="form-label">Nombre del producto</label><input class="form-control" id="cf_name" value="${item?.name||''}" placeholder="Short Seamless Básico"></div>
+    <div class="form-group"><label class="form-label">Categoría</label><select class="form-control" id="cf_cat">${['shapewear','sportswear','ropa interior','calcetería','pantyhose','otro'].map(c=>`<option ${item?.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="form-group"><label class="form-label">Tipo de máquina</label><select class="form-control" id="cf_mtype"><option value="santoni" ${item?.machineType==='santoni'?'selected':''}>Santoni</option><option value="lonati" ${item?.machineType==='lonati'?'selected':''}>Lonati</option></select></div>
+    <div class="form-group"><label class="form-label">Estándar de producción (unidades / turno 8h)</label><input type="number" class="form-control" id="cf_std" value="${item?.std8h||''}" placeholder="0 = sin definir"><div class="text-muted mt-1" style="font-size:.78rem">Déjelo en 0 si aún no lo tiene. Permite calcular eficiencia de producción.</div></div>`,
+};
+
+function openCfgModal(type, id=null){
+  cfgModalType=type; cfgEditId=id;
+  const t={equipo:'Equipo',operador:'Colaborador',referencia:'Referencia'};
+  document.getElementById('modalCfgTitle').textContent=(id?'✏️ Editar':'➕ Agregar')+' '+t[type];
+  let item=null;
+  if(id){ const k=type==='equipo'?'equipos':type==='operador'?'operadores':'referencias'; item=DB.get(k).find(i=>i.id===id); }
+  document.getElementById('modalCfgBody').innerHTML=cfgForms[type](item);
+  document.getElementById('modalCfg').classList.add('open');
+}
+function closeCfgModal(){ document.getElementById('modalCfg').classList.remove('open'); }
+
+function saveCfgItem(){
+  const k=cfgModalType==='equipo'?'equipos':cfgModalType==='operador'?'operadores':'referencias';
+  const items=DB.get(k);
+  const id=document.getElementById('cf_id')?.value?.trim();
+  if(!id){ showToast('⚠️ El ID es obligatorio'); return; }
+  let item={};
+  if(cfgModalType==='equipo') item={id,name:document.getElementById('cf_name').value.trim(),type:document.getElementById('cf_type').value,machines:parseInt(document.getElementById('cf_machines').value)||0,nfcTag:null};
+  else if(cfgModalType==='operador') item={id,name:document.getElementById('cf_name').value.trim(),teamId:document.getElementById('cf_teamId').value,nfcTag:null};
+  else item={id,code:document.getElementById('cf_code').value.trim(),name:document.getElementById('cf_name').value.trim(),category:document.getElementById('cf_cat').value,machineType:document.getElementById('cf_mtype').value,std8h:parseInt(document.getElementById('cf_std').value)||0,nfcTag:null};
+  if(cfgEditId){ const idx=items.findIndex(i=>i.id===id); if(idx>=0){ item.nfcTag=items[idx].nfcTag; items[idx]={...items[idx],...item}; } }
+  else{ if(items.find(i=>i.id===id)){ showToast('⚠️ Ya existe un elemento con ese ID'); return; } items.push(item); }
+  DB.set(k,items); closeCfgModal(); renderTblEquipos(); renderTblOps(); renderTblRefs(); showToast('✅ Guardado');
+}
+function delCfg(type,id){ if(!confirm('¿Eliminar?')) return; const k=type==='equipo'?'equipos':type==='operador'?'operadores':'referencias'; DB.set(k,DB.get(k).filter(i=>i.id!==id)); renderTblEquipos(); renderTblOps(); renderTblRefs(); showToast('🗑 Eliminado'); }
+
+// ===================== NFC =====================
+async function startNfc(target){
+  if(!('NDEFReader' in window)){ showToast('⚠️ NFC no disponible'); return; }
+  nfcTarget=target;
+  const T={equipo:'Escanear Equipo',operador:'Escanear Colaborador',referencia:'Escanear Referencia'};
+  const S={equipo:'Acerque el sticker NFC del equipo o zona',operador:'Acerque la tarjeta o sticker del colaborador',referencia:'Acerque la etiqueta NFC de la referencia u orden'};
+  document.getElementById('scanTitle').textContent=T[target];
+  document.getElementById('scanSubtitle').textContent=S[target];
+  document.getElementById('scanOverlay').classList.add('open');
+  nfcAbort=new AbortController();
+  try{
+    const r=new NDEFReader();
+    await r.scan({signal:nfcAbort.signal});
+    r.onreading=({message})=>{
+      for(const rec of message.records){
+        if(rec.recordType==='text'){
+          const txt=new TextDecoder().decode(rec.data);
+          try{ handleNfcData(JSON.parse(txt)); return; }catch{}
+        }
+      }
+      showToast('⚠️ Etiqueta no reconocida'); cancelScan();
+    };
+  }catch(err){
+    cancelScan();
+    if(err.name==='AbortError') return;
+    const m=err.message||'';
+    if(m.includes('permission')||m.includes('denied')||m.includes('secure')){
+      document.getElementById('nfcAlert').innerHTML=`<div class="alert alert-warning">
+        🔒 <strong>Chrome necesita abrirse desde localhost para usar NFC.</strong><br><br>
+        <strong>Solución rápida:</strong><br>
+        1. Instale <strong>kWS - Android Web Server</strong> (Play Store, gratis)<br>
+        2. En kWS: seleccione carpeta <strong>Downloads</strong> → presione <strong>Start</strong><br>
+        3. En Chrome vaya a: <code style="background:#1e293b;color:#60a5fa;padding:.1rem .4rem;border-radius:4px">http://127.0.0.1:8080/swantex_produccion_nfc.html</code><br>
+        4. Desde esa dirección el NFC funciona correctamente ✅
+      </div>`;
+    } else {
+      showToast('❌ Error NFC: '+m);
+    }
+  }
+}
+
+function handleNfcData({type,id}){
+  cancelScan();
+  if(!type||!id){ showToast('⚠️ Formato de etiqueta inválido'); return; }
+  if(nfcTarget==='equipo'&&type==='equipo'){
+    const el=document.getElementById('regEquipo'); el.value=id; el.dispatchEvent(new Event('change')); onEquipoChange();
+    document.getElementById('btnNfcEq').classList.add('ok'); setTimeout(()=>document.getElementById('btnNfcEq').classList.remove('ok'),2000);
+    showToast('✅ Equipo: '+id);
+  } else if(nfcTarget==='operador'&&type==='operador'){
+    document.getElementById('regOp').value=id;
+    document.getElementById('btnNfcOp').classList.add('ok'); setTimeout(()=>document.getElementById('btnNfcOp').classList.remove('ok'),2000);
+    showToast('✅ Colaborador: '+id);
+  } else if(nfcTarget==='referencia'&&type==='referencia'){
+    document.getElementById('regRef').value=id; updateEffPreview();
+    document.getElementById('btnNfcRef').classList.add('ok'); setTimeout(()=>document.getElementById('btnNfcRef').classList.remove('ok'),2000);
+    showToast('✅ Referencia: '+id);
+  } else { showToast('⚠️ Este sticker no corresponde al campo escaneado'); }
+}
+
+function cancelScan(){ document.getElementById('scanOverlay').classList.remove('open'); if(nfcAbort){ nfcAbort.abort(); nfcAbort=null; } }
+
+async function writeNfc(type,id){
+  if(!('NDEFReader' in window)) return;
+  const json=JSON.stringify({type,id});
+  const nombres={equipo:'Equipo',operador:'Colaborador',referencia:'Referencia'};
+
+  // Mostrar overlay ANTES de iniciar la escritura
+  document.getElementById('writeOverlayLabel').textContent = nombres[type]+': '+id;
+  document.getElementById('writeOverlayJson').textContent = json;
+  document.getElementById('writeOverlay').classList.add('open');
+
+  // Pausa: darle tiempo al navegador para pintar el overlay antes de llamar NFC
+  await new Promise(r => setTimeout(r, 200));
+
+  const abortCtrl = new AbortController();
+  document.getElementById('btnCancelWrite').onclick = ()=>{ abortCtrl.abort(); closeWriteOverlay(); };
+
+  try{
+    const w = new NDEFReader();
+    // write() se llama ANTES de que el usuario acerque el sticker
+    // Chrome queda en modo escritura activo — Android no puede interceptar
+    await w.write(
+      { records:[{ recordType:'text', data:json }] },
+      { signal: abortCtrl.signal }
+    );
+    closeWriteOverlay();
+    const k=type==='equipo'?'equipos':type==='operador'?'operadores':'referencias';
+    const items=DB.get(k), item=items.find(i=>i.id===id);
+    if(item){ item.nfcTag=json; DB.set(k,items); }
+    showToast('✅ Sticker grabado correctamente'); renderNfcPanel();
+  }catch(err){
+    closeWriteOverlay();
+    if(err.name!=='AbortError'){
+      const msg = err.message || err.name || 'Error desconocido';
+      showToast('❌ '+msg);
+      alert('Error al grabar sticker NFC:\n\n'+msg+'\n\nVerifique que:\n1. Chrome tiene permiso de NFC\n2. El sticker NFC es compatible (NTAG213 o superior)');
+    }
+  }
+}
+function closeWriteOverlay(){ document.getElementById('writeOverlay').classList.remove('open'); }
+
+// ===================== EXPORT =====================
+function exportCSV(){
+  const turnos=DB.get('turnos'),eqs=DB.get('equipos'),ops=DB.get('operadores'),refs=DB.get('referencias');
+  const rows=[['Fecha','Equipo','Tipo Máquina','Colaborador','Turno','Código Ref','Producto','Unidades','Máquinas Activas','Paros (min)','Ef. Tiempo %','Ef. Producción %','Observaciones']];
+  turnos.sort((a,b)=>b.createdAt-a.createdAt).forEach(t=>{
+    const eq=eqs.find(e=>e.id===t.equipoId),op=ops.find(o=>o.id===t.operadorId),ref=refs.find(r=>r.id===t.referenciaId);
+    rows.push([t.fecha,eq?.name||'',eq?.type||'',op?.name||'',t.turno||'',ref?.code||'',ref?.name||'',t.unidades||0,t.maquinas||0,sumaParos(t.paros),effT(t),effP(t,refs)??'',t.observaciones||'']);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`swantex_produccion_${new Date().toISOString().split('T')[0]}.csv`; a.click();
+}
+
+// ===================== HELPERS =====================
+function sumaParos(p=[]){ return p.reduce((s,x)=>s+(x.dur||0),0); }
+function effT(t){ const d=t.turno?.includes('12')?720:480; return Math.max(0,Math.round((d-sumaParos(t.paros))/d*100)); }
+function effP(t,refs){ const ref=refs.find(r=>r.id===t.referenciaId); if(!ref||!ref.std8h||!t.unidades) return null; const s=t.turno?.includes('12')?ref.std8h*1.5:ref.std8h; return Math.round(t.unidades/s*100); }
+function effColor(v){ return v>=85?'var(--green)':v>=65?'var(--amber)':'var(--red)'; }
+function effClass(v){ return v>=85?'eff-good':v>=65?'eff-ok':'eff-low'; }
+function fmtDate(d){ if(!d) return '—'; const [y,m,day]=d.split('-'); return `${parseInt(day)} ${'ene,feb,mar,abr,may,jun,jul,ago,sep,oct,nov,dic'.split(',')[parseInt(m)-1]} ${y}`; }
+function fillSel(id,arr,fn){ const el=document.getElementById(id); el.innerHTML='<option value="">Seleccionar...</option>'+arr.map(fn).join(''); }
+
+let toastT;
+function showToast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),3200); }
+
+// ===================== INIT =====================
+initData();
+document.getElementById('dashDate').textContent=fmtDate(new Date().toISOString().split('T')[0]);
+renderDashboard();
+</script>
+</body>
+</html>
