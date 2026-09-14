@@ -453,7 +453,7 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
           <th>Fecha</th><th>Hora</th><th>Equipo</th><th>Maquina</th><th>Modelo</th>
           <th>Operario</th><th>Turno</th><th>Item</th><th>Nombre</th><th>Talla</th>
           <th>Ctr.Ini</th><th>Ctr.Fin</th><th>Tubos</th><th>Lot.Plan</th>
-          <th>Dur(m)</th><th>Paros</th><th>Std(m)</th><th>Ef%</th><th></th>
+          <th>Dur(m)</th><th>Paros</th><th>Std(m)</th><th>Ef%</th><th>Sync</th><th></th>
         </tr></thead>
         <tbody id="h-body"></tbody>
       </table>
@@ -470,6 +470,7 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
     <div class="ctab" onclick="cfgTab('ops')">Operarios</div>
     <div class="ctab" onclick="cfgTab('refs')">Referencias (1039)</div>
     <div class="ctab" onclick="cfgTab('nfc')">NFC</div>
+    <div class="ctab" onclick="cfgTab('nube')">Nube</div>
   </div>
   <div class="cpanel on" id="cp-maqs">
     <div class="hdr" style="margin-bottom:.65rem">
@@ -510,6 +511,25 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
     </table></div></div>
   </div>
   <div class="cpanel" id="cp-nfc"><div id="nfc-panel"></div></div>
+  <div class="cpanel" id="cp-nube">
+    <div class="card">
+      <div class="card-t">Sincronizacion con Google Sheets</div>
+      <div class="al al-info" style="margin-bottom:.85rem">Pegue la URL del servidor (Apps Script). Cada lote guardado se enviara automaticamente a Google Sheets.</div>
+      <div class="fg"><label class="lbl">URL del Servidor</label>
+        <input type="url" class="inp" id="gas-url" placeholder="https://script.google.com/macros/s/.../exec">
+      </div>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+        <button class="btn btn-navy" onclick="saveGasUrl()">Guardar</button>
+        <button class="btn btn-out" onclick="testGasUrl()">Probar</button>
+        <button class="btn btn-out" style="color:var(--red)" onclick="clearGasUrl()">Borrar</button>
+      </div>
+      <div id="gas-status" style="margin-top:.65rem;font-size:.82rem"></div>
+    </div>
+    <div class="card">
+      <div class="card-t">Estado</div>
+      <div id="sync-stats" style="font-size:.84rem;color:var(--steel)">Configure la URL arriba para ver el estado.</div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -889,6 +909,7 @@ function saveReg() {
     std: std, eff: eff, obs: obs
   };
   var all = sg_lotes(); all.push(lote); ss('lotes', all);
+  syncLote(lote);
 
   // Reset for next lot - keep machine/op/turno, auto-fill counter
   rParos = []; rLot = 0; rRefId = '';
@@ -967,6 +988,7 @@ function renderHist() {
     h += '<td>' + (l.parosMin||0) + '</td>';
     h += '<td>' + (l.std!==null&&l.std!==undefined?l.std:'--') + '</td>';
     h += '<td>' + (e!==null&&e!==undefined?'<span style="font-weight:700;color:'+effColor(e)+'">'+e+'%</span>':'--') + '</td>';
+    h += '<td>' + (l.synced ? '<span style="color:var(--green);font-size:.85rem" title="En Google Sheets">OK</span>' : '<span style="color:var(--steel);font-size:.72rem">--</span>') + '</td>';
     h += '<td><button class="btn btn-out btn-sm" style="color:var(--red)" onclick="delLote(\'' + l.id + '\')">x</button></td>';
     h += '</tr>';
   }
@@ -977,7 +999,7 @@ function clearH() { document.getElementById('h-eq').value=''; document.getElemen
 
 // ============ CONFIG ============
 function cfgTab(t) {
-  ['maqs','ops','refs','nfc'].forEach(function(n,i) {
+  ['maqs','ops','refs','nfc','nube'].forEach(function(n,i) {
     document.querySelectorAll('.ctab')[i].classList.toggle('on', n===t);
     document.getElementById('cp-'+n).classList.toggle('on', n===t);
   });
@@ -985,6 +1007,7 @@ function cfgTab(t) {
   if(t==='ops') renderCfgOps();
   if(t==='refs') renderCfgRefs();
   if(t==='nfc') renderNfcPanel();
+  if(t==='nube') initNubePanel();
 }
 function renderCfg() { renderCfgMaqs(); renderCfgOps(); renderCfgRefs(); }
 
@@ -1164,6 +1187,90 @@ function nowTime(){var d=new Date();return String(d.getHours()).padStart(2,'0')+
 function autoTurno(){var h=new Date().getHours();return h>=6&&h<14?'A-8':h>=14&&h<22?'B-8':'C-8';}
 var _toastT;
 function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(_toastT);_toastT=setTimeout(function(){el.classList.remove('on');},3000);}
+
+// CLOUD SYNC
+function getGasUrl() { return sg('gas_url', ''); }
+
+function saveGasUrl() {
+  var url = (document.getElementById('gas-url').value || '').trim();
+  ss('gas_url', url);
+  toast(url ? 'URL guardada' : 'URL borrada');
+  initNubePanel();
+}
+function clearGasUrl() {
+  ss('gas_url', '');
+  document.getElementById('gas-url').value = '';
+  toast('URL borrada');
+  initNubePanel();
+}
+function testGasUrl() {
+  var url = (document.getElementById('gas-url').value || '').trim();
+  if (!url) { toast('Ingrese la URL primero'); return; }
+  document.getElementById('gas-status').innerHTML = '<span style="color:var(--steel)">Probando...</span>';
+  fetch(url + '?action=leer&fecha=test')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('gas-status').innerHTML = '<span style="color:var(--green);font-weight:700">Conexion exitosa</span>';
+    })
+    .catch(function(e) {
+      document.getElementById('gas-status').innerHTML = '<span style="color:var(--red);font-weight:700">Error: ' + e.message + '</span>';
+    });
+}
+function initNubePanel() {
+  var url = getGasUrl();
+  var inp = document.getElementById('gas-url');
+  if (inp) inp.value = url;
+  var lotes = sg_lotes();
+  var synced = 0, pending = 0;
+  for (var i=0; i<lotes.length; i++) { if(lotes[i].synced) synced++; else pending++; }
+  var st = document.getElementById('sync-stats');
+  if (!st) return;
+  if (!url) { st.innerHTML = '<span style="color:var(--steel)">URL no configurada.</span>'; return; }
+  st.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem;margin-bottom:.5rem">' +
+    '<div style="text-align:center"><div style="font-size:1.5rem;font-weight:800;color:var(--green)">' + synced + '</div><div style="font-size:.72rem;color:var(--steel)">Sincronizados</div></div>' +
+    '<div style="text-align:center"><div style="font-size:1.5rem;font-weight:800;color:' + (pending ? 'var(--amberd)' : 'var(--steel)') + '">' + pending + '</div><div style="font-size:.72rem;color:var(--steel)">Pendientes</div></div>' +
+    '<div style="text-align:center"><div style="font-size:1.5rem;font-weight:800;color:var(--navy)">' + lotes.length + '</div><div style="font-size:.72rem;color:var(--steel)">Total lotes</div></div>' +
+    '</div>' +
+    (pending > 0 ? '<button class="btn btn-amber btn-sm" onclick="syncPending()">Reintentar ' + pending + ' pendientes</button>' : '');
+}
+function buildSyncPayload(lote) {
+  var maqs = sg('maqs', []), opList = sg('ops', []);
+  var m = null; for(var i=0;i<maqs.length;i++){if(maqs[i].id===lote.maqId){m=maqs[i];break;}}
+  var op = null; for(var i=0;i<opList.length;i++){if(opList[i].id===lote.opId){op=opList[i];break;}}
+  var ref = null; for(var i=0;i<REFS.length;i++){if(REFS[i][0]===lote.refId){ref=REFS[i];break;}}
+  var eq = null; if(m){for(var i=0;i<EQS.length;i++){if(EQS[i].id===m.teamId){eq=EQS[i];break;}}}
+  return {
+    fecha:lote.fecha, equipo:eq?eq.name:'', maqId:lote.maqId,
+    modelo:m?m.model:'', diam:m?m.diam:'',
+    opId:lote.opId, opNombre:op?op.name:'', turno:lote.turno,
+    refId:lote.refId, refNombre:ref?ref[1]:'', talla:ref?ref[2]:'',
+    lotSize:lote.lotSize, ctrStart:lote.ctrStart, ctrEnd:lote.ctrEnd,
+    tubos:lote.tubos, hi:lote.hi, hf:lote.hf, dur:lote.dur,
+    parosMin:lote.parosMin, std:lote.std, eff:lote.eff, obs:lote.obs
+  };
+}
+function syncLote(lote) {
+  var url = getGasUrl();
+  if (!url) return;
+  var d = buildSyncPayload(lote);
+  var qs = url + '?action=escribir&d=' + encodeURIComponent(JSON.stringify(d));
+  fetch(qs)
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+      if (resp.ok) {
+        var all = sg_lotes();
+        for (var i=0; i<all.length; i++) { if(all[i].id===lote.id){all[i].synced=true;break;} }
+        ss('lotes', all);
+      }
+    })
+    .catch(function() {});
+}
+function syncPending() {
+  var pending = sg_lotes().filter(function(l){return !l.synced;});
+  for (var i=0; i<pending.length; i++) syncLote(pending[i]);
+  toast('Reintentando ' + pending.length + ' lotes pendientes...');
+  setTimeout(initNubePanel, 4000);
+}
 
 // START
 init();
