@@ -159,7 +159,11 @@ function conectar() {
   fetch(url + '?action=leer&fecha=' + hoy())
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      document.getElementById('conn-status').textContent = 'Conectado. ' + (d.filas ? d.filas.length : 0) + ' lotes hoy.';
+      var todayRows = 0;
+      if (d.filas) {
+        for (var i=0;i<d.filas.length;i++) { if(parseFecha(d.filas[i].Fecha)===hoy()) todayRows++; }
+      }
+      document.getElementById('conn-status').textContent = 'Conectado. ' + todayRows + ' lotes hoy de ' + (d.filas?d.filas.length:0) + ' totales.';
       document.getElementById('conn-status').style.color = '#10b981';
       document.getElementById('setup-div').style.display = 'none';
       startDashboard();
@@ -191,7 +195,7 @@ function iniciarCountdown() {
 function cargarDatos() {
   if (!GAS_URL) return;
   document.getElementById('loading').style.display = 'none';
-  fetch(GAS_URL + '?action=leer&fecha=' + hoy())
+  fetch(GAS_URL + '?action=leer')
     .then(function(r) { return r.json(); })
     .then(function(data) {
       document.getElementById('error-div').style.display = 'none';
@@ -222,7 +226,8 @@ function renderDashboard(filas) {
   var maq_set = {};
   for (var i=0;i<filas.length;i++) {
     var f=filas[i];
-    if (f.Fecha !== todayStr) continue;
+    var fFecha = parseFecha(f.Fecha);
+    if (fFecha !== todayStr) continue;
     total_lotes++;
     total_t += parseInt(f.Tubos)||0;
     maq_set[f.MaqID] = 1;
@@ -246,7 +251,7 @@ function renderDashboard(filas) {
     var isL = eq.type === 'lonati';
     var eq_filas = [];
     for (var i=0;i<filas.length;i++) {
-      if (filas[i].Equipo === eq.name && filas[i].Fecha === todayStr) eq_filas.push(filas[i]);
+      if (filas[i].Equipo === eq.name && parseFecha(filas[i].Fecha) === todayStr) eq_filas.push(filas[i]);
     }
     var eq_t=0, eq_es=0, eq_ec=0;
     var eq_maqs = {};
@@ -316,6 +321,18 @@ function renderDashboard(filas) {
 function statCard(val, lbl, color) {
   return '<div class="stat-card"><div class="stat-v" style="color:' + color + '">' + val + '</div><div class="stat-l">' + lbl + '</div></div>';
 }
+function parseFecha(v) {
+  if (!v) return '';
+  // Google Sheets may return Date objects or strings like "2026-09-13" or "9/13/2026"
+  if (v instanceof Date) return v.toISOString().split('T')[0];
+  var s = String(v);
+  // ISO format: 2026-09-13
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.split('T')[0];
+  // Try parsing other formats
+  try { var d = new Date(s); if (!isNaN(d.getTime())) return d.toISOString().split('T')[0]; } catch(e){}
+  return s;
+}
+
 function effColor(v) { return (!v && v!==0) ? '#64748b' : v>=90 ? '#10b981' : v>=70 ? '#f59e0b' : '#ef4444'; }
 function effCls(v) { return v>=90 ? 'eff-hi' : v>=70 ? 'eff-md' : 'eff-lo'; }
 function hoy() { return new Date().toISOString().split('T')[0]; }
@@ -326,7 +343,8 @@ function ahora() {
 function fmtTs(ts) {
   if (!ts) return '--';
   try {
-    var d = new Date(ts);
+    var d = (ts instanceof Date) ? ts : new Date(ts);
+    if (isNaN(d.getTime())) return '--';
     return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
   } catch(e) { return '--'; }
 }
