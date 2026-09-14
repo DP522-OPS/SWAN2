@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Swantex - Tablero Maestro</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#1e3a5f;--navyl:#e8eef7;--amber:#f59e0b;--amberd:#d97706;--amberl:#fef3c7;--green:#10b981;--greenl:#ecfdf5;--red:#ef4444;--redl:#fef2f2;--steel:#64748b;--steell:#f1f5f9;--border:#e2e8f0;--purple:#8b5cf6;--purplel:#f5f3ff;--teal:#0891b2;--teall:#ecfeff}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+.brand{font-size:1.2rem;font-weight:800;color:#fff}
+.brand span{font-weight:400;opacity:.6;font-size:.85rem;margin-left:.5rem}
+.hdr-right{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.update-lbl{font-size:.78rem;color:rgba(255,255,255,.55)}
+.update-time{font-size:.78rem;color:var(--amber);font-weight:700}
+.btn-cfg{background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.3);border-radius:8px;padding:.4rem .85rem;font-size:.78rem;font-weight:600;cursor:pointer;transition:.15s}
+.btn-cfg:hover{background:rgba(255,255,255,.25)}
+.setup-panel{background:#1e293b;border:2px solid var(--amber);border-radius:12px;padding:1.25rem;margin:1.25rem;max-width:520px}
+.setup-panel h2{font-size:.95rem;font-weight:700;color:var(--amber);margin-bottom:.65rem}
+.setup-panel p{font-size:.82rem;color:#94a3b8;line-height:1.55;margin-bottom:.65rem}
+.inp-row{display:flex;gap:.5rem}
+.inp-url{flex:1;padding:.58rem .85rem;background:#0f172a;border:1.5px solid #334155;border-radius:8px;font-size:.85rem;color:#e2e8f0}
+.inp-url:focus{outline:none;border-color:var(--amber)}
+.btn-conn{background:var(--amber);color:#fff;border:none;border-radius:8px;padding:.58rem 1rem;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn-conn:hover{background:var(--amberd)}
+.content{padding:1.25rem;max-width:1400px;margin:0 auto}
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:.85rem;margin-bottom:1.25rem}
+@media(max-width:900px){.stats-row{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:500px){.stats-row{grid-template-columns:1fr 1fr}}
+.stat-card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:1rem;text-align:center}
+.stat-v{font-size:2rem;font-weight:800;line-height:1;letter-spacing:-.5px}
+.stat-l{font-size:.72rem;color:#64748b;margin-top:.25rem;text-transform:uppercase;letter-spacing:.4px}
+.teams-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem;margin-bottom:1.25rem}
+@media(max-width:1100px){.teams-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.teams-grid{grid-template-columns:1fr}}
+.team-card{background:#1e293b;border:1px solid #334155;border-radius:12px;overflow:hidden}
+.tc-hdr{padding:.75rem 1rem}
+.tc-san{background:linear-gradient(135deg,#1e3a5f,#2d5a9e)}
+.tc-lon{background:linear-gradient(135deg,#0e7490,#0891b2)}
+.tc-name{font-weight:800;font-size:.95rem;color:#fff}
+.tc-meta{font-size:.7rem;color:rgba(255,255,255,.65);margin-top:.1rem}
+.tc-body{padding:.85rem}
+.eff-row{display:flex;align-items:center;gap:.65rem;margin-bottom:.6rem}
+.eff-lbl{font-size:.72rem;color:#64748b;width:4.5rem;flex-shrink:0}
+.eff-bar{flex:1;height:8px;background:#334155;border-radius:4px;overflow:hidden}
+.eff-fill{height:100%;border-radius:4px;transition:width .4s}
+.eff-hi{background:var(--green)}.eff-md{background:var(--amber)}.eff-lo{background:var(--red)}
+.eff-val{font-size:.8rem;font-weight:700;min-width:2.8rem;text-align:right}
+.maq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:.28rem;margin-top:.6rem}
+.maq-tile{border-radius:7px;padding:.35rem .2rem;text-align:center;border:1.5px solid transparent}
+.mt-ok{background:#064e3b;border-color:#059669}
+.mt-no{background:#1e293b;border-color:#334155}
+.mt-id{font-size:.6rem;font-weight:800;line-height:1}
+.mt-ok .mt-id{color:#6ee7b7}.mt-no .mt-id{color:#64748b}
+.mt-m{font-size:.54rem;color:#64748b}
+.mt-n{font-size:.6rem;font-weight:700;margin-top:.04rem}
+.mt-ok .mt-n{color:var(--green)}.mt-no .mt-n{color:#334155}
+.section-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem}
+.recent-table{background:#1e293b;border:1px solid #334155;border-radius:12px;overflow:hidden;margin-bottom:1.25rem}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+th{text-align:left;padding:.55rem .75rem;background:#0f172a;border-bottom:2px solid #334155;font-size:.68rem;font-weight:700;color:#64748b;white-space:nowrap;letter-spacing:.3px}
+td{padding:.5rem .75rem;border-bottom:1px solid #1e293b;vertical-align:middle;color:#cbd5e1}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#253347}
+.badge{display:inline-block;padding:.14rem .48rem;border-radius:999px;font-size:.66rem;font-weight:700}
+.bp{background:var(--purplel);color:#6d28d9}.bt{background:var(--teall);color:#155e75}
+.loading{text-align:center;padding:4rem 2rem;color:#64748b}
+.loading-spin{font-size:2.5rem;display:block;animation:spin 1s linear infinite;margin-bottom:.75rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-box{background:#1e293b;border:2px solid var(--red);border-radius:12px;padding:1.25rem;text-align:center;color:#fca5a5;font-size:.85rem;line-height:1.6}
+.countdown{font-size:.72rem;color:#64748b;background:#0f172a;border-radius:999px;padding:.2rem .65rem;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Swantex <span>Tablero Maestro</span></div>
+  <div class="hdr-right">
+    <div>
+      <span class="update-lbl">Ultima actualizacion: </span>
+      <span class="update-time" id="last-update">--</span>
+    </div>
+    <div class="countdown" id="countdown">Actualizando en 30s</div>
+    <button class="btn-cfg" onclick="toggleSetup()">Configurar</button>
+  </div>
+</header>
+
+<div id="setup-div" style="display:none;padding:1.25rem">
+  <div class="setup-panel">
+    <h2>Conectar con Google Sheets</h2>
+    <p>Pegue aqui la URL del servidor (Google Apps Script) para ver los datos en tiempo real.</p>
+    <div class="inp-row">
+      <input type="url" class="inp-url" id="url-input" placeholder="https://script.google.com/macros/s/.../exec">
+      <button class="btn-conn" onclick="conectar()">Conectar</button>
+    </div>
+    <p id="conn-status" style="margin-top:.5rem;font-size:.8rem;color:var(--amber)"></p>
+  </div>
+</div>
+
+<div id="main" class="content">
+  <div class="loading" id="loading">
+    <span class="loading-spin">&#9696;</span>
+    <div>Esperando URL del servidor...</div>
+    <div style="margin-top:.5rem;font-size:.8rem">Haga clic en <strong>Configurar</strong> arriba para empezar</div>
+  </div>
+  <div id="dashboard-content" style="display:none">
+    <div class="stats-row" id="stats-row"></div>
+    <div class="teams-grid" id="teams-grid"></div>
+    <div class="section-title">Ultimos 30 lotes registrados</div>
+    <div class="recent-table">
+      <div class="tw">
+        <table>
+          <thead><tr>
+            <th>Hora</th><th>Equipo</th><th>Maquina</th><th>Operario</th><th>Turno</th>
+            <th>Referencia</th><th>Tubos</th><th>Dur(m)</th><th>Std(m)</th><th>Eficiencia</th>
+          </tr></thead>
+          <tbody id="recent-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div id="error-div" style="display:none;padding:2rem">
+    <div class="error-box">
+      <div style="font-size:2rem;margin-bottom:.5rem">&#9888;</div>
+      <div id="error-msg">Error de conexion</div>
+      <div style="margin-top:.75rem;font-size:.78rem;color:#94a3b8">Verifique la URL del servidor y su conexion a internet</div>
+    </div>
+  </div>
+</div>
+
+<script>
+var GAS_URL = '';
+var refreshInterval = null;
+var countdown = 30;
+var countdownInterval = null;
+
+// Load saved URL
+var saved = '';
+try { saved = localStorage.getItem('swx_dash_url') || ''; } catch(e){}
+if (saved) {
+  GAS_URL = saved;
+  document.getElementById('url-input').value = saved;
+  startDashboard();
+}
+
+function toggleSetup() {
+  var d = document.getElementById('setup-div');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function conectar() {
+  var url = (document.getElementById('url-input').value || '').trim();
+  if (!url) { document.getElementById('conn-status').textContent = 'Ingrese la URL'; return; }
+  document.getElementById('conn-status').textContent = 'Conectando...';
+  GAS_URL = url;
+  try { localStorage.setItem('swx_dash_url', url); } catch(e){}
+  fetch(url + '?action=leer&fecha=' + hoy())
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('conn-status').textContent = 'Conectado. ' + (d.filas ? d.filas.length : 0) + ' lotes hoy.';
+      document.getElementById('conn-status').style.color = '#10b981';
+      document.getElementById('setup-div').style.display = 'none';
+      startDashboard();
+    })
+    .catch(function(e) {
+      document.getElementById('conn-status').textContent = 'Error: ' + e.message;
+      document.getElementById('conn-status').style.color = '#ef4444';
+    });
+}
+
+function startDashboard() {
+  cargarDatos();
+  if (refreshInterval) clearInterval(refreshInterval);
+  if (countdownInterval) clearInterval(countdownInterval);
+  refreshInterval = setInterval(cargarDatos, 30000);
+  iniciarCountdown();
+}
+
+function iniciarCountdown() {
+  countdown = 30;
+  if (countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(function() {
+    countdown--;
+    document.getElementById('countdown').textContent = 'Actualiza en ' + countdown + 's';
+    if (countdown <= 0) { countdown = 30; }
+  }, 1000);
+}
+
+function cargarDatos() {
+  if (!GAS_URL) return;
+  document.getElementById('loading').style.display = 'none';
+  fetch(GAS_URL + '?action=leer&fecha=' + hoy())
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      document.getElementById('error-div').style.display = 'none';
+      document.getElementById('dashboard-content').style.display = 'block';
+      renderDashboard(data.filas || []);
+      document.getElementById('last-update').textContent = ahora();
+      countdown = 30;
+    })
+    .catch(function(e) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('error-div').style.display = 'block';
+      document.getElementById('error-msg').textContent = 'Error: ' + e.message;
+    });
+}
+
+var EQUIPOS = [
+  {id:'E2',name:'Equipo 2',type:'lonati'},
+  {id:'E3',name:'Equipo 3',type:'lonati'},
+  {id:'E5',name:'Equipo 5',type:'santoni'},
+  {id:'E6',name:'Equipo 6',type:'santoni'},
+  {id:'E7',name:'Equipo 7',type:'santoni'},
+  {id:'E8',name:'Equipo 8',type:'santoni'}
+];
+
+function renderDashboard(filas) {
+  var todayStr = hoy();
+  var total_t=0, total_lotes=0, eff_sum=0, eff_cnt=0;
+  var maq_set = {};
+  for (var i=0;i<filas.length;i++) {
+    var f=filas[i];
+    if (f.Fecha !== todayStr) continue;
+    total_lotes++;
+    total_t += parseInt(f.Tubos)||0;
+    maq_set[f.MaqID] = 1;
+    if (f.Eficiencia !== '' && f.Eficiencia !== null) { eff_sum += parseFloat(f.Eficiencia)||0; eff_cnt++; }
+  }
+  var avg_eff = eff_cnt ? Math.round(eff_sum/eff_cnt) : null;
+  var maq_cnt = Object.keys(maq_set).length;
+
+  // Stats row
+  document.getElementById('stats-row').innerHTML =
+    statCard(total_lotes, 'Lotes hoy', '#f59e0b') +
+    statCard(total_t.toLocaleString(), 'Tubos producidos', '#10b981') +
+    statCard(maq_cnt, 'Maquinas activas', '#3b82f6') +
+    statCard(avg_eff !== null ? avg_eff + '%' : '--', 'Eficiencia promedio', effColor(avg_eff)) +
+    statCard(filas.length, 'Lotes historico', '#64748b');
+
+  // Teams
+  var teamsHtml = '';
+  for (var ei=0;ei<EQUIPOS.length;ei++) {
+    var eq = EQUIPOS[ei];
+    var isL = eq.type === 'lonati';
+    var eq_filas = [];
+    for (var i=0;i<filas.length;i++) {
+      if (filas[i].Equipo === eq.name && filas[i].Fecha === todayStr) eq_filas.push(filas[i]);
+    }
+    var eq_t=0, eq_es=0, eq_ec=0;
+    var eq_maqs = {};
+    for (var i=0;i<eq_filas.length;i++) {
+      var f=eq_filas[i];
+      eq_t += parseInt(f.Tubos)||0;
+      eq_maqs[f.MaqID] = (eq_maqs[f.MaqID]||0) + (parseInt(f.Tubos)||0);
+      if (f.Eficiencia !== '' && f.Eficiencia !== null) { eq_es += parseFloat(f.Eficiencia)||0; eq_ec++; }
+    }
+    var eq_eff = eq_ec ? Math.round(eq_es/eq_ec) : null;
+    var effPct = eq_eff || 0;
+
+    teamsHtml += '<div class="team-card">';
+    teamsHtml += '<div class="tc-hdr ' + (isL?'tc-lon':'tc-san') + '">';
+    teamsHtml += '<div class="tc-name">' + eq.name + '</div>';
+    teamsHtml += '<div class="tc-meta">' + (isL?'Lonati':'Santoni') + ' &bull; ' + eq_filas.length + ' lotes &bull; ' + eq_t.toLocaleString() + ' tubos</div>';
+    teamsHtml += '</div><div class="tc-body">';
+
+    // Efficiency bar
+    if (eq_eff !== null) {
+      teamsHtml += '<div class="eff-row"><span class="eff-lbl">Eficiencia</span>';
+      teamsHtml += '<div class="eff-bar"><div class="eff-fill ' + effCls(effPct) + '" style="width:' + Math.min(effPct,100) + '%"></div></div>';
+      teamsHtml += '<span class="eff-val" style="color:' + effColor(eq_eff) + '">' + eq_eff + '%</span></div>';
+    }
+
+    // Machine tiles
+    teamsHtml += '<div class="maq-grid">';
+    var maqsRendered = Object.keys(eq_maqs);
+    for (var mi=0;mi<maqsRendered.length;mi++) {
+      var mid = maqsRendered[mi];
+      var mtubos = eq_maqs[mid];
+      teamsHtml += '<div class="maq-tile mt-ok" title="' + mid + '">';
+      teamsHtml += '<div class="mt-id">' + mid.replace('S','S').replace('L','L') + '</div>';
+      teamsHtml += '<div class="mt-n">' + mtubos + 't</div>';
+      teamsHtml += '</div>';
+    }
+    if (!maqsRendered.length) {
+      teamsHtml += '<div style="font-size:.72rem;color:#64748b;font-style:italic;grid-column:1/-1">Sin actividad hoy</div>';
+    }
+    teamsHtml += '</div></div></div>';
+  }
+  document.getElementById('teams-grid').innerHTML = teamsHtml;
+
+  // Recent lots
+  var recent = filas.slice().reverse().slice(0, 30);
+  var rHtml = '';
+  for (var i=0;i<recent.length;i++) {
+    var f = recent[i];
+    var e = parseFloat(f.Eficiencia);
+    var effHtml = isNaN(e) ? '--' : '<span style="font-weight:700;color:' + effColor(e) + '">' + Math.round(e) + '%</span>';
+    rHtml += '<tr>';
+    rHtml += '<td style="white-space:nowrap">' + fmtTs(f.Timestamp) + '</td>';
+    rHtml += '<td>' + (f.Equipo||'--') + '</td>';
+    rHtml += '<td><strong>' + (f.MaqID||'--') + '</strong></td>';
+    rHtml += '<td>' + (f.Operario||'--') + '</td>';
+    rHtml += '<td>' + (f.Turno||'--') + '</td>';
+    rHtml += '<td style="font-size:.74rem">' + (f.RefID?('<code style="font-size:.71rem;background:#1e293b;padding:.1rem .3rem;border-radius:3px">'+f.RefID+'</code> '):'') + (f.Referencia||'') + '</td>';
+    rHtml += '<td><strong style="color:#10b981">' + (f.Tubos||'--') + '</strong></td>';
+    rHtml += '<td>' + (f.Duracion||'--') + '</td>';
+    rHtml += '<td>' + (f.StdMin||'--') + '</td>';
+    rHtml += '<td>' + effHtml + '</td>';
+    rHtml += '</tr>';
+  }
+  document.getElementById('recent-body').innerHTML = rHtml || '<tr><td colspan="10" style="text-align:center;color:#64748b;padding:1.5rem">Sin lotes registrados hoy</td></tr>';
+}
+
+function statCard(val, lbl, color) {
+  return '<div class="stat-card"><div class="stat-v" style="color:' + color + '">' + val + '</div><div class="stat-l">' + lbl + '</div></div>';
+}
+function effColor(v) { return (!v && v!==0) ? '#64748b' : v>=90 ? '#10b981' : v>=70 ? '#f59e0b' : '#ef4444'; }
+function effCls(v) { return v>=90 ? 'eff-hi' : v>=70 ? 'eff-md' : 'eff-lo'; }
+function hoy() { return new Date().toISOString().split('T')[0]; }
+function ahora() {
+  var d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
+}
+function fmtTs(ts) {
+  if (!ts) return '--';
+  try {
+    var d = new Date(ts);
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  } catch(e) { return '--'; }
+}
+</script>
+</body>
+</html>
