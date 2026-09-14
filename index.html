@@ -310,9 +310,12 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
         </div>
         <div class="fg">
           <label class="lbl">Maquina</label>
-          <select class="inp" id="r-maq" onchange="onMaqChange()">
-            <option value="">Seleccione equipo primero...</option>
-          </select>
+          <div style="display:flex;gap:.45rem">
+            <select class="inp" id="r-maq" onchange="onMaqChange()" style="flex:1">
+              <option value="">Seleccione equipo primero...</option>
+            </select>
+            <button id="btn-nfc-maq" onclick="nfcScan('maquina')" style="padding:.55rem .75rem;background:var(--navyl);color:var(--navy);border:1.5px solid #c3d3e8;border-radius:8px;cursor:pointer;font-size:.75rem;font-weight:700;white-space:nowrap;display:none">Scan NFC</button>
+          </div>
           <div id="r-maq-info" style="display:none;background:var(--navyl);border:1.5px solid #c3d3e8;border-radius:8px;padding:.5rem .8rem;margin-top:.25rem;font-size:.8rem">
             <strong id="r-maq-name" style="color:var(--navy)"></strong>
             <span id="r-maq-det" style="color:var(--steel);font-size:.74rem"></span>
@@ -320,9 +323,12 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
         </div>
         <div class="fg">
           <label class="lbl">Operario</label>
-          <select class="inp" id="r-op">
-            <option value="">Seleccionar operario...</option>
-          </select>
+          <div style="display:flex;gap:.45rem">
+            <select class="inp" id="r-op" style="flex:1">
+              <option value="">Seleccionar operario...</option>
+            </select>
+            <button id="btn-nfc-op" onclick="nfcScan('operador')" style="padding:.55rem .75rem;background:var(--navyl);color:var(--navy);border:1.5px solid #c3d3e8;border-radius:8px;cursor:pointer;font-size:.75rem;font-weight:700;white-space:nowrap;display:none">Scan NFC</button>
+          </div>
         </div>
         <div class="fg">
           <label class="lbl">Turno</label>
@@ -345,10 +351,13 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
         <div class="card-t">Referencia</div>
         <div class="fg">
           <label class="lbl">Buscar item / referencia</label>
-          <div class="ref-wrap">
-            <input type="text" class="inp" id="r-ref-q" placeholder="Codigo M30767 o nombre..." autocomplete="off"
-              oninput="refSearch(this.value)" onfocus="refDdOpen()" onblur="setTimeout(refDdClose,180)">
-            <div class="ref-dd" id="r-ref-dd"></div>
+          <div style="display:flex;gap:.45rem">
+            <div class="ref-wrap" style="flex:1">
+              <input type="text" class="inp" id="r-ref-q" placeholder="Codigo M30767 o nombre..." autocomplete="off"
+                oninput="refSearch(this.value)" onfocus="refDdOpen()" onblur="setTimeout(refDdClose,180)">
+              <div class="ref-dd" id="r-ref-dd"></div>
+            </div>
+            <button id="btn-nfc-ref" onclick="nfcScan('referencia')" style="padding:.55rem .75rem;background:var(--navyl);color:var(--navy);border:1.5px solid #c3d3e8;border-radius:8px;cursor:pointer;font-size:.75rem;font-weight:700;white-space:nowrap;display:none">Scan NFC</button>
           </div>
           <input type="hidden" id="r-ref-id">
           <div class="ref-sel" id="r-ref-sel">
@@ -584,7 +593,7 @@ function goTo(v) {
 
 // ============ DASHBOARD ============
 function renderDash() {
-  var today = new Date().toISOString().split('T')[0];
+  var today = localDate();
   document.getElementById('d-date').textContent = fmtDate(today);
   document.getElementById('d-shift').textContent = 'Turno sugerido: ' + autoTurno();
 
@@ -675,7 +684,7 @@ var rParos = [], rLot = 0, rRefId = '', rRefTO = null;
 
 function initReg() {
   rParos = []; rLot = 0; rRefId = '';
-  document.getElementById('r-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('r-fecha').value = localDate();
   document.getElementById('r-turno').value = autoTurno();
   document.getElementById('r-hi').value = '';
   document.getElementById('r-hf').value = nowTime();
@@ -706,8 +715,11 @@ function initReg() {
 
   var nfcOk = 'NDEFReader' in window;
   document.getElementById('reg-nfc-alert').innerHTML = nfcOk
-    ? '<div class="al al-ok">NFC activo. Puede escanear stickers.</div>'
-    : '<div class="al al-info">Abra desde <strong>https://dp522-ops.github.io/SWAN2/</strong> en Chrome Android para usar NFC.</div>';
+    ? '<div class="al al-ok">NFC activo — use los botones <strong>Scan NFC</strong> para escanear stickers.</div>'
+    : '<div class="al al-info">NFC disponible solo en <strong>https://dp522-ops.github.io/SWAN2/</strong> con Chrome Android.</div>';
+  ['btn-nfc-maq','btn-nfc-op','btn-nfc-ref'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.style.display=nfcOk?'':'none';
+  });
 }
 
 function onEqChange() {
@@ -1065,7 +1077,11 @@ function openCfgForm(type, id) {
       '<div class="fg"><label class="lbl">Tipo</label><select class="inp" id="cf-type"><option value="santoni" '+(item&&item.type==='santoni'?'selected':'')+'>Santoni</option><option value="lonati" '+(item&&item.type==='lonati'?'selected':'')+'>Lonati</option></select></div>'+
       '<div class="fg"><label class="lbl">Equipo</label><select class="inp" id="cf-team">'+eqOpts+'</select></div>'+
       '<div class="fg"><label class="lbl">Modelo</label><input class="inp" id="cf-model" value="'+(item?item.model:'')+'" placeholder="TOP1"></div>'+
-      '<div class="fg"><label class="lbl">Diametro</label><input class="inp" id="cf-diam" value="'+(item?item.diam:'')+'" placeholder="13"></div>';
+      '<div class="fg"><label class="lbl">Diametro</label><input class="inp" id="cf-diam" value="'+(item?item.diam:'')+'" placeholder="13"></div>'+
+      '<div class="sep"></div>'+
+      '<div style="font-size:.75rem;font-weight:700;color:var(--steel);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.5rem">Configuracion NFC avanzada (opcional)</div>'+
+      '<div class="fg"><label class="lbl">Referencia por defecto (codigo M)</label><input class="inp" id="cf-defref" value="'+(item&&item.defRef?item.defRef:'')+'" placeholder="M30767 - dejar vacio si cambia frecuente"></div>'+
+      '<div class="fg" style="margin-bottom:0"><label class="lbl">Tamano de lote por defecto</label><select class="inp" id="cf-deflot"><option value="">Sin defecto</option><option value="60" '+(item&&item.defLot==60?'selected':'')+'>60 tubos</option><option value="120" '+(item&&item.defLot==120?'selected':'')+'>120 tubos</option><option value="240" '+(item&&item.defLot==240?'selected':'')+'>240 tubos</option><option value="480" '+(item&&item.defLot==480?'selected':'')+'>480 tubos</option></select></div>';
   } else {
     document.getElementById('cfg-modal-body').innerHTML=
       '<div class="fg"><label class="lbl">ID</label><input class="inp" id="cf-id" value="'+(item?item.id:'')+'" placeholder="OP09" '+(item?'readonly':'')+'></div>'+
@@ -1079,7 +1095,11 @@ function saveCfgItem() {
   var id=gv('cf-id'); if(!id){toast('ID obligatorio');return;}
   var isM=cfgType==='maq', key=isM?'maqs':'ops', list=sg(key,[]);
   var item;
-  if(isM) item={id:id,type:gv('cf-type'),teamId:gv('cf-team'),model:gv('cf-model'),diam:gv('cf-diam'),nfc:'',active:true};
+  if(isM){
+    var defLotVal = gv('cf-deflot');
+    item={id:id,type:gv('cf-type'),teamId:gv('cf-team'),model:gv('cf-model'),diam:gv('cf-diam'),
+      defRef:gv('cf-defref')||'',defLot:defLotVal?parseInt(defLotVal):0,nfc:'',active:true};
+  }
   else item={id:id,name:gv('cf-name'),teamId:gv('cf-team'),nfc:''};
   if(cfgId){var idx=-1;for(var i=0;i<list.length;i++){if(list[i].id===id){idx=i;break;}}if(idx>=0){item.nfc=list[idx].nfc;list[idx]=Object.assign({},list[idx],item);}}
   else{for(var i=0;i<list.length;i++){if(list[i].id===id){toast('ID ya existe');return;}}list.push(item);}
@@ -1113,7 +1133,14 @@ function renderNfcPanel() {
   document.getElementById('nfc-panel').innerHTML=h;
 }
 function showNfc(type,id){
-  var j=JSON.stringify({type:type,id:id});
+  var payload={type:type,id:id};
+  if(type==='maquina'){
+    var maqs=sg('maqs',[]);var m=null;
+    for(var i=0;i<maqs.length;i++){if(maqs[i].id===id){m=maqs[i];break;}}
+    if(m&&m.defRef) payload.ref=m.defRef;
+    if(m&&m.defLot) payload.lot=m.defLot;
+  }
+  var j=JSON.stringify(payload);
   document.getElementById('nfc-title').textContent='Sticker '+type+': '+id;
   document.getElementById('nfc-json').value=j;
   openOv('ov-nfc');
@@ -1138,7 +1165,7 @@ function doExport(){
     rows.push([l.fecha,fmtTs(l.ts),eq?eq.name:'',m?m.id:l.maqId,m?m.type:'',m?m.model:'',m?m.diam:'',op?op.name:'',l.turno||'',l.refId||'',ref?ref[1]:'',ref?ref[2]:'',ref?ref[5]:'',ref?ref[6]:'',l.lotSize||'',l.ctrStart!==null&&l.ctrStart!==undefined?l.ctrStart:'',l.ctrEnd!==null&&l.ctrEnd!==undefined?l.ctrEnd:'',l.tubos!==null&&l.tubos!==undefined?l.tubos:'',l.dur!==null&&l.dur!==undefined?l.dur:'',l.parosMin||0,l.std!==null&&l.std!==undefined?l.std:'',l.eff!==null&&l.eff!==undefined?l.eff:'',l.obs||'']);
   }
   var csv=rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
-  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));a.download='swantex_'+new Date().toISOString().split('T')[0]+'.csv';a.click();
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));a.download='swantex_'+localDate()+'.csv';a.click();
 }
 
 // REG STATUS
@@ -1187,6 +1214,94 @@ function nowTime(){var d=new Date();return String(d.getHours()).padStart(2,'0')+
 function autoTurno(){var h=new Date().getHours();return h>=6&&h<14?'A-8':h>=14&&h<22?'B-8':'C-8';}
 var _toastT;
 function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(_toastT);_toastT=setTimeout(function(){el.classList.remove('on');},3000);}
+
+// NFC SCAN
+var _nfcAbort = null;
+var _nfcTarget = '';
+
+async function nfcScan(target) {
+  if (!('NDEFReader' in window)) { toast('NFC no disponible'); return; }
+  _nfcTarget = target;
+  var labels = {maquina:'Acerque el sticker de la maquina',operador:'Acerque la tarjeta del operario',referencia:'Acerque el sticker de la orden de produccion'};
+  toast(labels[target] + '...');
+  if (_nfcAbort) _nfcAbort.abort();
+  _nfcAbort = new AbortController();
+  try {
+    var reader = new NDEFReader();
+    await reader.scan({signal: _nfcAbort.signal});
+    reader.onreading = function(event) {
+      _nfcAbort.abort(); _nfcAbort = null;
+      var msg = event.message;
+      for (var i=0; i<msg.records.length; i++) {
+        if (msg.records[i].recordType === 'text') {
+          try {
+            var data = JSON.parse(new TextDecoder().decode(msg.records[i].data));
+            processNfc(data);
+            return;
+          } catch(e) {}
+        }
+      }
+      toast('Etiqueta no reconocida');
+    };
+  } catch(err) {
+    if (err.name !== 'AbortError') toast('Error NFC: ' + err.message);
+  }
+}
+
+function processNfc(data) {
+  var type = data.type, id = data.id;
+  if (!type || !id) { toast('Formato invalido'); return; }
+
+  if (type === 'maquina') {
+    var maqs = sg('maqs', []);
+    var m = null; for(var i=0;i<maqs.length;i++){if(maqs[i].id===id){m=maqs[i];break;}}
+    if (m) {
+      document.getElementById('r-eq').value = m.teamId;
+      onEqChange();
+      document.getElementById('r-maq').value = id;
+      onMaqChange();
+    }
+    var msg = 'Maquina: ' + id;
+    // Auto-fill reference from sticker (data.ref) or machine default
+    var refCode = data.ref || (m && m.defRef ? m.defRef : '');
+    if (refCode) { setRef(refCode); msg += ' + Ref: ' + refCode; }
+    // Auto-select lot size from sticker (data.lot) or machine default
+    var lotSize = parseInt(data.lot || (m && m.defLot ? m.defLot : 0));
+    if (lotSize) {
+      document.querySelectorAll('.lot-btn').forEach(function(b) {
+        if (parseInt(b.textContent) === lotSize) { b.classList.add('on'); rLot = lotSize; }
+        else b.classList.remove('on');
+      });
+      msg += ' + Lote: ' + lotSize + 't';
+    }
+    var btn = document.getElementById('btn-nfc-maq');
+    if (btn) { btn.style.background='var(--greenl)'; btn.style.color='#065f46'; setTimeout(function(){btn.style.background='';btn.style.color='';},2000); }
+    toast(msg);
+
+  } else if (type === 'operador') {
+    document.getElementById('r-op').value = id;
+    var btn2 = document.getElementById('btn-nfc-op');
+    if (btn2) { btn2.style.background='var(--greenl)'; btn2.style.color='#065f46'; setTimeout(function(){btn2.style.background='';btn2.style.color='';},2000); }
+    toast('Operario: ' + id);
+
+  } else if (type === 'referencia') {
+    setRef(id);
+    var btn3 = document.getElementById('btn-nfc-ref');
+    if (btn3) { btn3.style.background='var(--greenl)'; btn3.style.color='#065f46'; setTimeout(function(){btn3.style.background='';btn3.style.color='';},2000); }
+    toast('Referencia: ' + id);
+
+  } else {
+    toast('Tipo de sticker no reconocido: ' + type);
+  }
+}
+
+// LOCAL DATE (fix: use device local date, not UTC)
+function localDate() {
+  var d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
 
 // CLOUD SYNC
 function getGasUrl() { return sg('gas_url', ''); }
