@@ -2011,7 +2011,15 @@ function buildSyncPayload(lote) {
     lotSize:lote.lotSize, ctrStart:lote.ctrStart, ctrEnd:lote.ctrEnd,
     tubos:lote.tubos, hi:lote.hi, hf:lote.hf, dur:lote.dur,
     parosMin:lote.parosMin, std:lote.std, eff:lote.eff, obs:lote.obs,
-    estado:isOpen(lote)?'ABIERTO':'CERRADO', cierre:lote.cierre||''
+    estado:isOpen(lote)?'ABIERTO':'CERRADO', cierre:lote.cierre||'',
+    parosDetalle: (function(){
+      var ps = lote.paros || [];
+      var agg = {};
+      for (var i=0;i<ps.length;i++) { var mo=ps[i].mot||'Sin motivo'; agg[mo]=(agg[mo]||0)+(ps[i].dur||0); }
+      var out = [];
+      for (var k in agg) out.push(k+':'+agg[k]);
+      return out.join(';');
+    })()
   };
 }
 function syncLote(lote) {
