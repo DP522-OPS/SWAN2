@@ -51,11 +51,12 @@ header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;di
 .maq-tile{border-radius:7px;padding:.35rem .2rem;text-align:center;border:1.5px solid transparent}
 .mt-ok{background:#064e3b;border-color:#059669}
 .mt-no{background:#1e293b;border-color:#334155}
+.mt-bad{background:#450a0a;border-color:#ef4444}
 .mt-id{font-size:.6rem;font-weight:800;line-height:1}
-.mt-ok .mt-id{color:#6ee7b7}.mt-no .mt-id{color:#64748b}
+.mt-ok .mt-id{color:#6ee7b7}.mt-no .mt-id{color:#64748b}.mt-bad .mt-id{color:#fca5a5}
 .mt-m{font-size:.54rem;color:#64748b}
 .mt-n{font-size:.6rem;font-weight:700;margin-top:.04rem}
-.mt-ok .mt-n{color:var(--green)}.mt-no .mt-n{color:#334155}
+.mt-ok .mt-n{color:var(--green)}.mt-no .mt-n{color:#334155}.mt-bad .mt-n{color:#fca5a5}
 .section-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem}
 .recent-table{background:#1e293b;border:1px solid #334155;border-radius:12px;overflow:hidden;margin-bottom:1.25rem}
 .tw{overflow-x:auto}
@@ -255,12 +256,18 @@ function renderDashboard(filas) {
     }
     var eq_t=0, eq_es=0, eq_ec=0;
     var eq_maqs = {};
+    var eq_maq_es = {}, eq_maq_ec = {};
     for (var i=0;i<eq_filas.length;i++) {
       var f=eq_filas[i];
       eq_t += parseInt(f.Tubos)||0;
       eq_maqs[f.MaqID] = (eq_maqs[f.MaqID]||0) + (parseInt(f.Tubos)||0);
-      if (f.Eficiencia !== '' && f.Eficiencia !== null) { eq_es += parseFloat(f.Eficiencia)||0; eq_ec++; }
+      if (f.Eficiencia !== '' && f.Eficiencia !== null) {
+        eq_es += parseFloat(f.Eficiencia)||0; eq_ec++;
+        eq_maq_es[f.MaqID] = (eq_maq_es[f.MaqID]||0) + (parseFloat(f.Eficiencia)||0);
+        eq_maq_ec[f.MaqID] = (eq_maq_ec[f.MaqID]||0) + 1;
+      }
     }
+    var EFF_MIN = 75;
     var eq_eff = eq_ec ? Math.round(eq_es/eq_ec) : null;
     var effPct = eq_eff || 0;
 
@@ -283,9 +290,12 @@ function renderDashboard(filas) {
     for (var mi=0;mi<maqsRendered.length;mi++) {
       var mid = maqsRendered[mi];
       var mtubos = eq_maqs[mid];
-      teamsHtml += '<div class="maq-tile mt-ok" title="' + mid + '">';
+      var mEff = eq_maq_ec[mid] ? Math.round(eq_maq_es[mid] / eq_maq_ec[mid]) : null;
+      var mCls = (mEff !== null && mEff < EFF_MIN) ? 'mt-bad' : 'mt-ok';
+      var mTip = mid + (mEff !== null ? ' | Ef: ' + mEff + '%' : '');
+      teamsHtml += '<div class="maq-tile ' + mCls + '" title="' + mTip + '">';
       teamsHtml += '<div class="mt-id">' + mid.replace('S','S').replace('L','L') + '</div>';
-      teamsHtml += '<div class="mt-n">' + mtubos + 't</div>';
+      teamsHtml += '<div class="mt-n">' + mtubos + 't' + (mEff !== null ? ' &bull; ' + mEff + '%' : '') + '</div>';
       teamsHtml += '</div>';
     }
     if (!maqsRendered.length) {
