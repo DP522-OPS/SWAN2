@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Swantex - Panel de Herramientas</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#0f172a;min-height:100vh}
+header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:1.4rem 1.5rem;color:#fff}
+.brand{font-size:1.35rem;font-weight:800}
+.brand span{font-weight:400;opacity:.75;font-size:.9rem;margin-left:.5rem}
+.sub{font-size:.82rem;opacity:.75;margin-top:.2rem}
+.content{padding:1.5rem;max-width:1000px;margin:0 auto}
+.section-t{font-size:.78rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin:1.6rem 0 .7rem}
+.section-t:first-child{margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.9rem}
+a.card{display:block;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1.15rem 1.25rem;text-decoration:none;color:inherit;transition:.15s;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+a.card:hover{border-color:#2d5a9e;box-shadow:0 4px 14px rgba(30,58,95,.12);transform:translateY(-1px)}
+.card-icon{font-size:1.5rem;margin-bottom:.5rem}
+.card-t{font-size:.98rem;font-weight:800;color:#1e3a5f;margin-bottom:.3rem}
+.card-d{font-size:.8rem;color:#64748b;line-height:1.5}
+.card-tag{display:inline-block;margin-top:.6rem;font-size:.68rem;font-weight:700;padding:.18rem .55rem;border-radius:999px}
+.tag-op{background:#ecfdf5;color:#065f46}
+.tag-sup{background:#eff6ff;color:#1e40af}
+.tag-ref{background:#f5f3ff;color:#6d28d9}
+.tag-cfg{background:#fef3c7;color:#92400e}
+.guides{margin-top:2rem;padding-top:1.2rem;border-top:1px solid #e2e8f0}
+.guide-list{display:flex;flex-wrap:wrap;gap:.5rem}
+.guide-list a{font-size:.78rem;color:#1e3a5f;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:.4rem .75rem;text-decoration:none;font-weight:600}
+.guide-list a:hover{border-color:#2d5a9e;background:#e8eef7}
+footer{text-align:center;padding:1.5rem;font-size:.72rem;color:#94a3b8}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Swantex <span>Panel de Herramientas</span></div>
+  <div class="sub">Todo lo de producción, en un solo lugar</div>
+</header>
+
+<div class="content">
+
+  <div class="section-t">Producción diaria</div>
+  <div class="grid">
+    <a class="card" href="https://dp522-ops.github.io/SWAN2/">
+      <div class="card-icon">&#9881;&#65039;</div>
+      <div class="card-t">Registrar Producción</div>
+      <div class="card-d">App para operarios: abrir lotes, cerrar lotes, entrega de turno y paros por NFC.</div>
+      <span class="card-tag tag-op">Operarios</span>
+    </a>
+    <a class="card" href="https://dp522-ops.github.io/SWAN2/dashboard.html">
+      <div class="card-icon">&#128202;</div>
+      <div class="card-t">Tablero Maestro</div>
+      <div class="card-d">Vista en tiempo real de todos los equipos, eficiencia y motivos de paro por máquina.</div>
+      <span class="card-tag tag-sup">Supervisión</span>
+    </a>
+  </div>
+
+  <div class="section-t">Fichas técnicas</div>
+  <div class="grid">
+    <a class="card" href="https://dp522-ops.github.io/swantex-fichas/">
+      <div class="card-icon">&#128196;</div>
+      <div class="card-t">Fichas Técnicas</div>
+      <div class="card-d">Cost sheets, fichas de medidas/aprobación y matriz de enconado.</div>
+      <span class="card-tag tag-ref">Ingeniería</span>
+    </a>
+  </div>
+
+  <div class="guides">
+    <div class="section-t">Configuración y guías</div>
+    <div class="guide-list">
+      <a href="https://dp522-ops.github.io/SWAN2/guia_google_sheets.html">Conectar Google Sheets</a>
+      <a href="https://dp522-ops.github.io/SWAN2/guia_nfc_swantex.html">Configurar stickers NFC</a>
+      <a href="https://dp522-ops.github.io/SWAN2/guia_github_pages.html">Publicar en GitHub Pages</a>
+    </div>
+  </div>
+
+</div>
+
+<footer>Swantex SAS &bull; Actualiza esta página cuando agreguemos una herramienta nueva</footer>
+
+</body>
+</html>
