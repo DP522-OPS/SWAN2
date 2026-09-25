@@ -72,6 +72,13 @@ tr:hover td{background:#253347}
 @keyframes spin{to{transform:rotate(360deg)}}
 .error-box{background:#1e293b;border:2px solid var(--red);border-radius:12px;padding:1.25rem;text-align:center;color:#fca5a5;font-size:.85rem;line-height:1.6}
 .countdown{font-size:.72rem;color:#64748b;background:#0f172a;border-radius:999px;padding:.2rem .65rem;font-variant-numeric:tabular-nums}
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:50;padding:1rem}
+.ov.on{display:flex}
+.modal{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:1.25rem;max-width:420px;width:100%;max-height:85vh;overflow-y:auto}
+.modal-t{font-size:1rem;font-weight:800;color:#fff;margin-bottom:.75rem}
+.modal-act{display:flex;justify-content:flex-end;margin-top:1rem}
+.btn-close{background:#334155;color:#e2e8f0;border:none;border-radius:8px;padding:.5rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer}
+.btn-close:hover{background:#475569}
 </style>
 </head>
 <body>
@@ -127,6 +134,16 @@ tr:hover td{background:#253347}
       <div style="font-size:2rem;margin-bottom:.5rem">&#9888;</div>
       <div id="error-msg">Error de conexion</div>
       <div style="margin-top:.75rem;font-size:.78rem;color:#94a3b8">Verifique la URL del servidor y su conexion a internet</div>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ov-motivo">
+  <div class="modal">
+    <div class="modal-t" id="mv-title">Maquina</div>
+    <div id="mv-body" style="font-size:.85rem;color:#cbd5e1"></div>
+    <div class="modal-act">
+      <button class="btn-close" onclick="closeOv('ov-motivo')">Cerrar</button>
     </div>
   </div>
 </div>
@@ -222,6 +239,7 @@ var EQUIPOS = [
 ];
 
 function renderDashboard(filas) {
+  window._mdMaqData = {};
   var todayStr = hoy();
   var total_t=0, total_lotes=0, eff_sum=0, eff_cnt=0;
   var maq_set = {};
@@ -266,6 +284,19 @@ function renderDashboard(filas) {
         eq_maq_es[f.MaqID] = (eq_maq_es[f.MaqID]||0) + (parseFloat(f.Eficiencia)||0);
         eq_maq_ec[f.MaqID] = (eq_maq_ec[f.MaqID]||0) + 1;
       }
+      if (!window._mdMaqData[f.MaqID]) window._mdMaqData[f.MaqID] = {lotes:0, tubos:0, parosMin:0, paros:{}};
+      var md = window._mdMaqData[f.MaqID];
+      md.lotes++; md.tubos += parseInt(f.Tubos)||0;
+      md.parosMin += parseInt(f.ParosMin)||0;
+      if (f.ParosDetalle) {
+        var parts = String(f.ParosDetalle).split(';');
+        for (var pj=0;pj<parts.length;pj++) {
+          var kv = parts[pj].split(':');
+          if (kv.length<2) continue;
+          var mo = kv[0], du = parseInt(kv[1])||0;
+          md.paros[mo] = (md.paros[mo]||0) + du;
+        }
+      }
     }
     var EFF_MIN = 75;
     var eq_eff = eq_ec ? Math.round(eq_es/eq_ec) : null;
@@ -291,11 +322,19 @@ function renderDashboard(filas) {
       var mid = maqsRendered[mi];
       var mtubos = eq_maqs[mid];
       var mEff = eq_maq_ec[mid] ? Math.round(eq_maq_es[mid] / eq_maq_ec[mid]) : null;
-      var mCls = (mEff !== null && mEff < EFF_MIN) ? 'mt-bad' : 'mt-ok';
-      var mTip = mid + (mEff !== null ? ' | Ef: ' + mEff + '%' : '');
-      teamsHtml += '<div class="maq-tile ' + mCls + '" title="' + mTip + '">';
+      var low = mEff !== null && mEff < EFF_MIN;
+      var mCls = low ? 'mt-bad' : 'mt-ok';
+      var topMot = null;
+      var mParos = window._mdMaqData[mid] ? window._mdMaqData[mid].paros : null;
+      if (mParos) {
+        var mkeys = Object.keys(mParos).sort(function(a,b){return mParos[b]-mParos[a];});
+        if (mkeys.length) topMot = mkeys[0] + ' (' + mParos[mkeys[0]] + 'm)';
+      }
+      var mTip = mid + (mEff !== null ? ' | Ef: ' + mEff + '%' : '') + (topMot ? ' | Principal paro: ' + topMot : '') + ' | Clic para detalle';
+      teamsHtml += '<div class="maq-tile ' + mCls + '" style="cursor:pointer" onclick="showMotivo(\''+mid+'\')" title="' + mTip + '">';
       teamsHtml += '<div class="mt-id">' + mid.replace('S','S').replace('L','L') + '</div>';
       teamsHtml += '<div class="mt-n">' + mtubos + 't' + (mEff !== null ? ' &bull; ' + mEff + '%' : '') + '</div>';
+      if (low && topMot) teamsHtml += '<div style="font-size:.52rem;font-weight:800;color:#fca5a5;line-height:1.1;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + topMot + '</div>';
       teamsHtml += '</div>';
     }
     if (!maqsRendered.length) {
@@ -330,6 +369,33 @@ function renderDashboard(filas) {
 
 function statCard(val, lbl, color) {
   return '<div class="stat-card"><div class="stat-v" style="color:' + color + '">' + val + '</div><div class="stat-l">' + lbl + '</div></div>';
+}
+function openOv(id){ document.getElementById(id).classList.add('on'); }
+function closeOv(id){ document.getElementById(id).classList.remove('on'); }
+function showMotivo(maqId) {
+  var md = (window._mdMaqData && window._mdMaqData[maqId]) || {lotes:0, tubos:0, parosMin:0, paros:{}};
+  var keys = Object.keys(md.paros).sort(function(a,b){return md.paros[b]-md.paros[a];});
+  document.getElementById('mv-title').textContent = maqId;
+  var h = '';
+  h += '<div style="display:flex;gap:1rem;margin-bottom:.75rem;font-size:.78rem;color:#94a3b8">';
+  h += '<div><strong style="color:#e2e8f0;font-size:1rem">' + md.lotes + '</strong> lotes hoy</div>';
+  h += '<div><strong style="color:#10b981;font-size:1rem">' + md.tubos.toLocaleString() + '</strong> tubos</div>';
+  h += '<div><strong style="color:#ef4444;font-size:1rem">' + md.parosMin + '</strong> min. de paro</div>';
+  h += '</div>';
+  if (!keys.length) {
+    h += '<div style="font-size:.8rem;color:#94a3b8;font-style:italic">Sin paros registrados hoy en esta maquina.</div>';
+  } else {
+    h += '<div style="font-weight:700;font-size:.78rem;color:#e2e8f0;margin-bottom:.4rem">Motivos de paro (de mayor a menor):</div>';
+    for (var i=0;i<keys.length;i++) {
+      var pct = md.parosMin ? Math.round(md.paros[keys[i]]/md.parosMin*100) : 0;
+      h += '<div style="margin-bottom:.45rem">';
+      h += '<div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:.15rem;color:#e2e8f0"><span><strong>'+keys[i]+'</strong></span><span>'+md.paros[keys[i]]+' min ('+pct+'%)</span></div>';
+      h += '<div style="height:7px;background:#334155;border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:#ef4444;border-radius:4px"></div></div>';
+      h += '</div>';
+    }
+  }
+  document.getElementById('mv-body').innerHTML = h;
+  openOv('ov-motivo');
 }
 function parseFecha(v) {
   if (!v) return '';
