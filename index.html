@@ -634,7 +634,7 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
   </div>
   <div class="cpanel" id="cp-refs">
     <div class="hdr" style="margin-bottom:.65rem">
-      <div style="font-size:.8rem;color:var(--steel)">1039 items - <span id="ref-count"></span></div>
+      <div style="font-size:.8rem;color:var(--steel)"><span id="ref-count"></span></div>
     </div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.65rem">
       <input type="text" class="inp" id="cr-q" style="width:280px" placeholder="Buscar codigo o nombre..." oninput="renderCfgRefs()">
@@ -1655,6 +1655,8 @@ function renderCfgOps() {
   document.getElementById('cfg-op-body').innerHTML = h || '<tr><td colspan="5" style="text-align:center;color:var(--steel)">Sin operarios</td></tr>';
 }
 
+var cfgRefExpanded = {};
+function toggleCfgRefGroup(key){ cfgRefExpanded[key] = !cfgRefExpanded[key]; renderCfgRefs(); }
 function renderCfgRefs() {
   var q=(document.getElementById('cr-q').value||'').toLowerCase(), tf=document.getElementById('cr-type').value;
   var list=[];
@@ -1662,13 +1664,38 @@ function renderCfgRefs() {
     var r=REFS[i];
     if((!q||(r[0]+r[1]).toLowerCase().indexOf(q)>=0)&&(!tf||r[2]===tf)) list.push(r);
   }
-  document.getElementById('ref-count').textContent = 'Mostrando '+(list.length>80?80:list.length)+' de '+list.length;
-  var h='';
-  for(var i=0;i<list.length&&i<80;i++){
+  // Agrupar por producto (nombre+tipo+tub/doc+min/doc): mismos codigos que antes se
+  // diferenciaban solo por talla quedan juntos bajo un mismo renglon expandible.
+  var groups = {}, order = [];
+  for(var i=0;i<list.length;i++){
     var r=list[i];
-    var s60=Math.round((60/r[4])*r[5]*10)/10;
-    h+='<tr><td><code>'+r[0]+'</code></td><td>'+r[1]+'</td><td><span class="badge '+(r[2]==='santoni'?'bp':'bt')+'">'+r[2]+'</span></td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+s60+'</td><td><button class="btn btn-out btn-sm" onclick="showNfc(\'referencia\',\''+r[0]+'\')">NFC</button></td></tr>';
+    var key = r[1]+'|'+r[2]+'|'+r[4]+'|'+r[5];
+    if(!groups[key]){ groups[key]=[]; order.push(key); }
+    groups[key].push(r);
   }
+  var shown=0, h='';
+  for(var gi=0; gi<order.length && shown<80; gi++){
+    var key=order[gi], grp=groups[key], r=grp[0];
+    var s60=Math.round((60/r[4])*r[5]*10)/10;
+    if(grp.length===1){
+      h+='<tr><td><code>'+r[0]+'</code></td><td>'+r[1]+'</td><td><span class="badge '+(r[2]==='santoni'?'bp':'bt')+'">'+r[2]+'</span></td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+s60+'</td><td><button class="btn btn-out btn-sm" onclick="showNfc(\'referencia\',\''+r[0]+'\')">NFC</button></td></tr>';
+      shown++;
+    } else {
+      var exp = !!cfgRefExpanded[key];
+      var keyEsc = key.replace(/'/g,"\\'");
+      h+='<tr style="cursor:pointer;background:var(--steell)" onclick="toggleCfgRefGroup(\''+keyEsc+'\')">';
+      h+='<td colspan="2"><span style="display:inline-block;width:.9rem">'+(exp?'&#9662;':'&#9656;')+'</span> <strong>'+r[1]+'</strong> <span style="color:var(--steel);font-size:.75rem">('+grp.length+' codigos)</span></td>';
+      h+='<td><span class="badge '+(r[2]==='santoni'?'bp':'bt')+'">'+r[2]+'</span></td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+s60+'</td><td></td></tr>';
+      shown++;
+      if(exp){
+        for(var ci=0; ci<grp.length; ci++){
+          var cr=grp[ci];
+          h+='<tr style="background:#fbfcfe"><td style="padding-left:1.8rem"><code>'+cr[0]+'</code></td><td colspan="4" style="color:var(--steel);font-size:.76rem">codigo individual</td><td></td><td><button class="btn btn-out btn-sm" onclick="event.stopPropagation();showNfc(\'referencia\',\''+cr[0]+'\')">NFC</button></td></tr>';
+        }
+      }
+    }
+  }
+  document.getElementById('ref-count').textContent = 'Mostrando '+shown+' de '+order.length+' productos ('+list.length+' codigos)';
   document.getElementById('cfg-ref-body').innerHTML = h || '<tr><td colspan="8" style="text-align:center;color:var(--steel)">Sin resultados</td></tr>';
 }
 
