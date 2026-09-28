@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Swantex - Planeacion de Produccion</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
 :root{--amber:#f59e0b;--green:#10b981;--blue:#3b82f6;--red:#ef4444;--purple:#8b5cf6}
 *{box-sizing:border-box}
@@ -86,9 +88,10 @@ table.resumen td{padding:.45rem .5rem;border-bottom:1px solid #1f2937}
 
   <div class="card">
     <h2>1. Catalogo</h2>
-    <div class="sub">Referencias y maquinas, traidas en vivo desde index.html (misma fuente que usa Produccion diaria).</div>
+    <div class="sub">La maquina/diametro de cada referencia se toma primero del campo que se llena a mano en cada Ficha (Precosteo F-CIR-002); si una referencia todavia no tiene ficha con ese dato, se usa como respaldo el catalogo automatico de index.html.</div>
     <button class="btn" onclick="cargarCatalogo()">Actualizar catalogo</button>
     <div class="status" id="cat-status">Sin cargar todavia.</div>
+    <div class="status" id="fichas-status">Sin cargar todavia.</div>
   </div>
 
   <div class="card">
@@ -257,14 +260,71 @@ function cargarCatalogo(cb) {
       var maqs = extractArray(html, 'MAQS_DEF');
       if (!refs || !maqs) { st.textContent = 'No se pudo leer el catalogo de index.html.'; st.className='status err'; return; }
       REFS = refs; MAQS_DEF = maqs;
-      st.textContent = REFS.length + ' referencias y ' + MAQS_DEF.length + ' maquinas cargadas (' + new Date().toLocaleTimeString() + ').';
+      st.textContent = REFS.length + ' referencias y ' + MAQS_DEF.length + ' maquinas cargadas (' + new Date().toLocaleTimeString() + '). Se usa solo como respaldo.';
       st.className = 'status ok';
-      if (cb) cb();
+      cargarFichasMaquina(cb);
     })
     .catch(function(e) {
       st.textContent = 'Error: ' + e.message + '. Si esta abriendo el archivo localmente (no en GitHub Pages), este fetch puede fallar por el navegador.';
       st.className = 'status err';
+      cargarFichasMaquina(cb);
     });
+}
+
+// ============================================================
+// Maquina/diametro capturados a mano en cada Ficha (Precosteo,
+// header.tipoMaquina / maquinaModelo / diametro) - esta es la fuente
+// de verdad. Se llena de a poco a medida que se hacen fichas; lo que
+// aun no tenga ficha completa cae al catalogo automatico de REFS.
+// ============================================================
+var FICHAS_FB_CFG = {
+  apiKey:'AIzaSyCQqlJRxiyJPNkgiBNnF5kquWpBxKuMiQ8',
+  authDomain:'swantex-fichas-5ca6b.firebaseapp.com',
+  projectId:'swantex-fichas-5ca6b',
+  storageBucket:'swantex-fichas-5ca6b.firebasestorage.app',
+  messagingSenderId:'60295471678',
+  appId:'1:60295471678:web:67a732cfbd97cdf20aa76f'
+};
+var _fichasDb = null;
+var FICHA_MAQ = {}; // code -> {tipo:'santoni'|'lonati', modelo, diam, nombre}
+
+function initFichasFirebase() {
+  if (_fichasDb) return _fichasDb;
+  try {
+    if (typeof firebase === 'undefined') return null;
+    var app = firebase.apps && firebase.apps.some(function(a){return a.name==='fichas';})
+      ? firebase.app('fichas') : firebase.initializeApp(FICHAS_FB_CFG, 'fichas');
+    _fichasDb = app.firestore();
+    return _fichasDb;
+  } catch(e) { console.error('Firebase fichas error', e); return null; }
+}
+
+function cargarFichasMaquina(cb) {
+  var st = document.getElementById('fichas-status');
+  var db = initFichasFirebase();
+  if (!db) { st.textContent = 'No se pudo conectar con Fichas; se usa solo el catalogo automatico.'; st.className='status err'; if(cb) cb(); return; }
+  st.textContent = 'Cargando maquina/diametro desde Fichas...'; st.className='status';
+  db.collection('fichas').get().then(function(snap) {
+    var map = {}, completas = 0;
+    snap.forEach(function(doc) {
+      var d = doc.data() || {};
+      var h = d.header || {};
+      var code = (h.referencia || '').toString().trim().toUpperCase();
+      if (!code || !h.tipoMaquina || !h.maquinaModelo) return;
+      var tipo = h.tipoMaquina.toLowerCase();
+      var diam = tipo === 'santoni' ? ((h.diametro||'').toString().trim() + '"') : '';
+      map[code] = { tipo: tipo, modelo: h.maquinaModelo, diam: diam, nombre: d.nombrePrenda || code };
+      completas++;
+    });
+    FICHA_MAQ = map;
+    st.textContent = completas + ' ficha(s) con maquina/diametro definido manualmente (' + new Date().toLocaleTimeString() + ').';
+    st.className = 'status ok';
+    if (cb) cb();
+  }).catch(function(err) {
+    st.textContent = 'Error consultando Fichas: ' + err.message + '. Se usa solo el catalogo automatico.';
+    st.className = 'status err';
+    if (cb) cb();
+  });
 }
 cargarCatalogo();
 
@@ -305,6 +365,20 @@ function matchGrupos(ref) {
     if (!seen[k]) { seen[k] = 1; out.push(k); }
   }
   return out;
+}
+
+// Primero intenta con el dato manual de la Ficha (exacto, sin adivinar);
+// si la referencia no tiene ficha con maquina/diametro definido, o el
+// modelo que trae no coincide con ninguna maquina fisica real, cae al
+// emparejamiento automatico por nombre (heuristica sobre REFS).
+function matchGruposParaCode(code, ref) {
+  var fm = FICHA_MAQ[code];
+  if (fm) {
+    var k = grupoKey(fm.tipo, fm.modelo, fm.diam);
+    if (maquinasDeGrupo(k).length) return { grupos: [k], fuente: 'ficha' };
+  }
+  var g = matchGrupos(ref);
+  return { grupos: g, fuente: 'auto' };
 }
 
 function maquinasDeGrupo(key) {
@@ -412,7 +486,8 @@ function calcularProyeccion() {
       var tubosPorDocena = parseInt(ref[4]) || 12;
       if (!stdMin) { warnings.push({ tipo:'sin_tiempo', code: row.code, nombre: ref[1] }); continue; }
 
-      var grupos = matchGrupos(ref);
+      var m = matchGruposParaCode(row.code, ref);
+      var grupos = m.grupos;
       if (!grupos.length) { warnings.push({ tipo:'sin_match', code: row.code, nombre: ref[1], raw: ref[3], tipoM: (ref[2]||'').toLowerCase() }); continue; }
       // usa el primer grupo que tenga maquinas fisicas
       var maquinasGrupo = [];
@@ -432,11 +507,11 @@ function calcularProyeccion() {
         var maqId = elegidas[q];
         var inicio = new Date(dispo[maqId].getTime() + alistMin*60000);
         var fin = new Date(inicio.getTime() + minTotal*60000);
-        jobs.push({ maqId: maqId, code: row.code, nombre: ref[1], cantidad: Math.round(cantidadPorMaquina), inicio: inicio, fin: fin });
+        jobs.push({ maqId: maqId, code: row.code, nombre: ref[1], cantidad: Math.round(cantidadPorMaquina), inicio: inicio, fin: fin, fuente: m.fuente });
         dispo[maqId] = fin;
         if (!finMax || fin > finMax) finMax = fin;
       }
-      refFin[row.code] = finMax;
+      refFin[row.code] = { fin: finMax, fuente: m.fuente };
     }
 
     renderWarnings(warnings);
@@ -587,10 +662,14 @@ function renderResultado(jobs, refFin, dispo, now, horizonteDias) {
   legendHtml += '</div>';
 
   // resumen: fecha de fin por referencia + que sigue por maquina
-  var resumenHtml = '<table class="resumen"><thead><tr><th>Referencia</th><th>Termina aprox.</th></tr></thead><tbody>';
+  var resumenHtml = '<table class="resumen"><thead><tr><th>Referencia</th><th>Termina aprox.</th><th>Maquina/diametro tomado de</th></tr></thead><tbody>';
   var codes = Object.keys(refFin).sort();
   for (var i = 0; i < codes.length; i++) {
-    resumenHtml += '<tr><td>' + codes[i] + '</td><td>' + refFin[codes[i]].toLocaleString(undefined,{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) + '</td></tr>';
+    var rf = refFin[codes[i]];
+    var fuenteTag = rf.fuente === 'ficha'
+      ? '<span class="tag" style="background:#0f7a4d33;color:#34d399">Ficha (manual)</span>'
+      : '<span class="tag" style="background:#f59e0b33;color:#fbbf24">Catalogo (auto)</span>';
+    resumenHtml += '<tr><td>' + codes[i] + '</td><td>' + rf.fin.toLocaleString(undefined,{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) + '</td><td>' + fuenteTag + '</td></tr>';
   }
   resumenHtml += '</tbody></table>';
 
