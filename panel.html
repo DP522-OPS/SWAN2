@@ -64,10 +64,10 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
       <div class="brand-sub">Panel de herramientas</div>
     </div>
 
-    <button class="navitem active" data-sec="produccion" onclick="showSection('produccion')">Produccion diaria</button>
-    <button class="navitem" data-sec="fichas" onclick="showSection('fichas')">Fichas tecnicas</button>
+    <button class="navitem active" data-sec="produccion" onclick="showSection('produccion')">Producción diaria</button>
+    <button class="navitem" data-sec="fichas" onclick="showSection('fichas')">Fichas técnicas</button>
     <button class="navitem" data-sec="materia" onclick="showSection('materia')">Materia prima</button>
-    <button class="navitem" data-sec="config" onclick="showSection('config')">Configuracion y guias</button>
+    <button class="navitem" data-sec="config" onclick="showSection('config')">Configuración y guías</button>
 
     <div class="sidebar-foot">Actualiza este panel al agregar una herramienta nueva</div>
   </div>
@@ -75,45 +75,45 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
   <div class="content">
 
     <div class="section active" id="sec-produccion">
-      <div class="sec-title">Produccion diaria</div>
+      <div class="sec-title">Producción diaria</div>
       <div class="sec-sub">Herramientas de uso diario para operarios y supervisores</div>
 
-      <a class="row" href="https://dp522-ops.github.io/SWAN2/">
+      <a class="row" href="https://dp522-ops.github.io/SWAN2/" target="_blank" rel="noopener">
         <div class="row-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="1"></rect><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"></path><line x1="9" y1="10" x2="15" y2="10"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>
         </div>
         <div style="flex-grow:1">
-          <div class="row-t">Registrar Produccion</div>
+          <div class="row-t">Registrar Producción</div>
           <div class="row-d">Abrir lotes, cerrar lotes, entrega de turno y paros por NFC.</div>
         </div>
         <span class="row-tag tag-op">Operarios</span>
       </a>
 
-      <a class="row" href="https://dp522-ops.github.io/SWAN2/dashboard.html">
+      <a class="row" href="https://dp522-ops.github.io/SWAN2/dashboard.html" target="_blank" rel="noopener">
         <div class="row-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="20"></line><rect x="6" y="12" width="3" height="8"></rect><rect x="11" y="7" width="3" height="13"></rect><rect x="16" y="10" width="3" height="10"></rect></svg>
         </div>
         <div style="flex-grow:1">
           <div class="row-t">Tablero Maestro</div>
-          <div class="row-d">Vista en tiempo real de todos los equipos, eficiencia y motivos de paro por maquina.</div>
+          <div class="row-d">Vista en tiempo real de todos los equipos, eficiencia y motivos de paro por máquina.</div>
         </div>
-        <span class="row-tag tag-sup">Supervision</span>
+        <span class="row-tag tag-sup">Supervisión</span>
       </a>
     </div>
 
     <div class="section" id="sec-fichas">
-      <div class="sec-title">Fichas tecnicas</div>
-      <div class="sec-sub">Ingenieria de producto y costeo</div>
+      <div class="sec-title">Fichas técnicas</div>
+      <div class="sec-sub">Ingeniería de producto y costeo</div>
 
-      <a class="row" href="https://dp522-ops.github.io/swantex-fichas/">
+      <a class="row" href="https://dp522-ops.github.io/swantex-fichas/" target="_blank" rel="noopener">
         <div class="row-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path><path d="M14 3v4h4"></path><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg>
         </div>
         <div style="flex-grow:1">
-          <div class="row-t">Fichas Tecnicas</div>
-          <div class="row-d">Cost sheets, fichas de medidas/aprobacion y matriz de enconado.</div>
+          <div class="row-t">Fichas Técnicas</div>
+          <div class="row-d">Cost sheets, fichas de medidas/aprobación y matriz de enconado.</div>
         </div>
-        <span class="row-tag tag-ref">Ingenieria</span>
+        <span class="row-tag tag-ref">Ingeniería</span>
       </a>
     </div>
 
@@ -121,49 +121,49 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
       <div class="sec-title">Materia prima</div>
       <div class="sec-sub">Consumo y pedido de hilo para bodega</div>
 
-      <a class="row" href="https://dp522-ops.github.io/SWAN2/hilos.html">
+      <a class="row" href="https://dp522-ops.github.io/SWAN2/hilos.html" target="_blank" rel="noopener">
         <div class="row-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="6" ry="3"></ellipse><path d="M6 6v12c0 1.7 2.7 3 6 3s6-1.3 6-3V6"></path><path d="M6 12c0 1.7 2.7 3 6 3s6-1.3 6-3"></path></svg>
         </div>
         <div style="flex-grow:1">
           <div class="row-t">Hilos y Materia Prima</div>
-          <div class="row-d">Cuanto hilo (por titulo y lote) se necesita hoy, segun lo que esta corriendo, lo ya producido y la calculadora de pedido.</div>
+          <div class="row-d">Cuánto hilo (por título y lote) se necesita hoy, según lo que está corriendo, lo ya producido y la calculadora de pedido.</div>
         </div>
         <span class="row-tag tag-cfg">Bodega</span>
       </a>
     </div>
 
     <div class="section" id="sec-config">
-      <div class="sec-title">Configuracion y guias</div>
+      <div class="sec-title">Configuración y guías</div>
       <div class="sec-sub">Pasos para conectar cada herramienta, una sola vez</div>
 
-      <a class="guide-row" href="https://dp522-ops.github.io/SWAN2/guia_google_sheets.html">
+      <a class="guide-row" href="https://dp522-ops.github.io/SWAN2/guia_google_sheets.html" target="_blank" rel="noopener">
         <span class="guide-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"></path><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"></path></svg>
         </span>
         <div>
           <div class="guide-t">Conectar Google Sheets</div>
-          <div class="guide-d">Servidor (Apps Script) para Produccion, Tablero Maestro e Hilos.</div>
+          <div class="guide-d">Servidor (Apps Script) para Producción, Tablero Maestro e Hilos.</div>
         </div>
       </a>
 
-      <a class="guide-row" href="https://dp522-ops.github.io/SWAN2/guia_nfc_swantex.html">
+      <a class="guide-row" href="https://dp522-ops.github.io/SWAN2/guia_nfc_swantex.html" target="_blank" rel="noopener">
         <span class="guide-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"></path><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"></path></svg>
         </span>
         <div>
           <div class="guide-t">Configurar stickers NFC</div>
-          <div class="guide-d">Codificar operarios, maquinas, referencias y paros.</div>
+          <div class="guide-d">Codificar operarios, máquinas, referencias y paros.</div>
         </div>
       </a>
 
-      <a class="guide-row" href="https://dp522-ops.github.io/SWAN2/guia_github_pages.html">
+      <a class="guide-row" href="https://dp522-ops.github.io/SWAN2/guia_github_pages.html" target="_blank" rel="noopener">
         <span class="guide-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"></path><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"></path></svg>
         </span>
         <div>
           <div class="guide-t">Publicar en GitHub Pages</div>
-          <div class="guide-d">Como subir los archivos para que queden disponibles en la web.</div>
+          <div class="guide-d">Cómo subir los archivos para que queden disponibles en la web.</div>
         </div>
       </a>
     </div>
