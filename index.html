@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Swantex - Produccion</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -633,9 +635,11 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
     </table></div></div>
   </div>
   <div class="cpanel" id="cp-refs">
-    <div class="hdr" style="margin-bottom:.65rem">
+    <div class="hdr" style="margin-bottom:.4rem">
       <div style="font-size:.8rem;color:var(--steel)"><span id="ref-count"></span></div>
+      <button class="btn btn-out btn-sm" onclick="syncRefsFromFichas(true)">&#8635; Actualizar desde Fichas</button>
     </div>
+    <div id="refs-sync-status" style="font-size:.72rem;color:var(--steel);margin-bottom:.65rem">Aun no se ha sincronizado con Fichas en esta sesion.</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.65rem">
       <input type="text" class="inp" id="cr-q" style="width:280px" placeholder="Buscar codigo o nombre..." oninput="renderCfgRefs()">
       <select class="inp" id="cr-type" style="width:auto" onchange="renderCfgRefs()"><option value="">Todos</option><option value="santoni">Santoni</option><option value="lonati">Lonati</option></select>
@@ -1286,7 +1290,10 @@ function saveAbrir() {
     status: 'abierto'
   };
   var all = sg_lotes(); all.push(lote); ss('lotes', all);
-  // Note: don't sync open lots to GAS yet (no production data)
+  // No se sincroniza el lote abierto a la hoja de Produccion (sin datos de
+  // produccion aun), pero SI se avisa que esta maquina quedo "corriendo" con
+  // esta referencia, para la herramienta de Hilos y Materia Prima.
+  syncEstadoActual(lote.maqId, lote.refId, lote.fecha, lote.hi, 'CORRIENDO');
 
   // Reset form, keep machine/op/turno/fecha
   rParos = []; rLot = 0; rRefId = '';
@@ -1513,6 +1520,14 @@ function saveCerrar() {
   ss('lotes', all);
   syncLote(all[idx]);
   var closedLote = all[idx];
+  // Actualiza el estado en tiempo real de la maquina: si hubo entrega de
+  // turno sigue "corriendo" la misma referencia con el nuevo operario; si
+  // no, la maquina queda libre hasta que se abra un lote nuevo.
+  if (cont) {
+    syncEstadoActual(cont.maqId, cont.refId, cont.fecha, cont.hi, 'CORRIENDO');
+  } else {
+    syncEstadoActual(closedLote.maqId, closedLote.refId, closedLote.fecha, closedLote.hf, 'LIBRE');
+  }
 
   rCerrarLoteId = null;
   rCerrarParos = [];
@@ -2065,6 +2080,23 @@ function syncLote(lote) {
     })
     .catch(function() {});
 }
+// Avisa al servidor que referencia esta corriendo (o que la maquina quedo
+// libre) AHORA MISMO, sin esperar a que el lote se cierre. Esto alimenta la
+// herramienta de Hilos y Materia Prima para calcular consumo en tiempo real.
+function syncEstadoActual(maqId, refId, fecha, hi, estado) {
+  var url = getGasUrl();
+  if (!url || !maqId) return;
+  var ref = null;
+  if (estado !== 'LIBRE') { for (var i=0; i<REFS.length; i++) { if (REFS[i][0]===refId) { ref=REFS[i]; break; } } }
+  var payload = {
+    maqId: maqId,
+    refId: estado==='LIBRE' ? '' : (refId || ''),
+    refNombre: estado==='LIBRE' ? '' : (ref ? ref[1] : ''),
+    fecha: fecha || '', hi: hi || '', estado: estado
+  };
+  var qs = url + '?action=estado_actual&d=' + encodeURIComponent(JSON.stringify(payload));
+  fetch(qs).catch(function() {});
+}
 function syncPending() {
   var pending = sg_lotes().filter(function(l){return !l.synced;});
   for (var i=0; i<pending.length; i++) syncLote(pending[i]);
@@ -2072,8 +2104,95 @@ function syncPending() {
   setTimeout(initNubePanel, 4000);
 }
 
+// ============ REFERENCIAS DESDE FICHAS TECNICAS (Firebase) ============
+// Lee la app de Fichas (swantex-fichas) y actualiza REFS con lo que haya
+// diligenciado ingenieria: referencia, peso y tiempo. Se toma la ficha en
+// cuanto tenga referencia + tiempo, sin esperar las 4 firmas de aprobacion.
+var FICHAS_FB_CFG = {
+  apiKey:'AIzaSyCQqlJRxiyJPNkgiBNnF5kquWpBxKuMiQ8',
+  authDomain:'swantex-fichas-5ca6b.firebaseapp.com',
+  projectId:'swantex-fichas-5ca6b',
+  storageBucket:'swantex-fichas-5ca6b.firebasestorage.app',
+  messagingSenderId:'60295471678',
+  appId:'1:60295471678:web:67a732cfbd97cdf20aa76f'
+};
+var _fichasDb = null;
+function initFichasFirebase() {
+  if (_fichasDb) return _fichasDb;
+  try {
+    if (typeof firebase === 'undefined') return null;
+    var app = firebase.apps && firebase.apps.some(function(a){return a.name==='fichas';})
+      ? firebase.app('fichas') : firebase.initializeApp(FICHAS_FB_CFG, 'fichas');
+    _fichasDb = app.firestore();
+    return _fichasDb;
+  } catch(e) { console.error('Firebase fichas error', e); return null; }
+}
+function fichaToRefRow(id, d) {
+  var h = d.header || {}, sp = d.specs || {};
+  var code = (h.referencia || '').toString().trim().toUpperCase();
+  var tMin = parseFloat(sp.tiempoMin), tSeg = parseFloat(sp.tiempoSeg);
+  var tubos = parseInt(h.tubosPorDocena) || 12;
+  if (!code) return null;
+  if ((isNaN(tMin) || tMin === 0) && (isNaN(tSeg) || tSeg === 0)) return null; // sin tiempo, ficha incompleta
+  var perUnitMin = (isNaN(tMin)?0:tMin) + (isNaN(tSeg)?0:tSeg) / 60;
+  // tiempoMin/tiempoSeg en la ficha es el tiempo de UN TUBO (ciclo de
+  // maquina), confirmado con DP. El estandar por docena debe ser el tiempo
+  // de un tubo multiplicado por los tubos que hacen falta para completar
+  // una docena de prendas (tubosPorDocena) - NO por 12 fijo, porque 12 son
+  // prendas y el tiempo no es por prenda. Con esto la formula de eficiencia
+  // (tubos_producidos/tubosPorDocena)*stdDocena se simplifica exactamente a
+  // tubos_producidos*tiempoPorTubo, que es lo correcto sin importar si la
+  // referencia rinde 1, 2 o mas prendas por tubo.
+  var stdDocena = Math.round(perUnitMin * tubos * 100) / 100;
+  var tipoRaw = (h.tipoMaquina || '').toLowerCase();
+  var tipo = tipoRaw.indexOf('lonati') >= 0 ? 'lonati' : 'santoni';
+  var modelo = ((h.maquinaModelo || '') + (h.diametro ? ' ' + h.diametro + '"' : '')).trim();
+  var nombre = (d.nombrePrenda || code).toString().trim();
+  return [code, nombre, tipo, modelo, tubos, stdDocena];
+}
+function applyLiveRefs(rows) {
+  var byCode = {};
+  for (var i=0; i<REFS.length; i++) byCode[REFS[i][0]] = i;
+  var added = 0, updated = 0;
+  for (var i=0; i<rows.length; i++) {
+    var r = rows[i];
+    if (byCode.hasOwnProperty(r[0])) { REFS[byCode[r[0]]] = r; updated++; }
+    else { REFS.push(r); byCode[r[0]] = REFS.length-1; added++; }
+  }
+  return { added: added, updated: updated };
+}
+function syncRefsFromFichas(notify) {
+  var db = initFichasFirebase();
+  if (!db) { if (notify) toast('No se pudo conectar con Fichas'); return; }
+  db.collection('fichas').get().then(function(snap) {
+    var rows = [];
+    snap.forEach(function(doc) {
+      var row = fichaToRefRow(doc.id, doc.data() || {});
+      if (row) rows.push(row);
+    });
+    var res = applyLiveRefs(rows);
+    ss('refs_fichas_cache', rows);
+    ss('refs_fichas_ts', Date.now());
+    if (document.getElementById('cfg-ref-body')) renderCfgRefs();
+    var el = document.getElementById('refs-sync-status');
+    if (el) el.textContent = 'Sincronizado con Fichas: ' + rows.length + ' referencias (' + res.added + ' nuevas, ' + res.updated + ' actualizadas) - ' + new Date().toLocaleTimeString();
+    if (notify) toast('Referencias actualizadas desde Fichas (' + rows.length + ')');
+  }).catch(function(err) {
+    console.error(err);
+    if (notify) toast('Error consultando Fichas: ' + err.message);
+    var el = document.getElementById('refs-sync-status');
+    if (el) el.textContent = 'No se pudo conectar con Fichas ahora mismo. Se sigue usando la ultima version guardada.';
+  });
+}
+function initRefsFromCache() {
+  var cached = sg('refs_fichas_cache', null);
+  if (cached && cached.length) applyLiveRefs(cached);
+}
+
 // START
 init();
+initRefsFromCache();
+syncRefsFromFichas(false);
 renderDash();
 </script>
 </body>

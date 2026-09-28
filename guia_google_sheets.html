@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Swantex - Guia Google Sheets</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#0f172a;padding:1.5rem;max-width:860px;margin:0 auto}
+h1{color:#1e3a5f;font-size:1.4rem;margin-bottom:.25rem}
+.sub{color:#64748b;font-size:.9rem;margin-bottom:2rem}
+.step{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.25rem;margin-bottom:1rem;display:flex;gap:1rem}
+.step-n{background:#1e3a5f;color:#fff;font-weight:800;font-size:1.1rem;width:2.2rem;height:2.2rem;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.1rem}
+.step-body h3{font-size:.95rem;font-weight:700;margin-bottom:.4rem;color:#1e3a5f}
+.step-body p{font-size:.85rem;color:#475569;line-height:1.6;margin-bottom:.4rem}
+.step-body p:last-child{margin-bottom:0}
+.url{background:#1e3a5f;color:#fff;padding:.4rem .75rem;border-radius:7px;font-family:monospace;font-size:.82rem;display:inline-block;margin:.25rem 0;user-select:all;cursor:pointer}
+.code-box{position:relative;margin:.6rem 0}
+.code-box pre{background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:9px;font-size:.76rem;overflow-x:auto;white-space:pre-wrap;line-height:1.55}
+.copy-btn{position:absolute;top:.5rem;right:.5rem;background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:.28rem .65rem;font-size:.72rem;font-weight:700;cursor:pointer}
+.copy-btn:hover{background:#d97706}
+.alert{background:#fef3c7;border:1px solid #f59e0b;border-radius:9px;padding:.75rem 1rem;font-size:.82rem;color:#92400e;margin:.5rem 0;line-height:1.55}
+.ok{background:#ecfdf5;border-color:#10b981;color:#065f46}
+.img-hint{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.6rem .85rem;font-size:.8rem;color:#1e40af;margin:.4rem 0}
+</style>
+</head>
+<body>
+<h1>Configuracion Google Sheets + Tablero Maestro</h1>
+<p class="sub">Siga estos pasos UNA sola vez. Despues la app envia datos automaticamente.</p>
+
+<div class="step">
+  <div class="step-n">1</div>
+  <div class="step-body">
+    <h3>Crear una nueva hoja de Google Sheets</h3>
+    <p>Abra el navegador y vaya a:</p>
+    <span class="url">sheets.google.com</span>
+    <p>Haga clic en <strong>"+ En blanco"</strong> para crear una hoja nueva.</p>
+    <p>Ponle nombre: <strong>Swantex Produccion</strong></p>
+    <div class="alert">Guarde la URL — la necesita en el paso 6. Tiene esta forma:<br>
+    <code>https://docs.google.com/spreadsheets/d/<strong>ESTE_ES_EL_ID</strong>/edit</code></div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-n">2</div>
+  <div class="step-body">
+    <h3>Abrir el editor de Apps Script</h3>
+    <p>Desde la hoja de Sheets, haga clic en el menu:</p>
+    <p><strong>Extensiones → Apps Script</strong></p>
+    <p>Se abre una nueva ventana con un editor de codigo.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-n">3</div>
+  <div class="step-body">
+    <h3>Pegar el codigo del servidor</h3>
+    <p>Borre todo el contenido que aparece en el editor (Ctrl+A, Delete) y pegue este codigo:</p>
+    <div class="code-box">
+      <pre id="gas-code">// ============================================================
+// SWANTEX - Google Apps Script
+// Pegar en: script.google.com → Nuevo proyecto
+// Desplegar como: Web App → Ejecutar como: Yo
+//                 Acceso: Cualquier persona
+// ============================================================
+
+var HOJA = 'Produccion';
+var HOJA_ESTADO = 'EnCurso';
+
+function doGet(e) {
+  var lock = LockService.getScriptLock();
+  lock.tryLock(10000);
+  try {
+    var accion = (e.parameter && e.parameter.action) ? e.parameter.action : 'leer';
+    var resultado;
+    if (accion === 'escribir') {
+      var datos = JSON.parse(decodeURIComponent(e.parameter.d || '{}'));
+      resultado = escribirFila(datos);
+    } else if (accion === 'estado_actual') {
+      var datosEstado = JSON.parse(decodeURIComponent(e.parameter.d || '{}'));
+      resultado = actualizarEstado(datosEstado);
+    } else if (accion === 'leer_estado') {
+      resultado = leerEstadoActual();
+    } else {
+      var fecha = e.parameter.fecha || '';
+      resultado = leerFilas(fecha);
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(resultado))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({error: err.message}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Guarda/actualiza, por maquina, que referencia esta corriendo AHORA MISMO.
+// Una fila por MaqID (se sobreescribe cada vez que se abre o cierra un lote
+// en esa maquina). Esto es lo que permite ver "lo que esta corriendo" sin
+// esperar a que se cierre el lote.
+function actualizarEstado(d) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(HOJA_ESTADO);
+  var headers = ['MaqID','RefID','Referencia','Fecha','HoraInicio','Estado','Timestamp'];
+  if (!sh) {
+    sh = ss.insertSheet(HOJA_ESTADO);
+    sh.appendRow(headers);
+    sh.getRange(1,1,1,headers.length).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
+    sh.setFrozenRows(1);
+  }
+  var rowVals = [
+    d.maqId || '', d.refId || '', d.refNombre || '',
+    d.fecha || '', d.hi || '', d.estado || '', new Date().toISOString()
+  ];
+  var lastRow = sh.getLastRow();
+  var rowIdx = -1;
+  if (lastRow > 1) {
+    var maqCol = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (var i = 0; i < maqCol.length; i++) {
+      if (maqCol[i][0] === d.maqId) { rowIdx = i + 2; break; }
+    }
+  }
+  if (rowIdx > 0) {
+    sh.getRange(rowIdx, 1, 1, rowVals.length).setValues([rowVals]);
+  } else {
+    sh.appendRow(rowVals);
+  }
+  return { ok: true };
+}
+
+function leerEstadoActual() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(HOJA_ESTADO);
+  if (!sh || sh.getLastRow() &lt;= 1) return { estados: [] };
+  var datos = sh.getDataRange().getValues();
+  var cabeceras = datos[0];
+  var estados = [];
+  for (var i = 1; i &lt; datos.length; i++) {
+    var fila = {};
+    for (var j = 0; j &lt; cabeceras.length; j++) {
+      fila[cabeceras[j]] = datos[i][j];
+    }
+    estados.push(fila);
+  }
+  return { estados: estados };
+}
+
+function escribirFila(d) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(HOJA);
+  var headers = [
+    'Timestamp','Fecha','Equipo','MaqID','Modelo','Diametro',
+    'OperarioID','Operario','Turno','RefID','Referencia','Talla',
+    'LotePlaneado','CtrInicio','CtrFin','Tubos',
+    'HoraInicio','HoraFin','Duracion','ParosMin',
+    'StdMin','Eficiencia','Observaciones','ParosDetalle'
+  ];
+  if (!sh) {
+    sh = ss.insertSheet(HOJA);
+    sh.appendRow(headers);
+    sh.getRange(1,1,1,headers.length).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
+    sh.setFrozenRows(1);
+  } else {
+    // Migracion automatica: agrega la columna ParosDetalle si la hoja es de antes
+    var lastCol = sh.getLastColumn();
+    var headerRow = lastCol ? sh.getRange(1,1,1,lastCol).getValues()[0] : [];
+    if (headerRow.indexOf('ParosDetalle') === -1) {
+      sh.getRange(1, lastCol+1).setValue('ParosDetalle')
+        .setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
+    }
+  }
+  sh.appendRow([
+    new Date().toISOString(),
+    d.fecha || '', d.equipo || '', d.maqId || '', d.modelo || '', d.diam || '',
+    d.opId || '', d.opNombre || '', d.turno || '',
+    d.refId || '', d.refNombre || '', d.talla || '',
+    d.lotSize || 0, d.ctrStart !== null ? d.ctrStart : '',
+    d.ctrEnd !== null ? d.ctrEnd : '', d.tubos || 0,
+    d.hi || '', d.hf || '', d.dur || '', d.parosMin || 0,
+    d.std || '', d.eff !== null ? d.eff : '', d.obs || '',
+    d.parosDetalle || ''
+  ]);
+  return { ok: true, fila: sh.getLastRow() };
+}
+
+function leerFilas(fechaFiltro) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(HOJA);
+  if (!sh || sh.getLastRow() &lt;= 1) return { filas: [] };
+  var datos = sh.getDataRange().getValues();
+  var cabeceras = datos[0];
+  var filas = [];
+  for (var i = 1; i &lt; datos.length; i++) {
+    var fila = {};
+    for (var j = 0; j &lt; cabeceras.length; j++) {
+      fila[cabeceras[j]] = datos[i][j];
+    }
+    if (!fechaFiltro || fila['Fecha'] === fechaFiltro) {
+      filas.push(fila);
+    }
+  }
+  return { filas: filas, total: filas.length };
+}
+</pre>
+      <button class="copy-btn" onclick="copyGas()">Copiar</button>
+    </div>
+    <p>Haga clic en el icono de <strong>guardar</strong> (floppy disk) o Ctrl+S.</p>
+    <div class="alert">Si ya tenia este servidor funcionando y solo quiere agregar la columna de <strong>ParosDetalle</strong> (motivo de los paros para el tablero maestro) o la hoja <strong>EnCurso</strong> (que muestra que referencia esta corriendo en cada maquina en este momento, para la herramienta de Hilos y Materia Prima), reemplace todo el codigo anterior por este y guarde. La hoja de calculo crea lo que le falte sola, sin borrar nada de lo que ya tiene.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-n">4</div>
+  <div class="step-body">
+    <h3>Desplegar como aplicacion web</h3>
+    <p>En el editor de Apps Script, haga clic en:</p>
+    <p><strong>"Implementar" → "Nueva implementacion"</strong></p>
+    <p>Configure asi:</p>
+    <p>&#8226; <strong>Tipo:</strong> Aplicacion web</p>
+    <p>&#8226; <strong>Ejecutar como:</strong> Yo (su cuenta de Google)</p>
+    <p>&#8226; <strong>Quien tiene acceso:</strong> Cualquier persona</p>
+    <p>Haga clic en <strong>"Implementar"</strong>. Puede pedir autorizar permisos — acepte todo.</p>
+    <div class="alert">Si ya tenia una implementacion antigua y solo actualizo el codigo (por ejemplo para agregar ParosDetalle), NO cree una implementacion nueva porque cambia la URL. En cambio vaya a <strong>"Implementar" → "Administrar implementaciones"</strong>, haga clic en el lapiz (editar) de la implementacion activa, elija <strong>"Version: Nueva version"</strong> y de clic en <strong>"Implementar"</strong>. Asi la URL sigue siendo la misma y no hay que volver a pegarla en la app ni en el tablero.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-n">5</div>
+  <div class="step-body">
+    <h3>Copiar la URL del servidor</h3>
+    <p>Despues de implementar aparece una <strong>URL de aplicacion web</strong>. Tiene esta forma:</p>
+    <span class="url">https://script.google.com/macros/s/XXXXXXXXXXXX/exec</span>
+    <p style="margin-top:.5rem"><strong>Copie esa URL</strong> — la necesita en el siguiente paso.</p>
+    <div class="alert ok">Con esa URL el servidor esta listo. No necesita tocar nada mas en Apps Script.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-n">6</div>
+  <div class="step-body">
+    <h3>Pegar la URL en la app de operarios</h3>
+    <p>Abra la app Swantex (<span style="font-family:monospace;font-size:.8rem">dp522-ops.github.io/SWAN2</span>)</p>
+    <p>Vaya a <strong>Config → Nube</strong></p>
+    <p>Pegue la URL en el campo <strong>"URL del Servidor"</strong> y guarde.</p>
+    <p>Desde ese momento cada lote que se guarda se envia automaticamente a Google Sheets.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-n">7</div>
+  <div class="step-body">
+    <h3>Abrir el tablero maestro</h3>
+    <p>Abra el archivo <strong>dashboard.html</strong> (que tambien subio a GitHub)</p>
+    <p>URL: <span class="url">dp522-ops.github.io/SWAN2/dashboard.html</span></p>
+    <p>Pegue la misma URL del servidor y vera la produccion en tiempo real.</p>
+    <div class="alert ok">El tablero se actualiza automaticamente cada 30 segundos. Puede dejarlo abierto en el PC o en una TV.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-n">8</div>
+  <div class="step-body">
+    <h3>Materia prima (hilos) en tiempo real</h3>
+    <p>Abra <strong>hilos.html</strong> y pegue ahi la misma URL del servidor (paso 5).</p>
+    <p>Con el codigo actualizado (paso 3), cada vez que un operario abre o cierra un lote la app avisa al servidor que referencia esta corriendo en cada maquina. La pestana <strong>"Lo que esta corriendo"</strong> de Hilos usa eso para calcular cuanto hilo se necesita hoy, sin esperar a que se cierren los lotes.</p>
+  </div>
+</div>
+
+<script>
+function copyGas(){
+  var text=document.getElementById('gas-code').textContent;
+  navigator.clipboard.writeText(text).then(function(){alert('Codigo copiado. Pegue en Apps Script.');}).catch(function(){
+    var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('Copiado.');
+  });
+}
+</script>
+</body>
+</html>

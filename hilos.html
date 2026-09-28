@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Swantex - Materia Prima (Hilos)</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#1e3a5f;--navyl:#e8eef7;--amber:#f59e0b;--amberd:#d97706;--amberl:#fef3c7;--green:#10b981;--greenl:#ecfdf5;--red:#ef4444;--redl:#fef2f2;--steel:#64748b;--steell:#f1f5f9;--border:#e2e8f0;--purple:#8b5cf6;--purplel:#f5f3ff;--teal:#0891b2;--teall:#ecfeff}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+.brand{font-size:1.2rem;font-weight:800;color:#fff}
+.brand span{font-weight:400;opacity:.6;font-size:.85rem;margin-left:.5rem}
+.btn-cfg{background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.3);border-radius:8px;padding:.4rem .85rem;font-size:.78rem;font-weight:600;cursor:pointer}
+.btn-cfg:hover{background:rgba(255,255,255,.25)}
+.setup-panel{background:#1e293b;border:2px solid var(--amber);border-radius:12px;padding:1.25rem;margin:1.25rem;max-width:560px}
+.setup-panel h2{font-size:.95rem;font-weight:700;color:var(--amber);margin-bottom:.5rem}
+.setup-panel p{font-size:.82rem;color:#94a3b8;line-height:1.55;margin-bottom:.65rem}
+.inp-row{display:flex;gap:.5rem}
+.inp-url{flex:1;padding:.58rem .85rem;background:#0f172a;border:1.5px solid #334155;border-radius:8px;font-size:.85rem;color:#e2e8f0}
+.inp-url:focus{outline:none;border-color:var(--amber)}
+.btn-conn{background:var(--amber);color:#fff;border:none;border-radius:8px;padding:.58rem 1rem;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn-conn:hover{background:var(--amberd)}
+.content{padding:1.25rem;max-width:1200px;margin:0 auto}
+.tabs{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}
+.tab-btn{background:#1e293b;color:#94a3b8;border:1.5px solid #334155;border-radius:9px;padding:.55rem 1rem;font-size:.82rem;font-weight:700;cursor:pointer}
+.tab-btn.on{background:var(--amber);color:#1e293b;border-color:var(--amber)}
+.panel{display:none}
+.panel.on{display:block}
+.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:1.1rem;margin-bottom:1rem}
+.card-t{font-size:.85rem;font-weight:800;color:#fff;margin-bottom:.35rem}
+.card-d{font-size:.78rem;color:#94a3b8;margin-bottom:.8rem;line-height:1.5}
+.status-line{font-size:.76rem;color:#64748b;margin-bottom:.6rem}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{text-align:left;color:#64748b;font-size:.68rem;text-transform:uppercase;letter-spacing:.4px;padding:.5rem .6rem;border-bottom:1.5px solid #334155}
+td{padding:.55rem .6rem;border-bottom:1px solid #263244}
+tr:last-child td{border-bottom:none}
+.tit{font-weight:700;color:#fff}
+.sub{font-size:.7rem;color:#64748b}
+.lote-tag{font-size:.68rem;color:#93c5fd;font-family:monospace}
+.kg{font-weight:800;color:var(--amber);text-align:right;white-space:nowrap}
+.tag{display:inline-block;font-size:.62rem;font-weight:700;padding:.1rem .4rem;border-radius:5px;margin-right:.25rem}
+.tag-s{background:#1d4ed8;color:#bfdbfe}
+.tag-z{background:#374151;color:#d1d5db}
+.total-row td{border-top:2px solid #334155;font-weight:800;color:#fff}
+.form-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:.9rem}
+.f-group{display:flex;flex-direction:column;gap:.3rem}
+.f-group label{font-size:.7rem;color:#64748b;font-weight:700;text-transform:uppercase}
+.f-group input,.f-group select{padding:.55rem .7rem;background:#0f172a;border:1.5px solid #334155;border-radius:8px;color:#e2e8f0;font-size:.85rem;min-width:150px}
+.f-group input:focus,.f-group select:focus{outline:none;border-color:var(--amber)}
+.btn-calc{background:var(--green);color:#fff;border:none;border-radius:8px;padding:.6rem 1.1rem;font-size:.82rem;font-weight:700;cursor:pointer}
+.btn-calc:hover{background:#0d9d6f}
+.empty{font-size:.82rem;color:#64748b;font-style:italic;padding:1rem 0;text-align:center}
+.warn{font-size:.76rem;color:var(--amber);margin-bottom:.6rem;line-height:1.5}
+.refres{background:none;border:1.5px solid #334155;color:#94a3b8;border-radius:7px;padding:.35rem .7rem;font-size:.72rem;font-weight:700;cursor:pointer}
+.refres:hover{border-color:var(--amber);color:var(--amber)}
+.maq-mini{display:inline-block;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:.2rem .5rem;font-size:.7rem;margin:.15rem;color:#94a3b8}
+.maq-mini b{color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Swantex <span>Materia Prima - Hilos</span></div>
+  <button class="btn-cfg" onclick="toggleSetup()">&#9881;&#65039; Conexion</button>
+</header>
+
+<div class="setup-panel" id="setup-div">
+  <h2>Conectar con la produccion (Google Sheets)</h2>
+  <p>Pegue la misma URL que ya usa el Tablero Maestro. Con eso esta pagina sabe que esta corriendo en cada maquina y cuanto se ha producido hoy.</p>
+  <div class="inp-row">
+    <input type="text" id="url-input" class="inp-url" placeholder="https://script.google.com/macros/s/.../exec">
+    <button class="btn-conn" onclick="conectar()">Conectar</button>
+  </div>
+  <div id="conn-status" style="font-size:.78rem;margin-top:.6rem;color:#94a3b8"></div>
+</div>
+
+<div class="content">
+
+  <div class="tabs">
+    <button class="tab-btn on" id="tab-corriendo" onclick="showTab('corriendo')">Lo que esta corriendo</button>
+    <button class="tab-btn" id="tab-consumo" onclick="showTab('consumo')">Consumo de hoy (cerrados)</button>
+    <button class="tab-btn" id="tab-pedido" onclick="showTab('pedido')">Calculadora de pedido</button>
+  </div>
+
+  <div class="panel on" id="panel-corriendo">
+    <div class="card">
+      <div class="card-t">Hilo necesario para hoy, segun lo que esta corriendo ahora</div>
+      <div class="card-d">Toma las maquinas que estan corriendo en este momento (sin esperar a que cierren el lote), y con el tiempo estandar de cada referencia proyecta cuanto van a producir en las horas indicadas. De ahi calcula el hilo necesario por titulo y lote.</div>
+      <div class="form-row">
+        <div class="f-group">
+          <label>Horas a proyectar</label>
+          <input type="number" id="proy-horas" min="0" step="0.5">
+        </div>
+        <div class="f-group">
+          <label>Eficiencia esperada (%)</label>
+          <input type="number" id="proy-eff" min="1" max="150" value="85">
+        </div>
+        <button class="btn-calc" onclick="cargarCorriendo()">&#8635; Recalcular</button>
+      </div>
+      <div class="status-line" id="corriendo-status">Aun no se ha conectado.</div>
+      <div id="corriendo-maquinas" style="margin-bottom:.7rem"></div>
+      <div id="corriendo-body"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-t">Reportar manualmente que una maquina esta corriendo</div>
+      <div class="card-d">Para las maquinas que ya estan corriendo pero todavia no han abierto/cerrado un lote con el codigo actualizado. Se guarda de una vez en el servidor, sin pasar por la app de operarios.</div>
+      <div class="form-row">
+        <div class="f-group">
+          <label>Maquina (ID)</label>
+          <input type="text" id="rep-maq" placeholder="Ej: SAN-14">
+        </div>
+        <div class="f-group">
+          <label>Referencia</label>
+          <input type="text" id="rep-ref-q" list="ped-ref-list" placeholder="Buscar codigo o nombre...">
+        </div>
+        <button class="btn-calc" onclick="reportarManual()">Marcar como corriendo</button>
+      </div>
+      <div class="status-line" id="reportar-status"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-consumo">
+    <div class="card">
+      <div class="card-t">Hilo consumido hoy en planta (lotes cerrados)</div>
+      <div class="card-d">Suma los lotes que YA se cerraron hoy (tubos producidos por referencia) y los convierte a kilos de hilo, agrupado por titulo y lote. Esto es consumo real ya ejecutado, no proyeccion.</div>
+      <div class="status-line" id="consumo-status">Aun no se ha conectado.</div>
+      <button class="refres" onclick="cargarConsumoHoy()">&#8635; Actualizar</button>
+      <div id="consumo-body" style="margin-top:.8rem"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-pedido">
+    <div class="card">
+      <div class="card-t">Hilo necesario para un pedido</div>
+      <div class="card-d">Elija la referencia y cuantas docenas hay que producir. Calcula el hilo exacto (por titulo y lote) que se necesita, sin depender de lo que este corriendo en planta.</div>
+      <div class="form-row">
+        <div class="f-group">
+          <label>Referencia</label>
+          <input type="text" id="ped-ref-q" list="ped-ref-list" placeholder="Buscar codigo o nombre..." oninput="onPedRefInput()">
+          <datalist id="ped-ref-list"></datalist>
+        </div>
+        <div class="f-group">
+          <label>Docenas a producir</label>
+          <input type="number" id="ped-docenas" placeholder="Ej: 500" min="0">
+        </div>
+        <button class="btn-calc" onclick="calcularPedido()">Calcular hilo necesario</button>
+      </div>
+      <div id="ped-ref-info" class="sub" style="margin-bottom:.6rem"></div>
+      <div id="pedido-body"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t">Fichas tecnicas cargadas</div>
+    <div class="status-line" id="fichas-status">Cargando desde Fichas...</div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// Conexion a Google Sheets (produccion) - reutiliza la misma URL
+// que ya se configura en el Tablero Maestro (dashboard.html)
+// ============================================================
+var GAS_URL = '';
+try { GAS_URL = localStorage.getItem('swx_dash_url') || ''; } catch(e) { GAS_URL = ''; }
+if (GAS_URL) {
+  document.getElementById('url-input').value = GAS_URL;
+  document.getElementById('setup-div').style.display = 'none';
+}
+
+function toggleSetup() {
+  var d = document.getElementById('setup-div');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function conectar() {
+  var url = (document.getElementById('url-input').value || '').trim();
+  if (!url) { document.getElementById('conn-status').textContent = 'Ingrese la URL'; return; }
+  document.getElementById('conn-status').textContent = 'Conectando...';
+  GAS_URL = url;
+  try { localStorage.setItem('swx_dash_url', url); } catch(e){}
+  cargarCorriendo();
+  cargarConsumoHoy();
+}
+
+function hoy() { return new Date().toISOString().split('T')[0]; }
+function parseFecha(v) {
+  if (!v) return '';
+  if (typeof v === 'string' && v.indexOf('T') >= 0) return v.split('T')[0];
+  try { var d = new Date(v); if (!isNaN(d.getTime())) return d.toISOString().split('T')[0]; } catch(e){}
+  return String(v);
+}
+// Horas restantes del dia de hoy (redondeado a .5), para precargar el campo
+// "Horas a proyectar". La planta trabaja 24/7 asi que por defecto se
+// proyecta lo que falta hasta medianoche.
+function horasRestantesHoy() {
+  var n = new Date();
+  var rest = 24 - (n.getHours() + n.getMinutes()/60);
+  return Math.max(1, Math.round(rest*2)/2);
+}
+document.getElementById('proy-horas').value = horasRestantesHoy();
+
+// ============================================================
+// Fichas (Firestore) - misma fuente que index.html usa para REFS
+// ============================================================
+var FICHAS_FB_CFG = {
+  apiKey:'AIzaSyCQqlJRxiyJPNkgiBNnF5kquWpBxKuMiQ8',
+  authDomain:'swantex-fichas-5ca6b.firebaseapp.com',
+  projectId:'swantex-fichas-5ca6b',
+  storageBucket:'swantex-fichas-5ca6b.firebasestorage.app',
+  messagingSenderId:'60295471678',
+  appId:'1:60295471678:web:67a732cfbd97cdf20aa76f'
+};
+var _fichasDb = null;
+// code -> { nombre, tubosPorDocena, pesoTuboG, tiempoPorTuboMin, fibras:[{nombre,titulo,lote,porcentaje,itemS,itemZ}] }
+var MATERIALES = {};
+
+function initFichasFirebase() {
+  if (_fichasDb) return _fichasDb;
+  try {
+    if (typeof firebase === 'undefined') return null;
+    var app = firebase.apps && firebase.apps.some(function(a){return a.name==='fichas';})
+      ? firebase.app('fichas') : firebase.initializeApp(FICHAS_FB_CFG, 'fichas');
+    _fichasDb = app.firestore();
+    return _fichasDb;
+  } catch(e) { console.error('Firebase fichas error', e); return null; }
+}
+
+function fichaToMaterial(id, d) {
+  var h = d.header || {}, sp = d.specs || {};
+  var code = (h.referencia || '').toString().trim().toUpperCase();
+  var pesoTubo = parseFloat(sp.pesoUnitarioGramos);
+  var tubosPorDocena = parseInt(h.tubosPorDocena) || 12;
+  var tMin = parseFloat(sp.tiempoMin), tSeg = parseFloat(sp.tiempoSeg);
+  var tiempoPorTuboMin = (isNaN(tMin)?0:tMin) + (isNaN(tSeg)?0:tSeg) / 60;
+  if (!code) return null;
+  if (isNaN(pesoTubo) || pesoTubo <= 0) return null; // sin peso, ficha incompleta para materiales
+  var fibras = [];
+  var arr = d.fibras || [];
+  for (var i = 0; i < arr.length; i++) {
+    var f = arr[i];
+    var pct = parseFloat(f.porcentaje);
+    if (isNaN(pct) || pct <= 0) continue;
+    fibras.push({
+      nombre: f.nombre || '',
+      titulo: f.titulo || (f.nombre || 'Sin titulo'),
+      lote: f.lote || '',
+      porcentaje: pct,
+      itemS: f.itemS || '',
+      itemZ: f.itemZ || ''
+    });
+  }
+  if (!fibras.length) return null;
+  return {
+    code: code,
+    nombre: (d.nombrePrenda || code).toString().trim(),
+    tubosPorDocena: tubosPorDocena,
+    pesoTuboG: pesoTubo,
+    tiempoPorTuboMin: tiempoPorTuboMin > 0 ? tiempoPorTuboMin : null,
+    fibras: fibras
+  };
+}
+
+function syncMateriales(cb) {
+  var db = initFichasFirebase();
+  var st = document.getElementById('fichas-status');
+  if (!db) {
+    var cached = loadMaterialesCache();
+    if (cached) { MATERIALES = cached; if (st) st.textContent = 'Sin conexion a Fichas. Usando la ultima version guardada (' + Object.keys(MATERIALES).length + ' referencias).'; }
+    else if (st) st.textContent = 'No se pudo conectar con Fichas.';
+    if (cb) cb();
+    return;
+  }
+  db.collection('fichas').get().then(function(snap) {
+    var mats = {};
+    snap.forEach(function(doc) {
+      var m = fichaToMaterial(doc.id, doc.data() || {});
+      if (m) mats[m.code] = m;
+    });
+    MATERIALES = mats;
+    try { localStorage.setItem('hilos_materiales_cache', JSON.stringify(mats)); } catch(e){}
+    if (st) st.textContent = Object.keys(mats).length + ' referencias con composicion de hilo (' + new Date().toLocaleTimeString() + ')';
+    fillPedidoDatalist();
+    if (cb) cb();
+  }).catch(function(err) {
+    console.error(err);
+    var cached = loadMaterialesCache();
+    if (cached) { MATERIALES = cached; if (st) st.textContent = 'Error consultando Fichas. Usando la ultima version guardada (' + Object.keys(MATERIALES).length + ' referencias).'; }
+    else if (st) st.textContent = 'Error consultando Fichas: ' + err.message;
+    fillPedidoDatalist();
+    if (cb) cb();
+  });
+}
+
+function loadMaterialesCache() {
+  try {
+    var raw = localStorage.getItem('hilos_materiales_cache');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+
+// ============================================================
+// Tabs
+// ============================================================
+function showTab(name) {
+  var tabs = ['corriendo', 'consumo', 'pedido'];
+  for (var i = 0; i < tabs.length; i++) {
+    document.getElementById('tab-' + tabs[i]).classList.toggle('on', tabs[i] === name);
+    document.getElementById('panel-' + tabs[i]).classList.toggle('on', tabs[i] === name);
+  }
+}
+
+// Suma kg por titulo+lote a partir de gramos totales de un material, dentro
+// de un acumulador compartido "porTituloLote" (mutado in-place).
+function acumularFibras(porTituloLote, mat, gramosTotal) {
+  for (var j = 0; j < mat.fibras.length; j++) {
+    var f = mat.fibras[j];
+    var key = f.nombre + '|' + f.titulo + '|' + f.lote;
+    if (!porTituloLote[key]) porTituloLote[key] = { nombre: f.nombre, titulo: f.titulo, lote: f.lote, itemS: f.itemS, itemZ: f.itemZ, gramos: 0 };
+    porTituloLote[key].gramos += gramosTotal * (f.porcentaje / 100);
+  }
+}
+
+function renderTablaHilo(porTituloLote, totalLabel, targetEl) {
+  var keys = Object.keys(porTituloLote).sort(function(a, b) { return porTituloLote[b].gramos - porTituloLote[a].gramos; });
+  if (!keys.length) { targetEl.innerHTML = '<div class="empty">Sin datos para mostrar.</div>'; return; }
+  var totalKg = 0;
+  var html = '<table><thead><tr><th>Titulo de hilo</th><th>Lote</th><th>Tipo</th><th>Items (S / Z)</th><th style="text-align:right">Kg</th></tr></thead><tbody>';
+  for (var k = 0; k < keys.length; k++) {
+    var row = porTituloLote[keys[k]];
+    var kg = row.gramos / 1000;
+    totalKg += kg;
+    html += '<tr><td class="tit">' + row.titulo + '</td><td class="lote-tag">' + (row.lote || '-') + '</td><td class="sub">' + row.nombre + '</td><td>' +
+      (row.itemS ? '<span class="tag tag-s">S ' + row.itemS + '</span>' : '') +
+      (row.itemZ ? '<span class="tag tag-z">Z ' + row.itemZ + '</span>' : '') +
+      (!row.itemS && !row.itemZ ? '<span class="sub">-</span>' : '') +
+      '</td><td class="kg">' + kg.toFixed(2) + ' kg</td></tr>';
+  }
+  html += '<tr class="total-row"><td colspan="4">' + totalLabel + '</td><td class="kg">' + totalKg.toFixed(2) + ' kg</td></tr>';
+  html += '</tbody></table>';
+  targetEl.innerHTML = html;
+}
+
+// ============================================================
+// Lo que esta corriendo AHORA: lee la hoja EnCurso (actualizada por
+// index.html cada vez que se abre/cierra un lote) y proyecta produccion
+// con el tiempo estandar por tubo de cada referencia * eficiencia esperada.
+// ============================================================
+function cargarCorriendo() {
+  var st = document.getElementById('corriendo-status');
+  if (!GAS_URL) { st.textContent = 'Configure la conexion (icono de arriba) para ver esto.'; return; }
+  st.textContent = 'Cargando...';
+  fetch(GAS_URL + '?action=leer_estado')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var estados = data.estados || [];
+      var corriendo = [];
+      for (var i = 0; i < estados.length; i++) {
+        if ((estados[i].Estado || '').toString().toUpperCase() === 'CORRIENDO') corriendo.push(estados[i]);
+      }
+      renderCorriendo(corriendo);
+    })
+    .catch(function(e) {
+      st.textContent = 'Error leyendo el estado de las maquinas: ' + e.message + '. Verifique que ya actualizo el Apps Script con la hoja EnCurso (ver guia).';
+    });
+}
+
+// Marca una maquina como CORRIENDO directamente contra el servidor, sin
+// pasar por index.html. Util para arrancar la hoja EnCurso con lo que ya
+// esta trabajando en planta antes de este cambio.
+function reportarManual() {
+  var st = document.getElementById('reportar-status');
+  if (!GAS_URL) { st.textContent = 'Configure la conexion (icono de arriba) primero.'; return; }
+  var maqId = (document.getElementById('rep-maq').value || '').trim().toUpperCase();
+  var q = document.getElementById('rep-ref-q').value;
+  if (!maqId) { st.textContent = 'Ingrese el ID de la maquina.'; return; }
+  var mat = findMaterialFromInput(q);
+  if (!mat) { st.textContent = 'Referencia no encontrada en Fichas.'; return; }
+  st.textContent = 'Guardando...';
+  var payload = { maqId: maqId, refId: mat.code, refNombre: mat.nombre, fecha: hoy(), hi: new Date().toTimeString().slice(0,5), estado: 'CORRIENDO' };
+  fetch(GAS_URL + '?action=estado_actual&d=' + encodeURIComponent(JSON.stringify(payload)))
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+      if (resp.ok) {
+        st.textContent = maqId + ' marcada corriendo con ' + mat.code + ' - ' + mat.nombre + '.';
+        document.getElementById('rep-maq').value = '';
+        document.getElementById('rep-ref-q').value = '';
+        cargarCorriendo();
+      } else {
+        st.textContent = 'El servidor respondio con error: ' + (resp.error || JSON.stringify(resp));
+      }
+    })
+    .catch(function(e) { st.textContent = 'Error guardando: ' + e.message; });
+}
+
+function renderCorriendo(corriendo) {
+  var st = document.getElementById('corriendo-status');
+  var maqDiv = document.getElementById('corriendo-maquinas');
+  var body = document.getElementById('corriendo-body');
+  var horas = parseFloat(document.getElementById('proy-horas').value) || 0;
+  var effPct = parseFloat(document.getElementById('proy-eff').value);
+  if (isNaN(effPct) || effPct <= 0) effPct = 85;
+
+  if (!corriendo.length) {
+    st.textContent = 'No hay maquinas marcadas como corriendo. Si la planta esta activa, verifique que index.html ya tiene el codigo actualizado (avisa al abrir/cerrar lote).';
+    maqDiv.innerHTML = '';
+    body.innerHTML = '<div class="empty">Sin datos para mostrar.</div>';
+    return;
+  }
+
+  var porTituloLote = {};
+  var sinFicha = [];
+  var sinTiempo = [];
+  var maqHtml = '';
+  var maqOk = 0;
+
+  for (var i = 0; i < corriendo.length; i++) {
+    var e = corriendo[i];
+    var code = (e.RefID || '').toString().trim().toUpperCase();
+    var mat = MATERIALES[code];
+    var etiqueta = e.MaqID + ' &rarr; ' + (e.Referencia || code || '?');
+    if (!mat) { sinFicha.push(e.MaqID + ' (' + code + ')'); maqHtml += '<span class="maq-mini"><b>' + e.MaqID + '</b> sin ficha</span>'; continue; }
+    if (!mat.tiempoPorTuboMin) { sinTiempo.push(e.MaqID + ' (' + code + ')'); maqHtml += '<span class="maq-mini"><b>' + e.MaqID + '</b> sin tiempo</span>'; continue; }
+    var tubosHora = 60 / mat.tiempoPorTuboMin;
+    var tubosProyectados = tubosHora * horas * (effPct / 100);
+    var gramosTotal = tubosProyectados * mat.pesoTuboG;
+    acumularFibras(porTituloLote, mat, gramosTotal);
+    maqHtml += '<span class="maq-mini"><b>' + e.MaqID + '</b> ' + code + ' - ' + Math.round(tubosProyectados) + ' tubos proy.</span>';
+    maqOk++;
+  }
+
+  maqDiv.innerHTML = maqHtml;
+  st.textContent = corriendo.length + ' maquinas corriendo ahora - ' + maqOk + ' con ficha completa' +
+    (sinFicha.length ? ' - sin ficha de hilo: ' + sinFicha.join(', ') : '') +
+    (sinTiempo.length ? ' - sin tiempo por tubo: ' + sinTiempo.join(', ') : '');
+
+  renderTablaHilo(porTituloLote, 'Total hilo necesario (proyectado ' + horas + 'h al ' + effPct + '% de eficiencia)', body);
+}
+
+// ============================================================
+// Consumo de hoy: suma tubos por referencia (lotes YA CERRADOS) y
+// convierte a kg de hilo por titulo y lote, usando MATERIALES.
+// ============================================================
+function cargarConsumoHoy() {
+  var st = document.getElementById('consumo-status');
+  if (!GAS_URL) { st.textContent = 'Configure la conexion (icono de arriba) para ver el consumo de hoy.'; return; }
+  st.textContent = 'Cargando...';
+  fetch(GAS_URL + '?action=leer&fecha=' + hoy())
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var filas = data.filas || [];
+      var todayStr = hoy();
+      var tubosPorRef = {};
+      var lotesHoy = 0;
+      for (var i = 0; i < filas.length; i++) {
+        var f = filas[i];
+        if (parseFecha(f.Fecha) !== todayStr) continue;
+        var ref = (f.RefID || '').toString().trim().toUpperCase();
+        var tubos = parseInt(f.Tubos) || 0;
+        if (!ref || !tubos) continue;
+        tubosPorRef[ref] = (tubosPorRef[ref] || 0) + tubos;
+        lotesHoy++;
+      }
+      renderConsumo(tubosPorRef, lotesHoy);
+    })
+    .catch(function(e) {
+      st.textContent = 'Error leyendo produccion: ' + e.message;
+    });
+}
+
+function renderConsumo(tubosPorRef, lotesHoy) {
+  var st = document.getElementById('consumo-status');
+  var body = document.getElementById('consumo-body');
+  var porTituloLote = {};
+  var refsSinFicha = [];
+  var refCodes = Object.keys(tubosPorRef);
+
+  for (var i = 0; i < refCodes.length; i++) {
+    var code = refCodes[i];
+    var tubos = tubosPorRef[code];
+    var mat = MATERIALES[code];
+    if (!mat) { refsSinFicha.push(code); continue; }
+    acumularFibras(porTituloLote, mat, tubos * mat.pesoTuboG);
+  }
+
+  if (!Object.keys(porTituloLote).length) {
+    st.textContent = lotesHoy ? 'Hay lotes cerrados hoy, pero ninguna de sus referencias tiene ficha con hilo cargado todavia.' : 'Todavia no hay lotes cerrados hoy.';
+    body.innerHTML = '<div class="empty">Sin datos para mostrar.</div>';
+    return;
+  }
+
+  st.textContent = lotesHoy + ' lotes cerrados hoy - ' + refCodes.length + ' referencias produciendo' + (refsSinFicha.length ? ' (' + refsSinFicha.length + ' sin ficha de hilo: ' + refsSinFicha.join(', ') + ')' : '');
+  renderTablaHilo(porTituloLote, 'Total hilo consumido hoy', body);
+}
+
+// ============================================================
+// Calculadora de pedido
+// ============================================================
+function fillPedidoDatalist() {
+  var dl = document.getElementById('ped-ref-list');
+  var codes = Object.keys(MATERIALES).sort();
+  var html = '';
+  for (var i = 0; i < codes.length; i++) {
+    var m = MATERIALES[codes[i]];
+    html += '<option value="' + m.code + ' - ' + m.nombre + '">';
+  }
+  dl.innerHTML = html;
+}
+
+function onPedRefInput() {
+  // Solo informativo; el calculo se hace al pulsar el boton
+}
+
+function findMaterialFromInput(text) {
+  text = (text || '').trim();
+  if (!text) return null;
+  var code = text.split(' - ')[0].trim().toUpperCase();
+  if (MATERIALES[code]) return MATERIALES[code];
+  var codes = Object.keys(MATERIALES);
+  var lower = text.toLowerCase();
+  for (var i = 0; i < codes.length; i++) {
+    var m = MATERIALES[codes[i]];
+    if (m.code.toLowerCase() === lower) return m;
+  }
+  for (var i = 0; i < codes.length; i++) {
+    var m = MATERIALES[codes[i]];
+    if ((m.code + ' ' + m.nombre).toLowerCase().indexOf(lower) >= 0) return m;
+  }
+  return null;
+}
+
+function calcularPedido() {
+  var q = document.getElementById('ped-ref-q').value;
+  var docenas = parseFloat(document.getElementById('ped-docenas').value);
+  var info = document.getElementById('ped-ref-info');
+  var body = document.getElementById('pedido-body');
+
+  var mat = findMaterialFromInput(q);
+  if (!mat) { info.textContent = 'Referencia no encontrada en Fichas (o aun sin composicion de hilo cargada).'; body.innerHTML = ''; return; }
+  if (isNaN(docenas) || docenas <= 0) { info.textContent = mat.code + ' - ' + mat.nombre + ' (tubosPorDocena=' + mat.tubosPorDocena + '). Ingrese cuantas docenas.'; body.innerHTML = ''; return; }
+
+  var tubosNecesarios = Math.ceil(docenas * mat.tubosPorDocena);
+  info.textContent = mat.code + ' - ' + mat.nombre + ': ' + docenas + ' docenas = ' + tubosNecesarios + ' tubos (tubosPorDocena=' + mat.tubosPorDocena + ')';
+
+  var porTituloLote = {};
+  acumularFibras(porTituloLote, mat, tubosNecesarios * mat.pesoTuboG);
+  renderTablaHilo(porTituloLote, 'Total hilo para el pedido', body);
+}
+
+// ============================================================
+// INICIO
+// ============================================================
+var cachedMats = loadMaterialesCache();
+if (cachedMats) { MATERIALES = cachedMats; fillPedidoDatalist(); }
+syncMateriales(function() {
+  if (GAS_URL) { cargarCorriendo(); cargarConsumoHoy(); }
+});
+</script>
+
+</body>
+</html>
