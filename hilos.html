@@ -184,8 +184,24 @@ function conectar() {
   document.getElementById('conn-status').textContent = 'Conectando...';
   GAS_URL = url;
   try { localStorage.setItem('swx_dash_url', url); } catch(e){}
-  cargarCorriendo();
-  cargarConsumoHoy();
+  fetch(url + '?action=leer_estado')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d && d.estados !== undefined) {
+        document.getElementById('conn-status').textContent = 'Conectado. La hoja EnCurso responde bien (' + d.estados.length + ' maquinas registradas).';
+        document.getElementById('conn-status').style.color = '#10b981';
+      } else {
+        document.getElementById('conn-status').textContent = 'Conectado, pero el Apps Script todavia no reconoce "EnCurso". Actualice el codigo (ver guia_google_sheets.html paso 3) y redespliegue como Nueva version.';
+        document.getElementById('conn-status').style.color = '#f59e0b';
+      }
+      document.getElementById('setup-div').style.display = 'none';
+      cargarCorriendo();
+      cargarConsumoHoy();
+    })
+    .catch(function(e) {
+      document.getElementById('conn-status').textContent = 'Error: ' + e.message;
+      document.getElementById('conn-status').style.color = '#ef4444';
+    });
 }
 
 function hoy() { return new Date().toISOString().split('T')[0]; }
@@ -408,7 +424,7 @@ function renderCorriendo(corriendo) {
   if (isNaN(effPct) || effPct <= 0) effPct = 85;
 
   if (!corriendo.length) {
-    st.textContent = 'No hay maquinas marcadas como corriendo. Si la planta esta activa, verifique que index.html ya tiene el codigo actualizado (avisa al abrir/cerrar lote).';
+    st.textContent = 'No hay maquinas marcadas como corriendo. Si la planta esta activa, verifique: (1) que el Apps Script en Google ya tiene el codigo actualizado con la hoja EnCurso y quedo redesplegado como Nueva version, y (2) que se abrio o cerro algun lote en Produccion despues de ese cambio. Mientras tanto puede usar "Reportar manualmente" abajo.';
     maqDiv.innerHTML = '';
     body.innerHTML = '<div class="empty">Sin datos para mostrar.</div>';
     return;
