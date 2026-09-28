@@ -6,89 +6,191 @@
 <title>Swantex - Panel de Herramientas</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#0f172a;min-height:100vh}
-header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:1.4rem 1.5rem;color:#fff}
-.brand{font-size:1.35rem;font-weight:800}
-.brand span{font-weight:400;opacity:.75;font-size:.9rem;margin-left:.5rem}
-.sub{font-size:.82rem;opacity:.75;margin-top:.2rem}
-.content{padding:1.5rem;max-width:1000px;margin:0 auto}
-.section-t{font-size:.78rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin:1.6rem 0 .7rem}
-.section-t:first-child{margin-top:0}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.9rem}
-a.card{display:block;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1.15rem 1.25rem;text-decoration:none;color:inherit;transition:.15s;box-shadow:0 1px 2px rgba(15,23,42,.04)}
-a.card:hover{border-color:#2d5a9e;box-shadow:0 4px 14px rgba(30,58,95,.12);transform:translateY(-1px)}
-.card-icon{font-size:1.5rem;margin-bottom:.5rem}
-.card-t{font-size:.98rem;font-weight:800;color:#1e3a5f;margin-bottom:.3rem}
-.card-d{font-size:.8rem;color:#64748b;line-height:1.5}
-.card-tag{display:inline-block;margin-top:.6rem;font-size:.68rem;font-weight:700;padding:.18rem .55rem;border-radius:999px}
-.tag-op{background:#ecfdf5;color:#065f46}
-.tag-sup{background:#eff6ff;color:#1e40af}
-.tag-ref{background:#f5f3ff;color:#6d28d9}
-.tag-cfg{background:#fef3c7;color:#92400e}
-.guides{margin-top:2rem;padding-top:1.2rem;border-top:1px solid #e2e8f0}
-.guide-list{display:flex;flex-wrap:wrap;gap:.5rem}
-.guide-list a{font-size:.78rem;color:#1e3a5f;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:.4rem .75rem;text-decoration:none;font-weight:600}
-.guide-list a:hover{border-color:#2d5a9e;background:#e8eef7}
-footer{text-align:center;padding:1.5rem;font-size:.72rem;color:#94a3b8}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;color:#111827;min-height:100vh}
+.wrap{display:flex;min-height:100vh}
+
+/* Sidebar */
+.sidebar{width:230px;flex-shrink:0;background:#0f2942;color:#fff;padding:28px 0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand-box{padding:0 24px 28px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:14px}
+.brand-name{font-size:17px;font-weight:700;letter-spacing:.2px}
+.brand-sub{font-size:10.5px;color:#8ea3b8;margin-top:2px}
+.navitem{display:block;padding:12px 24px;font-size:13.5px;color:#c3ccd6;text-decoration:none;border-left:2px solid transparent;background:none;text-align:left;width:100%;font-family:inherit;cursor:pointer}
+.navitem:hover{color:#fff;background:rgba(255,255,255,.04)}
+.navitem.active{border-left-color:#c9a227;background:rgba(255,255,255,.06);color:#fff;font-weight:600}
+.sidebar-foot{margin-top:auto;padding:16px 24px;border-top:1px solid rgba(255,255,255,.1);font-size:10.5px;color:#6b7f93}
+
+/* Content */
+.content{flex-grow:1;padding:44px 48px;max-width:820px}
+.section{display:none}
+.section.active{display:block}
+.sec-title{font-size:22px;font-weight:700;color:#111111;margin-bottom:4px}
+.sec-sub{font-size:13px;color:#818a94;margin-bottom:32px}
+
+.row{display:flex;align-items:center;gap:18px;padding:20px;border:1px solid #e6e8eb;margin-bottom:12px;text-decoration:none;color:inherit;transition:.15s}
+.row:hover{background:#f7f8f9;border-color:#d7dbe0}
+.row-icon{width:42px;height:42px;border-radius:8px;background:#eef1f4;display:flex;align-items:center;justify-content:center;color:#0f2942;flex-shrink:0}
+.row-t{font-size:15.5px;font-weight:600;color:#111111}
+.row-d{font-size:12.5px;color:#818a94;margin-top:2px;line-height:1.5}
+.row-tag{font-size:10.5px;font-weight:700;letter-spacing:.5px;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.tag-op{color:#0f7a4d;background:#e9f7f0}
+.tag-sup{color:#1d4ed8;background:#eaf0fe}
+.tag-ref{color:#6d28d9;background:#f3edfe}
+.tag-cfg{color:#92400e;background:#fdf1de}
+
+.guide-row{display:flex;align-items:center;gap:14px;padding:16px 20px;border:1px solid #e6e8eb;margin-bottom:10px;text-decoration:none;color:inherit;transition:.15s}
+.guide-row:hover{background:#f7f8f9;border-color:#d7dbe0}
+.guide-icon{color:#818a94;flex-shrink:0}
+.guide-t{font-size:14px;font-weight:600;color:#111111}
+.guide-d{font-size:12px;color:#818a94;margin-top:1px}
+
+@media(max-width:720px){
+  .wrap{flex-direction:column}
+  .sidebar{width:100%;height:auto;position:static;flex-direction:row;overflow-x:auto;padding:16px}
+  .brand-box{display:none}
+  .sidebar-foot{display:none}
+  .navitem{white-space:nowrap;border-left:none;border-bottom:2px solid transparent;padding:10px 16px}
+  .navitem.active{border-left:none;border-bottom-color:#c9a227}
+  .content{padding:28px 20px}
+}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="brand">Swantex <span>Panel de Herramientas</span></div>
-  <div class="sub">Todo lo de producción, en un solo lugar</div>
-</header>
+<div class="wrap">
 
-<div class="content">
-
-  <div class="section-t">Producción diaria</div>
-  <div class="grid">
-    <a class="card" href="https://dp522-ops.github.io/SWAN2/">
-      <div class="card-icon">&#9881;&#65039;</div>
-      <div class="card-t">Registrar Producción</div>
-      <div class="card-d">App para operarios: abrir lotes, cerrar lotes, entrega de turno y paros por NFC.</div>
-      <span class="card-tag tag-op">Operarios</span>
-    </a>
-    <a class="card" href="https://dp522-ops.github.io/SWAN2/dashboard.html">
-      <div class="card-icon">&#128202;</div>
-      <div class="card-t">Tablero Maestro</div>
-      <div class="card-d">Vista en tiempo real de todos los equipos, eficiencia y motivos de paro por máquina.</div>
-      <span class="card-tag tag-sup">Supervisión</span>
-    </a>
-  </div>
-
-  <div class="section-t">Fichas técnicas</div>
-  <div class="grid">
-    <a class="card" href="https://dp522-ops.github.io/swantex-fichas/">
-      <div class="card-icon">&#128196;</div>
-      <div class="card-t">Fichas Técnicas</div>
-      <div class="card-d">Cost sheets, fichas de medidas/aprobación y matriz de enconado.</div>
-      <span class="card-tag tag-ref">Ingeniería</span>
-    </a>
-  </div>
-
-  <div class="section-t">Materia prima</div>
-  <div class="grid">
-    <a class="card" href="https://dp522-ops.github.io/SWAN2/hilos.html">
-      <div class="card-icon">&#129525;</div>
-      <div class="card-t">Hilos y Materia Prima</div>
-      <div class="card-d">Cuánto hilo (por título) se consumió hoy en planta y cuánto se necesita para un pedido, calculado desde las fichas técnicas y la producción real.</div>
-      <span class="card-tag tag-cfg">Bodega</span>
-    </a>
-  </div>
-
-  <div class="guides">
-    <div class="section-t">Configuración y guías</div>
-    <div class="guide-list">
-      <a href="https://dp522-ops.github.io/SWAN2/guia_google_sheets.html">Conectar Google Sheets</a>
-      <a href="https://dp522-ops.github.io/SWAN2/guia_nfc_swantex.html">Configurar stickers NFC</a>
-      <a href="https://dp522-ops.github.io/SWAN2/guia_github_pages.html">Publicar en GitHub Pages</a>
+  <div class="sidebar">
+    <div class="brand-box">
+      <div class="brand-name">Swantex</div>
+      <div class="brand-sub">Panel de herramientas</div>
     </div>
+
+    <button class="navitem active" data-sec="produccion" onclick="showSection('produccion')">Produccion diaria</button>
+    <button class="navitem" data-sec="fichas" onclick="showSection('fichas')">Fichas tecnicas</button>
+    <button class="navitem" data-sec="materia" onclick="showSection('materia')">Materia prima</button>
+    <button class="navitem" data-sec="config" onclick="showSection('config')">Configuracion y guias</button>
+
+    <div class="sidebar-foot">Actualiza este panel al agregar una herramienta nueva</div>
+  </div>
+
+  <div class="content">
+
+    <div class="section active" id="sec-produccion">
+      <div class="sec-title">Produccion diaria</div>
+      <div class="sec-sub">Herramientas de uso diario para operarios y supervisores</div>
+
+      <a class="row" href="https://dp522-ops.github.io/SWAN2/">
+        <div class="row-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="1"></rect><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"></path><line x1="9" y1="10" x2="15" y2="10"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>
+        </div>
+        <div style="flex-grow:1">
+          <div class="row-t">Registrar Produccion</div>
+          <div class="row-d">Abrir lotes, cerrar lotes, entrega de turno y paros por NFC.</div>
+        </div>
+        <span class="row-tag tag-op">Operarios</span>
+      </a>
+
+      <a class="row" href="https://dp522-ops.github.io/SWAN2/dashboard.html">
+        <div class="row-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="20"></line><rect x="6" y="12" width="3" height="8"></rect><rect x="11" y="7" width="3" height="13"></rect><rect x="16" y="10" width="3" height="10"></rect></svg>
+        </div>
+        <div style="flex-grow:1">
+          <div class="row-t">Tablero Maestro</div>
+          <div class="row-d">Vista en tiempo real de todos los equipos, eficiencia y motivos de paro por maquina.</div>
+        </div>
+        <span class="row-tag tag-sup">Supervision</span>
+      </a>
+    </div>
+
+    <div class="section" id="sec-fichas">
+      <div class="sec-title">Fichas tecnicas</div>
+      <div class="sec-sub">Ingenieria de producto y costeo</div>
+
+      <a class="row" href="https://dp522-ops.github.io/swantex-fichas/">
+        <div class="row-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path><path d="M14 3v4h4"></path><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg>
+        </div>
+        <div style="flex-grow:1">
+          <div class="row-t">Fichas Tecnicas</div>
+          <div class="row-d">Cost sheets, fichas de medidas/aprobacion y matriz de enconado.</div>
+        </div>
+        <span class="row-tag tag-ref">Ingenieria</span>
+      </a>
+    </div>
+
+    <div class="section" id="sec-materia">
+      <div class="sec-title">Materia prima</div>
+      <div class="sec-sub">Consumo y pedido de hilo para bodega</div>
+
+      <a class="row" href="https://dp522-ops.github.io/SWAN2/hilos.html">
+        <div class="row-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="6" ry="3"></ellipse><path d="M6 6v12c0 1.7 2.7 3 6 3s6-1.3 6-3V6"></path><path d="M6 12c0 1.7 2.7 3 6 3s6-1.3 6-3"></path></svg>
+        </div>
+        <div style="flex-grow:1">
+          <div class="row-t">Hilos y Materia Prima</div>
+          <div class="row-d">Cuanto hilo (por titulo y lote) se necesita hoy, segun lo que esta corriendo, lo ya producido y la calculadora de pedido.</div>
+        </div>
+        <span class="row-tag tag-cfg">Bodega</span>
+      </a>
+    </div>
+
+    <div class="section" id="sec-config">
+      <div class="sec-title">Configuracion y guias</div>
+      <div class="sec-sub">Pasos para conectar cada herramienta, una sola vez</div>
+
+      <a class="guide-row" href="https://dp522-ops.github.io/SWAN2/guia_google_sheets.html">
+        <span class="guide-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"></path><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"></path></svg>
+        </span>
+        <div>
+          <div class="guide-t">Conectar Google Sheets</div>
+          <div class="guide-d">Servidor (Apps Script) para Produccion, Tablero Maestro e Hilos.</div>
+        </div>
+      </a>
+
+      <a class="guide-row" href="https://dp522-ops.github.io/SWAN2/guia_nfc_swantex.html">
+        <span class="guide-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"></path><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"></path></svg>
+        </span>
+        <div>
+          <div class="guide-t">Configurar stickers NFC</div>
+          <div class="guide-d">Codificar operarios, maquinas, referencias y paros.</div>
+        </div>
+      </a>
+
+      <a class="guide-row" href="https://dp522-ops.github.io/SWAN2/guia_github_pages.html">
+        <span class="guide-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"></path><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"></path></svg>
+        </span>
+        <div>
+          <div class="guide-t">Publicar en GitHub Pages</div>
+          <div class="guide-d">Como subir los archivos para que queden disponibles en la web.</div>
+        </div>
+      </a>
+    </div>
+
   </div>
 
 </div>
 
-<footer>Swantex SAS &bull; Actualiza esta página cuando agreguemos una herramienta nueva</footer>
+<script>
+function showSection(name) {
+  var secs = ['produccion', 'fichas', 'materia', 'config'];
+  for (var i = 0; i < secs.length; i++) {
+    var isOn = secs[i] === name;
+    document.getElementById('sec-' + secs[i]).classList.toggle('active', isOn);
+  }
+  var navs = document.querySelectorAll('.navitem');
+  for (var j = 0; j < navs.length; j++) {
+    navs[j].classList.toggle('active', navs[j].getAttribute('data-sec') === name);
+  }
+  try { location.hash = name; } catch(e) {}
+}
+(function initFromHash() {
+  var h = (location.hash || '').replace('#', '');
+  var valid = ['produccion', 'fichas', 'materia', 'config'];
+  if (valid.indexOf(h) >= 0) showSection(h);
+})();
+</script>
 
 </body>
 </html>
