@@ -51,6 +51,9 @@ label.lbl{font-size:.72rem;color:#94a3b8;font-weight:700;text-transform:uppercas
 .legend{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.8rem}
 .legend .chip{display:flex;align-items:center;gap:.35rem;font-size:.72rem;color:#cbd5e1;background:#111c30;border-radius:6px;padding:.2rem .5rem}
 .legend .dot{width:10px;height:10px;border-radius:3px}
+.upload-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.7rem}
+.upload-btn{position:relative;overflow:hidden;display:inline-block;cursor:pointer}
+.upload-btn input[type=file]{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer}
 table.resumen{width:100%;border-collapse:collapse;font-size:.8rem}
 table.resumen th{text-align:left;color:#94a3b8;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;padding:.4rem .5rem;border-bottom:1px solid #334155}
 table.resumen td{padding:.45rem .5rem;border-bottom:1px solid #1f2937}
@@ -90,7 +93,20 @@ table.resumen td{padding:.45rem .5rem;border-bottom:1px solid #1f2937}
 
   <div class="card">
     <h2>2. Programa mensual</h2>
-    <div class="sub">Pegue una fila por referencia: <b>codigo, cantidad en docenas</b> (opcional: , numero de maquinas en paralelo). Tambien puede pegar directo desde Excel/Sheets (separado por tabs).</div>
+    <div class="sub">Pegue una fila por referencia: <b>codigo, cantidad en docenas</b> (opcional: , numero de maquinas en paralelo). Tambien puede pegar directo desde Excel/Sheets (separado por tabs), o subir el archivo/foto de abajo para que se llene solo.</div>
+
+    <div class="upload-row">
+      <label class="btn upload-btn">
+        Subir archivo .txt
+        <input type="file" id="file-txt" accept=".txt,text/plain" onchange="handleTxtFile(this.files[0])">
+      </label>
+      <label class="btn upload-btn">
+        Subir foto / pantallazo
+        <input type="file" id="file-img" accept="image/*" onchange="handleImageFile(this.files[0])">
+      </label>
+      <span class="status" id="upload-status"></span>
+    </div>
+
     <textarea id="plan-input" placeholder="M83504, 1200&#10;M14472, 3000, 2&#10;M30767, 800"></textarea>
   </div>
 
@@ -118,7 +134,78 @@ table.resumen td{padding:.45rem .5rem;border-bottom:1px solid #1f2937}
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script>
+// ============================================================
+// Cargar el programa desde un archivo .txt o desde una foto/
+// pantallazo (OCR en el navegador con Tesseract.js). En ambos casos
+// se llena el textarea para que el usuario revise/corrija antes de
+// calcular - la lectura automatica puede fallar, sobre todo en
+// numeros de una foto.
+// ============================================================
+function heuristicParseToRows(text) {
+  var lines = (text || '').split(/\r?\n/);
+  var rows = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (!line || !line.trim()) continue;
+    var tokens = line.match(/[A-Za-z0-9.,]+/g) || [];
+    var code = null, nums = [];
+    for (var t = 0; t < tokens.length; t++) {
+      var tok = tokens[t];
+      var cleanNum = tok.replace(/[.,]/g, '');
+      if (/^\d+$/.test(cleanNum) && cleanNum.length >= 2 && cleanNum.length <= 7) {
+        nums.push(parseInt(cleanNum, 10));
+      } else if (!code && /^[A-Za-z]{0,3}\d{3,8}$/.test(tok)) {
+        code = tok.toUpperCase();
+      }
+    }
+    if (code && nums.length) rows.push(code + ', ' + nums[0] + (nums[1] ? (', ' + nums[1]) : ''));
+  }
+  return rows.join('\n');
+}
+
+function fillPlanFromExtraction(extracted, sourceLabel) {
+  var st = document.getElementById('upload-status');
+  if (!extracted) { st.textContent = 'No se pudo reconocer ninguna fila en ' + sourceLabel + '. Puede pegar el programa a mano abajo.'; st.className = 'status err'; return; }
+  var ta = document.getElementById('plan-input');
+  var prev = ta.value.trim();
+  ta.value = (prev ? prev + '\n' : '') + extracted;
+  var n = extracted.split('\n').length;
+  st.textContent = n + ' fila(s) extraidas de ' + sourceLabel + '. Revise que codigo y cantidad queden correctos antes de calcular.';
+  st.className = 'status ok';
+}
+
+function handleTxtFile(file) {
+  if (!file) return;
+  var st = document.getElementById('upload-status');
+  st.textContent = 'Leyendo ' + file.name + '...'; st.className = 'status';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var rows = heuristicParseToRows(e.target.result);
+    fillPlanFromExtraction(rows, 'el archivo ' + file.name);
+  };
+  reader.onerror = function() { st.textContent = 'No se pudo leer el archivo.'; st.className = 'status err'; };
+  reader.readAsText(file, 'utf-8');
+}
+
+function handleImageFile(file) {
+  if (!file) return;
+  var st = document.getElementById('upload-status');
+  if (typeof Tesseract === 'undefined') { st.textContent = 'No se pudo cargar el lector de imagenes (revise su conexion a internet).'; st.className = 'status err'; return; }
+  st.textContent = 'Leyendo la imagen... 0%'; st.className = 'status';
+  Tesseract.recognize(file, 'eng', {
+    logger: function(m) {
+      if (m.status === 'recognizing text') st.textContent = 'Leyendo la imagen... ' + Math.round((m.progress||0)*100) + '%';
+    }
+  }).then(function(result) {
+    var rows = heuristicParseToRows(result.data.text);
+    fillPlanFromExtraction(rows, 'la imagen ' + file.name);
+  }).catch(function(e) {
+    st.textContent = 'Error leyendo la imagen: ' + e.message; st.className = 'status err';
+  });
+}
+
 // ============================================================
 // Conexion (misma URL que usan dashboard.html / hilos.html)
 // ============================================================
