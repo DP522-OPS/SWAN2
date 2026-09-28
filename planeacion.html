@@ -310,10 +310,22 @@ function cargarFichasMaquina(cb) {
       var d = doc.data() || {};
       var h = d.header || {};
       var code = (h.referencia || '').toString().trim().toUpperCase();
-      if (!code || !h.tipoMaquina || !h.maquinaModelo) return;
-      var tipo = h.tipoMaquina.toLowerCase();
-      var diam = tipo === 'santoni' ? ((h.diametro||'').toString().trim() + '"') : '';
-      map[code] = { tipo: tipo, modelo: h.maquinaModelo, diam: diam, nombre: d.nombrePrenda || code };
+      if (!code) return;
+      // header.maquinas: arreglo de opciones (una referencia puede correr en
+      // mas de un modelo/diametro). Fichas antiguas solo traen los campos
+      // sueltos tipoMaquina/maquinaModelo/diametro - se migran igual aqui.
+      var lista = Array.isArray(h.maquinas) && h.maquinas.length ? h.maquinas
+        : (h.tipoMaquina ? [{ tipoMaquina: h.tipoMaquina, maquinaModelo: h.maquinaModelo, diametro: h.diametro }] : []);
+      var opciones = [];
+      for (var i = 0; i < lista.length; i++) {
+        var it = lista[i];
+        if (!it || !it.tipoMaquina || !it.maquinaModelo) continue;
+        var tipo = it.tipoMaquina.toLowerCase();
+        var diam = tipo === 'santoni' ? ((it.diametro||'').toString().trim() + '"') : '';
+        opciones.push({ tipo: tipo, modelo: it.maquinaModelo, diam: diam });
+      }
+      if (!opciones.length) return;
+      map[code] = { opciones: opciones, nombre: d.nombrePrenda || code };
       completas++;
     });
     FICHA_MAQ = map;
@@ -367,15 +379,23 @@ function matchGrupos(ref) {
   return out;
 }
 
-// Primero intenta con el dato manual de la Ficha (exacto, sin adivinar);
-// si la referencia no tiene ficha con maquina/diametro definido, o el
-// modelo que trae no coincide con ninguna maquina fisica real, cae al
-// emparejamiento automatico por nombre (heuristica sobre REFS).
+// Primero intenta con el dato manual de la Ficha (exacto, sin adivinar) -
+// puede traer VARIAS opciones (ej. 15" de SM4 o de TOP2V), y aqui se
+// devuelven todos los grupos validos para que el scheduler elija el que
+// tenga maquina libre mas pronto. Si la referencia no tiene ficha con
+// maquina/diametro definido, o ninguna de sus opciones coincide con una
+// maquina fisica real, cae al emparejamiento automatico por nombre
+// (heuristica sobre REFS).
 function matchGruposParaCode(code, ref) {
   var fm = FICHA_MAQ[code];
   if (fm) {
-    var k = grupoKey(fm.tipo, fm.modelo, fm.diam);
-    if (maquinasDeGrupo(k).length) return { grupos: [k], fuente: 'ficha' };
+    var grupos = [];
+    for (var i = 0; i < fm.opciones.length; i++) {
+      var op = fm.opciones[i];
+      var k = grupoKey(op.tipo, op.modelo, op.diam);
+      if (maquinasDeGrupo(k).length) grupos.push(k);
+    }
+    if (grupos.length) return { grupos: grupos, fuente: 'ficha' };
   }
   var g = matchGrupos(ref);
   return { grupos: g, fuente: 'auto' };
@@ -490,8 +510,11 @@ function calcularProyeccion() {
       var grupos = m.grupos;
       if (!grupos.length) { warnings.push({ tipo:'sin_match', code: row.code, nombre: ref[1], raw: ref[3], tipoM: (ref[2]||'').toLowerCase() }); continue; }
       // usa el primer grupo que tenga maquinas fisicas
+      // junta las maquinas de TODAS las opciones validas (ej. 15" SM4 + 15"
+      // TOP2V) en un solo grupo de candidatas, para que abajo se elijan las
+      // que esten libres mas pronto sin importar de cual opcion vengan.
       var maquinasGrupo = [];
-      for (var g = 0; g < grupos.length && !maquinasGrupo.length; g++) maquinasGrupo = maquinasDeGrupo(grupos[g]);
+      for (var g = 0; g < grupos.length; g++) maquinasGrupo = maquinasGrupo.concat(maquinasDeGrupo(grupos[g]));
       if (!maquinasGrupo.length) { warnings.push({ tipo:'sin_maquinas', code: row.code, nombre: ref[1] }); continue; }
 
       var nMaq = Math.max(1, Math.min(row.nMaq, maquinasGrupo.length));
