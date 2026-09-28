@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Swantex - Planeacion de Produccion</title>
+<style>
+:root{--amber:#f59e0b;--green:#10b981;--blue:#3b82f6;--red:#ef4444;--purple:#8b5cf6}
+*{box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;margin:0}
+.top{background:#1e293b;border-bottom:1px solid #334155;padding:.9rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem}
+.brand{font-size:1.05rem;font-weight:700}
+.brand span{color:#94a3b8;font-weight:400;font-size:.85rem;margin-left:.4rem}
+.btn{background:#334155;color:#e2e8f0;border:1.5px solid #475569;border-radius:8px;padding:.5rem .9rem;font-size:.82rem;font-weight:700;cursor:pointer}
+.btn:hover{background:#3f4f68}
+.btn-cfg{background:none;border:1.5px solid #475569;color:#94a3b8;border-radius:8px;padding:.5rem .8rem;font-size:.82rem;cursor:pointer}
+.btn-calc{background:var(--green);border:none;color:#04231a;font-weight:800}
+.btn-calc:hover{background:#0d9d6f}
+.content{padding:1.25rem;max-width:1400px;margin:0 auto}
+.setup-panel{background:#1e293b;border:2px solid var(--amber);border-radius:12px;padding:1.1rem;margin-bottom:1.1rem;display:none}
+.setup-panel.show{display:block}
+.inp-row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+input,textarea,select{background:#0f172a;border:1.5px solid #334155;border-radius:8px;color:#e2e8f0;padding:.5rem .7rem;font-size:.85rem;font-family:inherit}
+textarea{width:100%;min-height:130px;font-family:monospace;font-size:.8rem;resize:vertical}
+label.lbl{font-size:.72rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.25rem}
+.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:1.1rem;margin-bottom:1.1rem}
+.card h2{margin:0 0 .3rem;font-size:1rem}
+.card .sub{color:#94a3b8;font-size:.78rem;margin-bottom:.9rem}
+.params{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem}
+.params .f{min-width:150px}
+.status{font-size:.8rem;color:#94a3b8;margin-top:.5rem}
+.status.ok{color:var(--green)}
+.status.err{color:var(--red)}
+.warn-box{background:#3a2a0f;border:1.5px solid var(--amber);border-radius:10px;padding:.8rem 1rem;margin-bottom:1rem;font-size:.82rem}
+.warn-box b{color:var(--amber)}
+.warn-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.3rem 0;border-top:1px solid rgba(255,255,255,.08)}
+.warn-row:first-of-type{border-top:none}
+.warn-row select{min-width:170px}
+.gantt-wrap{overflow-x:auto}
+.gantt{display:table;border-collapse:collapse;min-width:900px}
+.grow{display:table-row}
+.gcell{display:table-cell;vertical-align:middle;border-bottom:1px solid #263346;padding:.25rem 0}
+.gteam{background:#111c30;font-weight:800;font-size:.72rem;color:#8ea3b8;text-transform:uppercase;letter-spacing:.05em;padding:.4rem .6rem}
+.glabel{width:150px;padding:.15rem .6rem;font-size:.72rem;color:#cbd5e1;white-space:nowrap;position:sticky;left:0;background:#1e293b}
+.glabel b{color:#f1f5f9;font-size:.78rem}
+.gtrack{position:relative;height:26px;background:linear-gradient(90deg,#182338 0,#182338 100%)}
+.gbar{position:absolute;top:2px;height:22px;border-radius:5px;font-size:.65rem;color:#04140f;font-weight:800;display:flex;align-items:center;padding:0 6px;overflow:hidden;white-space:nowrap;cursor:default}
+.gnow{position:absolute;top:0;bottom:0;width:2px;background:var(--red);z-index:5}
+.axis{display:flex;font-size:.68rem;color:#64748b;padding:.2rem 0 .4rem 150px;position:relative}
+.axis span{position:absolute;transform:translateX(-50%)}
+.legend{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.8rem}
+.legend .chip{display:flex;align-items:center;gap:.35rem;font-size:.72rem;color:#cbd5e1;background:#111c30;border-radius:6px;padding:.2rem .5rem}
+.legend .dot{width:10px;height:10px;border-radius:3px}
+table.resumen{width:100%;border-collapse:collapse;font-size:.8rem}
+table.resumen th{text-align:left;color:#94a3b8;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;padding:.4rem .5rem;border-bottom:1px solid #334155}
+table.resumen td{padding:.45rem .5rem;border-bottom:1px solid #1f2937}
+.tag{font-size:.65rem;font-weight:800;padding:.15rem .45rem;border-radius:10px}
+.tag-santoni{background:#1d3a5f;color:#93c5fd}
+.tag-lonati{background:#3a2f5f;color:#c4b5fd}
+.empty{text-align:center;color:#475569;padding:2rem;font-size:.85rem}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="brand">Swantex <span>Planeacion de Produccion</span></div>
+  <div style="display:flex;gap:.5rem">
+    <button class="btn-cfg" onclick="toggleSetup()">&#9881; Conexion</button>
+    <a href="panel.html" class="btn" style="text-decoration:none;display:inline-flex;align-items:center">&larr; Panel</a>
+  </div>
+</div>
+
+<div class="content">
+
+  <div class="setup-panel" id="setup-div">
+    <label class="lbl">URL del Apps Script (para traer el estado real de las maquinas - EnCurso)</label>
+    <div class="inp-row">
+      <input type="text" id="url-input" style="flex:1;min-width:260px" placeholder="https://script.google.com/macros/s/.../exec">
+      <button class="btn" onclick="conectar()">Conectar</button>
+    </div>
+    <div class="status" id="conn-status"></div>
+  </div>
+
+  <div class="card">
+    <h2>1. Catalogo</h2>
+    <div class="sub">Referencias y maquinas, traidas en vivo desde index.html (misma fuente que usa Produccion diaria).</div>
+    <button class="btn" onclick="cargarCatalogo()">Actualizar catalogo</button>
+    <div class="status" id="cat-status">Sin cargar todavia.</div>
+  </div>
+
+  <div class="card">
+    <h2>2. Programa mensual</h2>
+    <div class="sub">Pegue una fila por referencia: <b>codigo, cantidad en docenas</b> (opcional: , numero de maquinas en paralelo). Tambien puede pegar directo desde Excel/Sheets (separado por tabs).</div>
+    <textarea id="plan-input" placeholder="M83504, 1200&#10;M14472, 3000, 2&#10;M30767, 800"></textarea>
+  </div>
+
+  <div class="card">
+    <h2>3. Parametros de proyeccion</h2>
+    <div class="params">
+      <div class="f">
+        <label class="lbl">Eficiencia minima esperada</label>
+        <input type="number" id="p-eff" value="80" min="1" max="100" style="width:90px"> %
+      </div>
+      <div class="f">
+        <label class="lbl">Alistamiento / cambio de referencia</label>
+        <input type="number" id="p-alist" value="90" min="0" style="width:90px"> min
+      </div>
+      <div class="f">
+        <label class="lbl">Horizonte del Gantt</label>
+        <input type="number" id="p-horizonte" value="30" min="1" style="width:90px"> dias
+      </div>
+    </div>
+    <button class="btn btn-calc" onclick="calcularProyeccion()">Calcular proyeccion</button>
+  </div>
+
+  <div id="warnings-holder"></div>
+  <div id="resultado-holder"></div>
+
+</div>
+
+<script>
+// ============================================================
+// Conexion (misma URL que usan dashboard.html / hilos.html)
+// ============================================================
+var GAS_URL = '';
+try { GAS_URL = localStorage.getItem('swx_dash_url') || ''; } catch(e) {}
+if (GAS_URL) { var ui=document.getElementById('url-input'); if(ui) ui.value = GAS_URL; }
+
+function toggleSetup() {
+  document.getElementById('setup-div').classList.toggle('show');
+}
+if (!GAS_URL) toggleSetup();
+
+function conectar() {
+  var url = (document.getElementById('url-input').value || '').trim();
+  if (!url) { document.getElementById('conn-status').textContent = 'Ingrese la URL'; return; }
+  GAS_URL = url;
+  try { localStorage.setItem('swx_dash_url', url); } catch(e) {}
+  document.getElementById('conn-status').textContent = 'Conexion guardada.';
+  document.getElementById('conn-status').className = 'status ok';
+}
+
+// ============================================================
+// Catalogo: REFS + MAQS_DEF, traidos en vivo desde index.html
+// (mismo origen / GitHub Pages), sin duplicar los datos aqui.
+// ============================================================
+var REFS = [];      // [code, name, tipo, machModel, tubosPorDocena, stdMinPorDocena]
+var MAQS_DEF = [];  // [id, tipo, modelo, diam, equipoId]
+var EQS = [
+  {id:'E2',name:'Equipo 2',type:'lonati'},{id:'E3',name:'Equipo 3',type:'lonati'},
+  {id:'E5',name:'Equipo 5',type:'santoni'},{id:'E6',name:'Equipo 6',type:'santoni'},
+  {id:'E7',name:'Equipo 7',type:'santoni'},{id:'E8',name:'Equipo 8',type:'santoni'}
+];
+
+function extractArray(html, varName) {
+  var re = new RegExp('var\\s+' + varName + '\\s*=\\s*(\\[[\\s\\S]*?\\]);');
+  var m = html.match(re);
+  if (!m) return null;
+  try { return JSON.parse(m[1]); } catch(e) { console.error('parse ' + varName, e); return null; }
+}
+
+function cargarCatalogo(cb) {
+  var st = document.getElementById('cat-status');
+  st.textContent = 'Cargando index.html...';
+  st.className = 'status';
+  fetch('index.html?_=' + Date.now())
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      var refs = extractArray(html, 'REFS');
+      var maqs = extractArray(html, 'MAQS_DEF');
+      if (!refs || !maqs) { st.textContent = 'No se pudo leer el catalogo de index.html.'; st.className='status err'; return; }
+      REFS = refs; MAQS_DEF = maqs;
+      st.textContent = REFS.length + ' referencias y ' + MAQS_DEF.length + ' maquinas cargadas (' + new Date().toLocaleTimeString() + ').';
+      st.className = 'status ok';
+      if (cb) cb();
+    })
+    .catch(function(e) {
+      st.textContent = 'Error: ' + e.message + '. Si esta abriendo el archivo localmente (no en GitHub Pages), este fetch puede fallar por el navegador.';
+      st.className = 'status err';
+    });
+}
+cargarCatalogo();
+
+// ============================================================
+// Emparejar el modelo de maquina de una referencia (REFS[3], texto
+// libre tipo "SM8 TOP 2V 16\"" o "L416E - L416EG") con los grupos
+// reales de maquinas de MAQS_DEF (modelo + diametro).
+// ============================================================
+function norm(s) { return (s || '').toString().toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function extractDiam(s) {
+  var m = (s || '').toString().match(/(\d{2})\s*"/);
+  return m ? m[1] + '"' : '';
+}
+
+var OVERRIDES = {};
+try { OVERRIDES = JSON.parse(localStorage.getItem('swx_plan_overrides') || '{}'); } catch(e) {}
+function saveOverrides() { try { localStorage.setItem('swx_plan_overrides', JSON.stringify(OVERRIDES)); } catch(e) {} }
+
+function grupoKey(tipo, modelo, diam) { return tipo + '|' + modelo + '|' + diam; }
+
+function matchGrupos(ref) {
+  var tipo = (ref[2] || '').toLowerCase();
+  var raw = ref[3] || '';
+  var overrideKey = tipo + '::' + raw;
+  if (OVERRIDES[overrideKey]) {
+    var ov = OVERRIDES[overrideKey];
+    return [grupoKey(tipo, ov.modelo, ov.diam)];
+  }
+  var nModel = norm(raw);
+  var diam = extractDiam(raw);
+  var seen = {}, out = [];
+  for (var i = 0; i < MAQS_DEF.length; i++) {
+    var m = MAQS_DEF[i]; // [id, tipo, modelo, diam, equipoId]
+    if ((m[1] || '').toLowerCase() !== tipo) continue;
+    if (nModel.indexOf(norm(m[2])) < 0) continue;
+    if (diam && m[3] !== diam) continue;
+    var k = grupoKey(tipo, m[2], m[3]);
+    if (!seen[k]) { seen[k] = 1; out.push(k); }
+  }
+  return out;
+}
+
+function maquinasDeGrupo(key) {
+  var parts = key.split('|'); var tipo = parts[0], modelo = parts[1], diam = parts[2];
+  var out = [];
+  for (var i = 0; i < MAQS_DEF.length; i++) {
+    var m = MAQS_DEF[i];
+    if ((m[1]||'').toLowerCase() === tipo && m[2] === modelo && (m[3]||'') === diam) out.push(m[0]);
+  }
+  return out;
+}
+
+function refByCode(code) {
+  code = (code || '').toString().trim().toUpperCase();
+  for (var i = 0; i < REFS.length; i++) { if ((REFS[i][0]||'').toUpperCase() === code) return REFS[i]; }
+  return null;
+}
+
+// ============================================================
+// Estado real de las maquinas (EnCurso), para no arrancar en blanco.
+// Las que estan CORRIENDO ahora se marcan ocupadas hasta el final del
+// dia de hoy (estimado - se puede afinar cuando la hoja EnCurso guarde
+// la cantidad restante del lote abierto).
+// ============================================================
+function cargarEstadoReal(cb) {
+  if (!GAS_URL) { cb({}); return; }
+  fetch(GAS_URL + '?action=leer_estado')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var estados = d.estados || [];
+      var ocupadas = {};
+      var finHoy = new Date(); finHoy.setHours(23,59,0,0);
+      for (var i = 0; i < estados.length; i++) {
+        var e = estados[i];
+        if ((e.Estado||'').toString().toUpperCase() === 'CORRIENDO') {
+          ocupadas[(e.MaqID||'').toUpperCase()] = { libreDesde: finHoy, refActual: e.RefID || e.Referencia || '' };
+        }
+      }
+      cb(ocupadas);
+    })
+    .catch(function() { cb({}); });
+}
+
+// ============================================================
+// Parseo del programa mensual pegado en el textarea
+// ============================================================
+function parsePlan() {
+  var raw = document.getElementById('plan-input').value || '';
+  var lines = raw.split(/\r?\n/);
+  var rows = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+    var parts = line.split(/[,\t;]+/).map(function(s){ return s.trim(); });
+    if (parts.length < 2) continue;
+    var code = parts[0].toUpperCase();
+    var cant = parseFloat(parts[1].replace(/\./g,'').replace(',', '.')) || parseFloat(parts[1]) || 0;
+    var nMaq = parts[2] ? (parseInt(parts[2]) || 1) : 1;
+    if (!code || cant <= 0) continue;
+    rows.push({ code: code, cantidad: cant, nMaq: nMaq });
+  }
+  return rows;
+}
+
+// ============================================================
+// Colores por referencia (deterministico)
+// ============================================================
+var PALETTE = ['#10b981','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#eab308','#a855f7'];
+function colorFor(code) {
+  var h = 0; for (var i=0;i<code.length;i++) h = (h*31 + code.charCodeAt(i)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+}
+
+// ============================================================
+// SCHEDULER: asigna cada fila del plan a las maquinas mas pronto
+// disponibles de su grupo compatible, en orden de llegada del plan.
+// ============================================================
+function calcularProyeccion() {
+  if (!REFS.length || !MAQS_DEF.length) { alert('Todavia no se ha cargado el catalogo (REFS/MAQS_DEF). Espere a que cargue o pulse "Actualizar catalogo".'); return; }
+  var plan = parsePlan();
+  if (!plan.length) { alert('Pegue al menos una fila con codigo de referencia y cantidad.'); return; }
+  var effPct = (parseFloat(document.getElementById('p-eff').value) || 80) / 100;
+  var alistMin = parseFloat(document.getElementById('p-alist').value) || 0;
+  var horizonteDias = parseInt(document.getElementById('p-horizonte').value) || 30;
+
+  cargarEstadoReal(function(ocupadas) {
+    var now = new Date();
+    // Disponibilidad de cada maquina fisica
+    var dispo = {}; // maqId -> Date
+    for (var i = 0; i < MAQS_DEF.length; i++) {
+      var id = MAQS_DEF[i][0];
+      dispo[id] = (ocupadas[id] && ocupadas[id].libreDesde) ? new Date(ocupadas[id].libreDesde) : new Date(now);
+    }
+
+    var warnings = []; // {ref, raw, tipo}
+    var jobs = []; // {maqId, code, nombre, cantidad, inicio, fin}
+    var refFin = {}; // code -> ultima fecha de fin (para "termina el...")
+    var refSiguiente = {}; // maqId -> [ {code, inicio, fin} ] cola por maquina (se arma solo)
+
+    for (var p = 0; p < plan.length; p++) {
+      var row = plan[p];
+      var ref = refByCode(row.code);
+      if (!ref) { warnings.push({ tipo:'sin_ficha', code: row.code }); continue; }
+      var stdMin = parseFloat(ref[5]) || 0;
+      var tubosPorDocena = parseInt(ref[4]) || 12;
+      if (!stdMin) { warnings.push({ tipo:'sin_tiempo', code: row.code, nombre: ref[1] }); continue; }
+
+      var grupos = matchGrupos(ref);
+      if (!grupos.length) { warnings.push({ tipo:'sin_match', code: row.code, nombre: ref[1], raw: ref[3], tipoM: (ref[2]||'').toLowerCase() }); continue; }
+      // usa el primer grupo que tenga maquinas fisicas
+      var maquinasGrupo = [];
+      for (var g = 0; g < grupos.length && !maquinasGrupo.length; g++) maquinasGrupo = maquinasDeGrupo(grupos[g]);
+      if (!maquinasGrupo.length) { warnings.push({ tipo:'sin_maquinas', code: row.code, nombre: ref[1] }); continue; }
+
+      var nMaq = Math.max(1, Math.min(row.nMaq, maquinasGrupo.length));
+      // ordena las maquinas del grupo por disponibilidad (mas pronto primero)
+      var ordenadas = maquinasGrupo.slice().sort(function(a,b){ return dispo[a] - dispo[b]; });
+      var elegidas = ordenadas.slice(0, nMaq);
+      var cantidadPorMaquina = row.cantidad / nMaq;
+      var minPorDocenaReal = stdMin / effPct;
+      var minTotal = cantidadPorMaquina * minPorDocenaReal;
+
+      var finMax = null;
+      for (var q = 0; q < elegidas.length; q++) {
+        var maqId = elegidas[q];
+        var inicio = new Date(dispo[maqId].getTime() + alistMin*60000);
+        var fin = new Date(inicio.getTime() + minTotal*60000);
+        jobs.push({ maqId: maqId, code: row.code, nombre: ref[1], cantidad: Math.round(cantidadPorMaquina), inicio: inicio, fin: fin });
+        dispo[maqId] = fin;
+        if (!finMax || fin > finMax) finMax = fin;
+      }
+      refFin[row.code] = finMax;
+    }
+
+    renderWarnings(warnings);
+    renderResultado(jobs, refFin, dispo, now, horizonteDias);
+  });
+}
+
+function tipoDeRaw(refRaw) {
+  // heuristica simple para el selector manual: si trae numero de pulgadas, es santoni
+  return extractDiam(refRaw) ? 'santoni' : 'lonati';
+}
+
+function renderWarnings(warnings) {
+  var holder = document.getElementById('warnings-holder');
+  if (!warnings.length) { holder.innerHTML = ''; return; }
+  var sinMatch = warnings.filter(function(w){ return w.tipo === 'sin_match'; });
+  var otras = warnings.filter(function(w){ return w.tipo !== 'sin_match'; });
+
+  var html = '<div class="warn-box"><b>' + warnings.length + ' referencia(s) del programa no se pudieron proyectar automaticamente.</b>';
+
+  if (sinMatch.length) {
+    html += '<div style="margin-top:.6rem">No se encontro una maquina compatible por nombre para estas. Elija manualmente el modelo/diametro correcto (se recuerda para la proxima vez):</div>';
+    for (var i = 0; i < sinMatch.length; i++) {
+      var w = sinMatch[i];
+      var tipo = w.tipoM || tipoDeRaw(w.raw);
+      var opciones = uniqueModelosDe(tipo);
+      var selId = 'sel_' + i + '_' + w.code;
+      html += '<div class="warn-row"><span style="min-width:210px"><b>' + w.code + '</b> - ' + (w.nombre||'') + ' <span style="color:#64748b">(' + (w.raw||'') + ')</span></span>';
+      html += '<select id="' + selId + '" data-tipo="' + tipo + '" data-raw="' + (w.raw||'').replace(/"/g,'&quot;') + '"><option value="">-- elegir maquina --</option>';
+      for (var o = 0; o < opciones.length; o++) {
+        html += '<option value="' + opciones[o].modelo + '|' + opciones[o].diam + '">' + opciones[o].modelo + (opciones[o].diam ? ' ' + opciones[o].diam : '') + '</option>';
+      }
+      html += '</select> <button class="btn" style="padding:.35rem .6rem;font-size:.72rem" onclick="guardarOverride(\'' + selId + '\')">Guardar</button></div>';
+    }
+  }
+  if (otras.length) {
+    html += '<div style="margin-top:.6rem">Otras: ';
+    html += otras.map(function(w){
+      if (w.tipo==='sin_ficha') return w.code + ' (no existe en el catalogo de referencias)';
+      if (w.tipo==='sin_tiempo') return w.code + ' (sin tiempo estandar registrado en la ficha)';
+      if (w.tipo==='sin_maquinas') return w.code + ' (el modelo coincide pero no hay maquinas fisicas de ese grupo)';
+      return w.code;
+    }).join(', ');
+    html += '</div>';
+  }
+  html += '</div>';
+  holder.innerHTML = html;
+}
+
+function uniqueModelosDe(tipo) {
+  var seen = {}, out = [];
+  for (var i = 0; i < MAQS_DEF.length; i++) {
+    var m = MAQS_DEF[i];
+    if ((m[1]||'').toLowerCase() !== tipo) continue;
+    var k = m[2] + '|' + (m[3]||'');
+    if (!seen[k]) { seen[k]=1; out.push({modelo:m[2], diam:m[3]||''}); }
+  }
+  return out;
+}
+
+function guardarOverride(selId) {
+  var sel = document.getElementById(selId);
+  if (!sel.value) return;
+  var parts = sel.value.split('|');
+  var tipo = sel.getAttribute('data-tipo');
+  var raw = sel.getAttribute('data-raw');
+  OVERRIDES[tipo + '::' + raw] = { modelo: parts[0], diam: parts[1] };
+  saveOverrides();
+  calcularProyeccion();
+}
+
+// ============================================================
+// Render: Gantt + resumen "que sigue" por maquina
+// ============================================================
+function renderResultado(jobs, refFin, dispo, now, horizonteDias) {
+  var holder = document.getElementById('resultado-holder');
+  if (!jobs.length) { holder.innerHTML = '<div class="card"><div class="empty">No hay nada que proyectar todavia.</div></div>'; return; }
+
+  var horizonteFin = new Date(now.getTime() + horizonteDias*24*3600000);
+  var maxFin = horizonteFin;
+  for (var i = 0; i < jobs.length; i++) if (jobs[i].fin > maxFin) maxFin = jobs[i].fin;
+  var totalMs = maxFin.getTime() - now.getTime();
+
+  // agrupa jobs por maquina
+  var porMaquina = {};
+  for (var i = 0; i < jobs.length; i++) {
+    var j = jobs[i];
+    if (!porMaquina[j.maqId]) porMaquina[j.maqId] = [];
+    porMaquina[j.maqId].push(j);
+  }
+  for (var k in porMaquina) porMaquina[k].sort(function(a,b){ return a.inicio - b.inicio; });
+
+  // arma indice de maquinas por equipo (respetando el orden de MAQS_DEF)
+  var porEquipo = {};
+  for (var i = 0; i < MAQS_DEF.length; i++) {
+    var m = MAQS_DEF[i];
+    if (!porMaquina[m[0]]) continue; // solo muestra maquinas con trabajo proyectado
+    var eq = m[4] || '?';
+    if (!porEquipo[eq]) porEquipo[eq] = [];
+    porEquipo[eq].push(m);
+  }
+
+  function pctOf(d) { return Math.max(0, Math.min(100, (d.getTime()-now.getTime()) / totalMs * 100)); }
+
+  var ganttHtml = '<div class="gantt-wrap"><div class="gantt">';
+  var equipoIds = Object.keys(porEquipo).sort();
+  for (var e = 0; e < equipoIds.length; e++) {
+    var eqId = equipoIds[e];
+    var eqObj = null; for (var q=0;q<EQS.length;q++) if (EQS[q].id===eqId) eqObj = EQS[q];
+    ganttHtml += '<div class="grow"><div class="gcell gteam" style="display:table-cell" colspan="1">' + (eqObj?eqObj.name:eqId) + '</div></div>';
+    var maqs = porEquipo[eqId];
+    for (var mi = 0; mi < maqs.length; mi++) {
+      var maqId = maqs[mi][0];
+      var jobsM = porMaquina[maqId];
+      ganttHtml += '<div class="grow">';
+      ganttHtml += '<div class="gcell glabel"><b>' + maqId + '</b> ' + maqs[mi][2] + (maqs[mi][3]?(' '+maqs[mi][3]):'') + '</div>';
+      ganttHtml += '<div class="gcell" style="width:100%"><div class="gtrack">';
+      for (var ji = 0; ji < jobsM.length; ji++) {
+        var j = jobsM[ji];
+        var left = pctOf(j.inicio), right = pctOf(j.fin);
+        var width = Math.max(0.4, right - left);
+        var col = colorFor(j.code);
+        var titulo = j.code + ' - ' + j.nombre + ' | ' + j.cantidad + ' doc. | ' + j.inicio.toLocaleDateString() + ' a ' + j.fin.toLocaleDateString();
+        ganttHtml += '<div class="gbar" title="' + titulo.replace(/"/g,'&quot;') + '" style="left:' + left + '%;width:' + width + '%;background:' + col + '">' + j.code + '</div>';
+      }
+      ganttHtml += '<div class="gnow" style="left:0%"></div>';
+      ganttHtml += '</div></div></div>';
+    }
+  }
+  ganttHtml += '</div></div>';
+
+  // eje de fechas (cada ~5 dias)
+  var axisHtml = '<div class="axis">';
+  var stepDias = Math.max(1, Math.round(horizonteDias/6));
+  for (var d = 0; d <= horizonteDias; d += stepDias) {
+    var dt = new Date(now.getTime() + d*24*3600000);
+    var pct = pctOf(dt);
+    axisHtml += '<span style="left:' + pct + '%">' + dt.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit'}) + '</span>';
+  }
+  axisHtml += '</div>';
+
+  // leyenda por referencia
+  var codesSeen = {}, legendHtml = '<div class="legend">';
+  for (var i = 0; i < jobs.length; i++) {
+    if (codesSeen[jobs[i].code]) continue; codesSeen[jobs[i].code] = 1;
+    legendHtml += '<div class="chip"><span class="dot" style="background:' + colorFor(jobs[i].code) + '"></span>' + jobs[i].code + ' - ' + jobs[i].nombre + '</div>';
+  }
+  legendHtml += '</div>';
+
+  // resumen: fecha de fin por referencia + que sigue por maquina
+  var resumenHtml = '<table class="resumen"><thead><tr><th>Referencia</th><th>Termina aprox.</th></tr></thead><tbody>';
+  var codes = Object.keys(refFin).sort();
+  for (var i = 0; i < codes.length; i++) {
+    resumenHtml += '<tr><td>' + codes[i] + '</td><td>' + refFin[codes[i]].toLocaleString(undefined,{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) + '</td></tr>';
+  }
+  resumenHtml += '</tbody></table>';
+
+  var colaHtml = '<table class="resumen"><thead><tr><th>Maquina</th><th>Orden de referencias proyectado</th></tr></thead><tbody>';
+  var maqIdsConTrabajo = Object.keys(porMaquina).sort();
+  for (var i = 0; i < maqIdsConTrabajo.length; i++) {
+    var maqId = maqIdsConTrabajo[i];
+    var seq = porMaquina[maqId].map(function(j){ return j.code + ' (hasta ' + j.fin.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit'}) + ')'; }).join(' &rarr; ');
+    colaHtml += '<tr><td><b>' + maqId + '</b></td><td>' + seq + '</td></tr>';
+  }
+  colaHtml += '</tbody></table>';
+
+  holder.innerHTML =
+    '<div class="card"><h2>Gantt proyectado</h2><div class="sub">La linea roja marca "ahora". Pase el mouse sobre una barra para ver detalle.</div>' + ganttHtml + axisHtml + legendHtml + '</div>' +
+    '<div class="card"><h2>Cuando termina cada referencia</h2>' + resumenHtml + '</div>' +
+    '<div class="card"><h2>Que sigue en cada maquina</h2>' + colaHtml + '</div>';
+}
+</script>
+
+</body>
+</html>
