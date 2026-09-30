@@ -2173,7 +2173,7 @@ function applyLiveRefs(rows) {
 function syncRefsFromFichas(notify) {
   var db = initFichasFirebase();
   if (!db) { if (notify) toast('No se pudo conectar con Fichas'); return; }
-  db.collection('precosteos').get().then(function(snap) {
+  db.collection('fichas').get().then(function(snap) {
     var rows = [];
     snap.forEach(function(doc) {
       var row = fichaToRefRow(doc.id, doc.data() || {});

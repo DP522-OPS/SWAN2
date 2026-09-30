@@ -304,7 +304,7 @@ function cargarFichasMaquina(cb) {
   var db = initFichasFirebase();
   if (!db) { st.textContent = 'No se pudo conectar con Fichas; se usa solo el catalogo automatico.'; st.className='status err'; if(cb) cb(); return; }
   st.textContent = 'Cargando maquina/diametro desde Fichas...'; st.className='status';
-  db.collection('precosteos').get().then(function(snap) {
+  db.collection('fichas').get().then(function(snap) {
     var map = {}, completas = 0;
     snap.forEach(function(doc) {
       var d = doc.data() || {};
