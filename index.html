@@ -2144,9 +2144,18 @@ function fichaToRefRow(id, d) {
   // tubos_producidos*tiempoPorTubo, que es lo correcto sin importar si la
   // referencia rinde 1, 2 o mas prendas por tubo.
   var stdDocena = Math.round(perUnitMin * tubos * 100) / 100;
-  var tipoRaw = (h.tipoMaquina || '').toLowerCase();
+  // header.maquinas es un arreglo desde que Precosteo permite varias
+  // opciones de maquina por referencia; se usa la primera como principal
+  // para este catalogo (Planeacion lee el arreglo completo directo de
+  // Fichas). Fichas viejas sin ese arreglo caen a los campos sueltos de
+  // siempre (tipoMaquina/maquinaModelo/diametro).
+  var maqPrincipal = (Array.isArray(h.maquinas) && h.maquinas.length) ? h.maquinas[0]
+    : (h.tipoMaquina ? { tipoMaquina: h.tipoMaquina, maquinaModelo: h.maquinaModelo, diametro: h.diametro } : null);
+  var tipoRaw = (maqPrincipal && maqPrincipal.tipoMaquina || '').toLowerCase();
   var tipo = tipoRaw.indexOf('lonati') >= 0 ? 'lonati' : 'santoni';
-  var modelo = ((h.maquinaModelo || '') + (h.diametro ? ' ' + h.diametro + '"' : '')).trim();
+  var modelo = maqPrincipal
+    ? ((maqPrincipal.maquinaModelo || '') + (tipoRaw.indexOf('santoni') >= 0 && maqPrincipal.diametro ? ' ' + maqPrincipal.diametro + '"' : '')).trim()
+    : '';
   var nombre = (d.nombrePrenda || code).toString().trim();
   return [code, nombre, tipo, modelo, tubos, stdDocena];
 }
