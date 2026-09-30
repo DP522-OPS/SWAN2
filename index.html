@@ -637,7 +637,10 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
   <div class="cpanel" id="cp-refs">
     <div class="hdr" style="margin-bottom:.4rem">
       <div style="font-size:.8rem;color:var(--steel)"><span id="ref-count"></span></div>
-      <button class="btn btn-out btn-sm" onclick="syncRefsFromFichas(true)">&#8635; Actualizar desde Fichas</button>
+      <div style="display:flex;gap:.4rem">
+        <button class="btn btn-navy btn-sm" onclick="openCfgForm('ref')">+ Agregar referencia manual</button>
+        <button class="btn btn-out btn-sm" onclick="syncRefsFromFichas(true)">&#8635; Actualizar desde Fichas</button>
+      </div>
     </div>
     <div id="refs-sync-status" style="font-size:.72rem;color:var(--steel);margin-bottom:.65rem">Aun no se ha sincronizado con Fichas en esta sesion.</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.65rem">
@@ -750,6 +753,30 @@ function deleteRefGroup(codes, nombre) {
   toast('Referencia eliminada del catalogo: ' + nombre);
 }
 filterHiddenRefs();
+
+// ============ REFERENCIAS MANUALES (sin Precosteo/Fichas/Enhebrado) ============
+// Para referencias viejas que ya existen en planta y solo se necesitan para
+// registrar produccion - sin pasar por todo el flujo de ingenieria en Fichas.
+// Se guardan aparte (no en Fichas) y se vuelven a aplicar despues de cada
+// sincronizacion, con prioridad sobre el catalogo estatico y sobre Fichas -
+// asi el usuario siempre puede corregir un dato a mano si hace falta.
+var REFS_MANUAL = sg('refs_manual', []);
+function applyManualRefs() {
+  if (REFS_MANUAL.length) applyLiveRefs(REFS_MANUAL);
+  filterHiddenRefs();
+}
+function saveRefManual(row) {
+  var code = row[0];
+  var idx = -1;
+  for (var i = 0; i < REFS_MANUAL.length; i++) { if (REFS_MANUAL[i][0] === code) { idx = i; break; } }
+  if (idx >= 0) REFS_MANUAL[idx] = row; else REFS_MANUAL.push(row);
+  ss('refs_manual', REFS_MANUAL);
+  // Si estaba oculta, reingresarla la saca de ocultas
+  var hIdx = REFS_HIDDEN.indexOf(code);
+  if (hIdx >= 0) { REFS_HIDDEN.splice(hIdx, 1); ss('refs_hidden_codes', REFS_HIDDEN); }
+  applyManualRefs();
+}
+applyManualRefs();
 
 // ============ INIT ============
 function init() {
@@ -1725,7 +1752,7 @@ function renderCfgRefs() {
     var s60=Math.round((60/r[4])*r[5]*10)/10;
     var nombreEsc = (r[1]||'').replace(/'/g,"\\'");
     if(grp.length===1){
-      h+='<tr><td><code>'+r[0]+'</code></td><td>'+r[1]+'</td><td><span class="badge '+(r[2]==='santoni'?'bp':'bt')+'">'+r[2]+'</span></td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+s60+'</td><td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="showNfc(\'referencia\',\''+r[0]+'\')">NFC</button> <button class="btn btn-out btn-sm" style="color:var(--red);border-color:var(--red)" onclick="deleteRef(\''+r[0]+'\',\''+nombreEsc+'\')" title="Eliminar del catalogo (referencia descontinuada)">&#128465;</button></td></tr>';
+      h+='<tr><td><code>'+r[0]+'</code></td><td>'+r[1]+'</td><td><span class="badge '+(r[2]==='santoni'?'bp':'bt')+'">'+r[2]+'</span></td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+s60+'</td><td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="showNfc(\'referencia\',\''+r[0]+'\')">NFC</button> <button class="btn btn-out btn-sm" onclick="openCfgForm(\'ref\',\''+r[0]+'\')" title="Editar">&#9998;</button> <button class="btn btn-out btn-sm" style="color:var(--red);border-color:var(--red)" onclick="deleteRef(\''+r[0]+'\',\''+nombreEsc+'\')" title="Eliminar del catalogo (referencia descontinuada)">&#128465;</button></td></tr>';
       shown++;
     } else {
       var exp = !!cfgRefExpanded[key];
@@ -1738,7 +1765,7 @@ function renderCfgRefs() {
       if(exp){
         for(var ci=0; ci<grp.length; ci++){
           var cr=grp[ci];
-          h+='<tr style="background:#fbfcfe"><td style="padding-left:1.8rem"><code>'+cr[0]+'</code></td><td colspan="4" style="color:var(--steel);font-size:.76rem">codigo individual</td><td></td><td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="event.stopPropagation();showNfc(\'referencia\',\''+cr[0]+'\')">NFC</button> <button class="btn btn-out btn-sm" style="color:var(--red);border-color:var(--red)" onclick="event.stopPropagation();deleteRef(\''+cr[0]+'\',\''+nombreEsc+'\')" title="Eliminar este codigo">&#128465;</button></td></tr>';
+          h+='<tr style="background:#fbfcfe"><td style="padding-left:1.8rem"><code>'+cr[0]+'</code></td><td colspan="4" style="color:var(--steel);font-size:.76rem">codigo individual</td><td></td><td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="event.stopPropagation();showNfc(\'referencia\',\''+cr[0]+'\')">NFC</button> <button class="btn btn-out btn-sm" onclick="event.stopPropagation();openCfgForm(\'ref\',\''+cr[0]+'\')" title="Editar">&#9998;</button> <button class="btn btn-out btn-sm" style="color:var(--red);border-color:var(--red)" onclick="event.stopPropagation();deleteRef(\''+cr[0]+'\',\''+nombreEsc+'\')" title="Eliminar este codigo">&#128465;</button></td></tr>';
         }
       }
     }
@@ -1752,6 +1779,21 @@ function renderCfgRefs() {
 var cfgType='', cfgId=null;
 function openCfgForm(type, id) {
   cfgType=type; cfgId=id||null;
+  if(type==='ref'){
+    var ritem=null;
+    if(id){for(var ri=0;ri<REFS.length;ri++){if(REFS[ri][0]===id){ritem=REFS[ri];break;}}}
+    document.getElementById('cfg-modal-t').textContent=id?'Editar referencia':'Agregar referencia manual';
+    document.getElementById('cfg-modal-body').innerHTML=
+      '<div class="al al-info" style="margin-bottom:.65rem;font-size:.76rem">Para referencias viejas que solo se necesitan para registrar produccion - sin pasar por Precosteo/Fichas/Enhebrado.</div>'+
+      '<div class="fg"><label class="lbl">Codigo</label><input class="inp" id="cf-id" value="'+(ritem?ritem[0]:'')+'" placeholder="M12345" '+(id?'readonly':'')+' style="text-transform:uppercase"></div>'+
+      '<div class="fg"><label class="lbl">Nombre / Descripcion</label><input class="inp" id="cf-name" value="'+(ritem?ritem[1]:'')+'" placeholder="TANGA CLASICA"></div>'+
+      '<div class="fg"><label class="lbl">Tipo</label><select class="inp" id="cf-type"><option value="santoni" '+(ritem&&ritem[2]==='santoni'?'selected':'')+'>Santoni</option><option value="lonati" '+(ritem&&ritem[2]==='lonati'?'selected':'')+'>Lonati</option></select></div>'+
+      '<div class="fg"><label class="lbl">Modelo (y diametro si aplica)</label><input class="inp" id="cf-model" value="'+(ritem?ritem[3]:'')+'" placeholder=\'SM8 TOP 2V 17"\'></div>'+
+      '<div class="fg"><label class="lbl">Tubos por docena</label><input class="inp" type="number" id="cf-tubos" value="'+(ritem?ritem[4]:'12')+'" placeholder="12"></div>'+
+      '<div class="fg" style="margin-bottom:0"><label class="lbl">Minutos estandar por docena</label><input class="inp" type="number" step="0.01" id="cf-std" value="'+(ritem?ritem[5]:'')+'" placeholder="Ej. 61"></div>';
+    openOv('ov-cfg');
+    return;
+  }
   document.getElementById('cfg-modal-t').textContent=(id?'Editar ':'Agregar ')+(type==='maq'?'Maquina':'Operario');
   var item=null;
   if(id){var list=sg(type==='maq'?'maqs':'ops',[]);for(var i=0;i<list.length;i++){if(list[i].id===id){item=list[i];break;}}}
@@ -1777,6 +1819,15 @@ function openCfgForm(type, id) {
 }
 function gv(id){var el=document.getElementById(id);return el?(el.value||'').trim():'';}
 function saveCfgItem() {
+  if(cfgType==='ref'){
+    var code=gv('cf-id').toUpperCase(); if(!code){toast('Codigo obligatorio');return;}
+    var tubos=parseInt(gv('cf-tubos'))||12, std=parseFloat(gv('cf-std'))||0;
+    if(!std){toast('Minutos estandar por docena obligatorio');return;}
+    var row=[code, gv('cf-name')||code, gv('cf-type')||'santoni', gv('cf-model'), tubos, std];
+    saveRefManual(row);
+    closeOv('ov-cfg'); renderCfgRefs(); toast('Referencia guardada: '+code);
+    return;
+  }
   var id=gv('cf-id'); if(!id){toast('ID obligatorio');return;}
   var isM=cfgType==='maq', key=isM?'maqs':'ops', list=sg(key,[]);
   var item;
@@ -2215,7 +2266,7 @@ function syncRefsFromFichas(notify) {
       if (row) rows.push(row);
     });
     var res = applyLiveRefs(rows);
-    filterHiddenRefs();
+    applyManualRefs();
     ss('refs_fichas_cache', rows);
     ss('refs_fichas_ts', Date.now());
     if (document.getElementById('cfg-ref-body')) renderCfgRefs();
@@ -2232,7 +2283,7 @@ function syncRefsFromFichas(notify) {
 function initRefsFromCache() {
   var cached = sg('refs_fichas_cache', null);
   if (cached && cached.length) applyLiveRefs(cached);
-  filterHiddenRefs();
+  applyManualRefs();
 }
 
 // START
