@@ -292,7 +292,7 @@ function syncMateriales(cb) {
     if (cb) cb();
     return;
   }
-  db.collection('fichas').get().then(function(snap) {
+  db.collection('precosteos').get().then(function(snap) {
     var mats = {};
     snap.forEach(function(doc) {
       var m = fichaToMaterial(doc.id, doc.data() || {});
