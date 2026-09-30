@@ -605,7 +605,7 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
   <div class="ct">
     <div class="ctab on" onclick="cfgTab('maqs')">Maquinas (142)</div>
     <div class="ctab" onclick="cfgTab('ops')">Operarios</div>
-    <div class="ctab" onclick="cfgTab('refs')">Referencias (1039)</div>
+    <div class="ctab" onclick="cfgTab('refs')">Referencias (<span id="cfg-refs-tab-count">1039</span>)</div>
     <div class="ctab" onclick="cfgTab('nfc')">NFC</div>
     <div class="ctab" onclick="cfgTab('nube')">Nube</div>
   </div>
@@ -719,6 +719,37 @@ function ss(k, v) {
   if (LS_OK) { try { localStorage.setItem('swx_' + k, JSON.stringify(v)); } catch(e) {} }
 }
 function sg_lotes() { return sg('lotes', []); }
+
+// ============ REFERENCIAS OCULTAS (descontinuadas) ============
+// Codigos eliminados manualmente desde Configuracion > Referencias. No se
+// borran de Fichas/Precosteo (la nube), solo se ocultan de este catalogo -
+// asi que si Fichas se sincroniza de nuevo, se filtran otra vez con esta lista.
+var REFS_HIDDEN = sg('refs_hidden_codes', []);
+function filterHiddenRefs() {
+  if (!REFS_HIDDEN.length) return;
+  for (var i = REFS.length - 1; i >= 0; i--) {
+    if (REFS_HIDDEN.indexOf(REFS[i][0]) >= 0) REFS.splice(i, 1);
+  }
+}
+function deleteRef(code, nombre) {
+  if (!window.confirm('Eliminar "' + (nombre||code) + '" (' + code + ') del catalogo?\n\nSolo se oculta de este listado - no borra la ficha de Precosteo en la nube.')) return;
+  if (REFS_HIDDEN.indexOf(code) < 0) { REFS_HIDDEN.push(code); ss('refs_hidden_codes', REFS_HIDDEN); }
+  filterHiddenRefs();
+  renderCfgRefs();
+  toast('Referencia eliminada del catalogo: ' + code);
+}
+function deleteRefGroup(codes, nombre) {
+  if (!window.confirm('Eliminar "' + nombre + '" y sus ' + codes.length + ' codigos del catalogo?\n\nSolo se ocultan de este listado - no borra las fichas de Precosteo en la nube.')) return;
+  var changed = false;
+  for (var i = 0; i < codes.length; i++) {
+    if (REFS_HIDDEN.indexOf(codes[i]) < 0) { REFS_HIDDEN.push(codes[i]); changed = true; }
+  }
+  if (changed) ss('refs_hidden_codes', REFS_HIDDEN);
+  filterHiddenRefs();
+  renderCfgRefs();
+  toast('Referencia eliminada del catalogo: ' + nombre);
+}
+filterHiddenRefs();
 
 // ============ INIT ============
 function init() {
@@ -1692,26 +1723,30 @@ function renderCfgRefs() {
   for(var gi=0; gi<order.length && shown<80; gi++){
     var key=order[gi], grp=groups[key], r=grp[0];
     var s60=Math.round((60/r[4])*r[5]*10)/10;
+    var nombreEsc = (r[1]||'').replace(/'/g,"\\'");
     if(grp.length===1){
-      h+='<tr><td><code>'+r[0]+'</code></td><td>'+r[1]+'</td><td><span class="badge '+(r[2]==='santoni'?'bp':'bt')+'">'+r[2]+'</span></td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+s60+'</td><td><button class="btn btn-out btn-sm" onclick="showNfc(\'referencia\',\''+r[0]+'\')">NFC</button></td></tr>';
+      h+='<tr><td><code>'+r[0]+'</code></td><td>'+r[1]+'</td><td><span class="badge '+(r[2]==='santoni'?'bp':'bt')+'">'+r[2]+'</span></td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+s60+'</td><td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="showNfc(\'referencia\',\''+r[0]+'\')">NFC</button> <button class="btn btn-out btn-sm" style="color:var(--red);border-color:var(--red)" onclick="deleteRef(\''+r[0]+'\',\''+nombreEsc+'\')" title="Eliminar del catalogo (referencia descontinuada)">&#128465;</button></td></tr>';
       shown++;
     } else {
       var exp = !!cfgRefExpanded[key];
       var keyEsc = key.replace(/'/g,"\\'");
+      var codesJson = JSON.stringify(grp.map(function(x){return x[0];})).replace(/"/g,'&quot;');
       h+='<tr style="cursor:pointer;background:var(--steell)" onclick="toggleCfgRefGroup(\''+keyEsc+'\')">';
       h+='<td colspan="2"><span style="display:inline-block;width:.9rem">'+(exp?'&#9662;':'&#9656;')+'</span> <strong>'+r[1]+'</strong> <span style="color:var(--steel);font-size:.75rem">('+grp.length+' codigos)</span></td>';
-      h+='<td><span class="badge '+(r[2]==='santoni'?'bp':'bt')+'">'+r[2]+'</span></td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+s60+'</td><td></td></tr>';
+      h+='<td><span class="badge '+(r[2]==='santoni'?'bp':'bt')+'">'+r[2]+'</span></td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+s60+'</td><td style="white-space:nowrap"><button class="btn btn-out btn-sm" style="color:var(--red);border-color:var(--red)" onclick="event.stopPropagation();deleteRefGroup(JSON.parse(this.dataset.codes),\''+nombreEsc+'\')" data-codes="'+codesJson+'" title="Eliminar todos los codigos de este producto">&#128465; Todos</button></td></tr>';
       shown++;
       if(exp){
         for(var ci=0; ci<grp.length; ci++){
           var cr=grp[ci];
-          h+='<tr style="background:#fbfcfe"><td style="padding-left:1.8rem"><code>'+cr[0]+'</code></td><td colspan="4" style="color:var(--steel);font-size:.76rem">codigo individual</td><td></td><td><button class="btn btn-out btn-sm" onclick="event.stopPropagation();showNfc(\'referencia\',\''+cr[0]+'\')">NFC</button></td></tr>';
+          h+='<tr style="background:#fbfcfe"><td style="padding-left:1.8rem"><code>'+cr[0]+'</code></td><td colspan="4" style="color:var(--steel);font-size:.76rem">codigo individual</td><td></td><td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="event.stopPropagation();showNfc(\'referencia\',\''+cr[0]+'\')">NFC</button> <button class="btn btn-out btn-sm" style="color:var(--red);border-color:var(--red)" onclick="event.stopPropagation();deleteRef(\''+cr[0]+'\',\''+nombreEsc+'\')" title="Eliminar este codigo">&#128465;</button></td></tr>';
         }
       }
     }
   }
   document.getElementById('ref-count').textContent = 'Mostrando '+shown+' de '+order.length+' productos ('+list.length+' codigos)';
   document.getElementById('cfg-ref-body').innerHTML = h || '<tr><td colspan="8" style="text-align:center;color:var(--steel)">Sin resultados</td></tr>';
+  var tabCount = document.getElementById('cfg-refs-tab-count');
+  if (tabCount) tabCount.textContent = REFS.length;
 }
 
 var cfgType='', cfgId=null;
@@ -2180,6 +2215,7 @@ function syncRefsFromFichas(notify) {
       if (row) rows.push(row);
     });
     var res = applyLiveRefs(rows);
+    filterHiddenRefs();
     ss('refs_fichas_cache', rows);
     ss('refs_fichas_ts', Date.now());
     if (document.getElementById('cfg-ref-body')) renderCfgRefs();
@@ -2196,6 +2232,7 @@ function syncRefsFromFichas(notify) {
 function initRefsFromCache() {
   var cached = sg('refs_fichas_cache', null);
   if (cached && cached.length) applyLiveRefs(cached);
+  filterHiddenRefs();
 }
 
 // START
