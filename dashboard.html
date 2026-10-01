@@ -80,6 +80,8 @@ tr:hover td{background:#253347}
 .btn-close{background:#334155;color:#e2e8f0;border:none;border-radius:8px;padding:.5rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer}
 .btn-close:hover{background:#475569}
 </style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -156,11 +158,49 @@ var countdownInterval = null;
 
 // Load saved URL
 var saved = '';
-try { saved = localStorage.getItem('swx_dash_url') || ''; } catch(e){}
+try { saved = localStorage.getItem('swx_gas_url') || localStorage.getItem('swx_dash_url') || ''; } catch(e){}
 if (saved) {
   GAS_URL = saved;
   document.getElementById('url-input').value = saved;
   startDashboard();
+} else {
+  // Este equipo nunca se configuro - intenta traer la URL que haya guardado
+  // cualquier otro equipo (se sincroniza desde Config > Nube en el app de
+  // registro). Asi no hay que pegarla a mano en cada PC/celular por separado.
+  setTimeout(cargarGasUrlDeLaNube, 0); // espera a que el resto del script (FICHAS_FB_CFG) termine de definirse
+}
+
+var FICHAS_FB_CFG = {
+  apiKey:'AIzaSyCQqlJRxiyJPNkgiBNnF5kquWpBxKuMiQ8',
+  authDomain:'swantex-fichas-5ca6b.firebaseapp.com',
+  projectId:'swantex-fichas-5ca6b',
+  storageBucket:'swantex-fichas-5ca6b.firebasestorage.app',
+  messagingSenderId:'60295471678',
+  appId:'1:60295471678:web:67a732cfbd97cdf20aa76f'
+};
+var _fichasDb = null;
+function initFichasFirebase() {
+  if (_fichasDb) return _fichasDb;
+  try {
+    if (typeof firebase === 'undefined') return null;
+    var app = firebase.apps && firebase.apps.some(function(a){return a.name==='fichas';})
+      ? firebase.app('fichas') : firebase.initializeApp(FICHAS_FB_CFG, 'fichas');
+    _fichasDb = app.firestore();
+    return _fichasDb;
+  } catch(e) { console.error('Firebase fichas error', e); return null; }
+}
+function cargarGasUrlDeLaNube() {
+  var db = initFichasFirebase();
+  if (!db) return;
+  db.collection('fichas').doc('SWAN2-GAS-URL').get().then(function(doc) {
+    if (!doc.exists) return;
+    var url = (doc.data() || {}).url || '';
+    if (!url) return;
+    GAS_URL = url;
+    try { localStorage.setItem('swx_gas_url', url); } catch(e){}
+    document.getElementById('url-input').value = url;
+    startDashboard();
+  }).catch(function(e){ console.warn('No se pudo traer la URL de la nube', e); });
 }
 
 function toggleSetup() {
@@ -173,7 +213,7 @@ function conectar() {
   if (!url) { document.getElementById('conn-status').textContent = 'Ingrese la URL'; return; }
   document.getElementById('conn-status').textContent = 'Conectando...';
   GAS_URL = url;
-  try { localStorage.setItem('swx_dash_url', url); } catch(e){}
+  try { localStorage.setItem('swx_gas_url', url); } catch(e){}
   fetch(url + '?action=leer&fecha=' + hoy())
     .then(function(r) { return r.json(); })
     .then(function(d) {

@@ -213,19 +213,22 @@ function handleImageFile(file) {
 // Conexion (misma URL que usan dashboard.html / hilos.html)
 // ============================================================
 var GAS_URL = '';
-try { GAS_URL = localStorage.getItem('swx_dash_url') || ''; } catch(e) {}
+try { GAS_URL = localStorage.getItem('swx_gas_url') || localStorage.getItem('swx_dash_url') || ''; } catch(e) {}
 if (GAS_URL) { var ui=document.getElementById('url-input'); if(ui) ui.value = GAS_URL; }
 
 function toggleSetup() {
   document.getElementById('setup-div').classList.toggle('show');
 }
-if (!GAS_URL) toggleSetup();
+if (!GAS_URL) {
+  toggleSetup();
+  setTimeout(cargarGasUrlDeLaNube, 0); // espera a que el resto del script (FICHAS_FB_CFG) termine de definirse
+}
 
 function conectar() {
   var url = (document.getElementById('url-input').value || '').trim();
   if (!url) { document.getElementById('conn-status').textContent = 'Ingrese la URL'; return; }
   GAS_URL = url;
-  try { localStorage.setItem('swx_dash_url', url); } catch(e) {}
+  try { localStorage.setItem('swx_gas_url', url); } catch(e) {}
   document.getElementById('conn-status').textContent = 'Conexion guardada.';
   document.getElementById('conn-status').className = 'status ok';
 }
@@ -297,6 +300,19 @@ function initFichasFirebase() {
     _fichasDb = app.firestore();
     return _fichasDb;
   } catch(e) { console.error('Firebase fichas error', e); return null; }
+}
+function cargarGasUrlDeLaNube() {
+  var db = initFichasFirebase();
+  if (!db) return;
+  db.collection('fichas').doc('SWAN2-GAS-URL').get().then(function(doc) {
+    if (!doc.exists) return;
+    var url = (doc.data() || {}).url || '';
+    if (!url) return;
+    GAS_URL = url;
+    try { localStorage.setItem('swx_gas_url', url); } catch(e){}
+    var ui = document.getElementById('url-input'); if (ui) ui.value = url;
+    var sd = document.getElementById('setup-div'); if (sd) sd.classList.remove('show');
+  }).catch(function(e){ console.warn('No se pudo traer la URL de la nube', e); });
 }
 
 function cargarFichasMaquina(cb) {

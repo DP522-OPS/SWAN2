@@ -1840,8 +1840,9 @@ function saveCfgItem() {
   if(cfgId){var idx=-1;for(var i=0;i<list.length;i++){if(list[i].id===id){idx=i;break;}}if(idx>=0){item.nfc=list[idx].nfc;list[idx]=Object.assign({},list[idx],item);}}
   else{for(var i=0;i<list.length;i++){if(list[i].id===id){toast('ID ya existe');return;}}list.push(item);}
   ss(key,list); closeOv('ov-cfg'); renderCfgMaqs(); renderCfgOps(); toast('Guardado');
+  if (!isM) syncOpsToCloud(list); // operarios: que quede visible para los demas equipos
 }
-function delOp(id){if(!confirm('Eliminar?'))return;var ops=sg('ops',[]);ss('ops',ops.filter(function(o){return o.id!==id;}));renderCfgOps();}
+function delOp(id){if(!confirm('Eliminar?'))return;var ops=sg('ops',[]).filter(function(o){return o.id!==id;});ss('ops',ops);renderCfgOps();syncOpsToCloud(ops);}
 
 // NFC
 function renderNfcPanel() {
@@ -2086,8 +2087,39 @@ function getGasUrl() { return sg('gas_url', ''); }
 function saveGasUrl() {
   var url = (document.getElementById('gas-url').value || '').trim();
   ss('gas_url', url);
+  try { localStorage.setItem('swx_gas_url', url); } catch(e){} // mismo nombre de llave que usan dashboard/planeacion/hilos
+  syncGasUrlToCloud(url); // asi los demas equipos (PC, otros celulares) la reciben solos
   toast(url ? 'URL guardada' : 'URL borrada');
   initNubePanel();
+}
+// La URL del servidor (Apps Script) se guarda tambien en la nube para que
+// Tablero Maestro, Planeacion y Materia Prima la reciban solas la primera vez
+// que se abren en un equipo nuevo - antes habia que pegarla a mano en cada
+// herramienta y en cada celular/PC por separado, y si se olvidaba uno
+// quedaba desactualizado (o fallaba con "<!DOCTYPE..." por URL vacia).
+function syncGasUrlToCloud(url) {
+  var db = initFichasFirebase();
+  if (!db) return;
+  db.collection('fichas').doc('SWAN2-GAS-URL').set({ url: url, updatedAt: Date.now() }).catch(function(e) {
+    console.warn('Error sincronizando URL del servidor', e);
+  });
+}
+function loadGasUrlFromCloud(cb) {
+  if (getGasUrl()) { if (cb) cb(); return; } // ya configurada en este equipo, no se sobreescribe
+  var db = initFichasFirebase();
+  if (!db) { if (cb) cb(); return; }
+  db.collection('fichas').doc('SWAN2-GAS-URL').get().then(function(doc) {
+    if (doc.exists) {
+      var url = (doc.data() || {}).url || '';
+      if (url) {
+        ss('gas_url', url);
+        try { localStorage.setItem('swx_gas_url', url); } catch(e){}
+        var inp = document.getElementById('gas-url'); if (inp) inp.value = url;
+        if (document.getElementById('sync-stats')) initNubePanel();
+      }
+    }
+    if (cb) cb();
+  }).catch(function(e) { console.warn('Error cargando URL del servidor', e); if (cb) cb(); });
 }
 function clearGasUrl() {
   ss('gas_url', '');
@@ -2286,10 +2318,53 @@ function initRefsFromCache() {
   applyManualRefs();
 }
 
+// ============ OPERARIOS EN LA NUBE ============
+// Config > Operarios se guardaba solo en localStorage de cada celular/PC, por
+// lo que un operario agregado en un equipo no existia para los demas: al
+// escanear su tarjeta NFC (que solo trae el ID, nunca el nombre - ver
+// processNfc/type 'operador'), el equipo que no lo tenia localmente no podia
+// resolver el nombre y el lote quedaba con opNombre vacio (solo el ID se ve
+// en el tablero). Se sincroniza el listado via el mismo Firestore/coleccion
+// "fichas" que ya usan las referencias, en un documento reservado que
+// fichaToRefRow ya ignora (no tiene header.referencia).
+var OPS_CLOUD_DOC = 'SWAN2-OPS-CONFIG';
+function syncOpsToCloud(list) {
+  var db = initFichasFirebase();
+  if (!db) return;
+  db.collection('fichas').doc(OPS_CLOUD_DOC).set({ ops: list, updatedAt: Date.now() }).catch(function(e) {
+    console.warn('Error sincronizando operarios', e);
+  });
+}
+function loadOpsFromCloud(cb) {
+  var db = initFichasFirebase();
+  if (!db) { if (cb) cb(); return; }
+  db.collection('fichas').doc(OPS_CLOUD_DOC).get().then(function(doc) {
+    if (doc.exists) {
+      var cloudOps = (doc.data() || {}).ops || [];
+      var local = sg('ops', []);
+      var byId = {};
+      for (var i=0; i<local.length; i++) byId[local[i].id] = local[i];
+      for (var i=0; i<cloudOps.length; i++) byId[cloudOps[i].id] = cloudOps[i]; // la nube gana si hay conflicto
+      var merged = [];
+      for (var k in byId) merged.push(byId[k]);
+      ss('ops', merged);
+      if (document.getElementById('cfg-op-body')) renderCfgOps();
+      var opSel = document.getElementById('r-op');
+      if (opSel) {
+        opSel.innerHTML = '<option value="">Seleccionar operario...</option>';
+        for (var i=0; i<merged.length; i++) opSel.innerHTML += '<option value="' + merged[i].id + '">' + merged[i].name + '</option>';
+      }
+    }
+    if (cb) cb();
+  }).catch(function(e) { console.warn('Error cargando operarios de la nube', e); if (cb) cb(); });
+}
+
 // START
 init();
 initRefsFromCache();
 syncRefsFromFichas(false);
+loadOpsFromCloud();
+loadGasUrlFromCloud();
 renderDash();
 </script>
 </body>

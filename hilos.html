@@ -167,10 +167,12 @@ tr:last-child td{border-bottom:none}
 // que ya se configura en el Tablero Maestro (dashboard.html)
 // ============================================================
 var GAS_URL = '';
-try { GAS_URL = localStorage.getItem('swx_dash_url') || ''; } catch(e) { GAS_URL = ''; }
+try { GAS_URL = localStorage.getItem('swx_gas_url') || localStorage.getItem('swx_dash_url') || ''; } catch(e) { GAS_URL = ''; }
 if (GAS_URL) {
   document.getElementById('url-input').value = GAS_URL;
   document.getElementById('setup-div').style.display = 'none';
+} else {
+  setTimeout(cargarGasUrlDeLaNube, 0); // espera a que el resto del script (FICHAS_FB_CFG) termine de definirse
 }
 
 function toggleSetup() {
@@ -183,7 +185,7 @@ function conectar() {
   if (!url) { document.getElementById('conn-status').textContent = 'Ingrese la URL'; return; }
   document.getElementById('conn-status').textContent = 'Conectando...';
   GAS_URL = url;
-  try { localStorage.setItem('swx_dash_url', url); } catch(e){}
+  try { localStorage.setItem('swx_gas_url', url); } catch(e){}
   fetch(url + '?action=leer_estado')
     .then(function(r) { return r.json(); })
     .then(function(d) {
@@ -245,6 +247,21 @@ function initFichasFirebase() {
     _fichasDb = app.firestore();
     return _fichasDb;
   } catch(e) { console.error('Firebase fichas error', e); return null; }
+}
+function cargarGasUrlDeLaNube() {
+  var db = initFichasFirebase();
+  if (!db) return;
+  db.collection('fichas').doc('SWAN2-GAS-URL').get().then(function(doc) {
+    if (!doc.exists) return;
+    var url = (doc.data() || {}).url || '';
+    if (!url) return;
+    GAS_URL = url;
+    try { localStorage.setItem('swx_gas_url', url); } catch(e){}
+    var ui = document.getElementById('url-input'); if (ui) ui.value = url;
+    var sd = document.getElementById('setup-div'); if (sd) sd.style.display = 'none';
+    if (typeof cargarCorriendo === 'function') cargarCorriendo();
+    if (typeof cargarConsumoHoy === 'function') cargarConsumoHoy();
+  }).catch(function(e){ console.warn('No se pudo traer la URL de la nube', e); });
 }
 
 function fichaToMaterial(id, d) {
