@@ -58,6 +58,16 @@ header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;di
 .mt-n{font-size:.6rem;font-weight:700;margin-top:.04rem}
 .mt-ok .mt-n{color:var(--green)}.mt-no .mt-n{color:#334155}.mt-bad .mt-n{color:#fca5a5}
 .section-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem}
+.live-section{margin-bottom:1.25rem}
+.live-hdr{display:flex;align-items:center;gap:.5rem;margin-bottom:.7rem}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.6rem}
+.live-card{background:#1e293b;border:1px solid #334155;border-left:3px solid var(--green);border-radius:10px;padding:.7rem .85rem}
+.live-maq{font-size:.95rem;font-weight:800;color:#fff}
+.live-ref{font-size:.76rem;color:#cbd5e1;margin-top:.2rem;line-height:1.4}
+.live-time{font-size:.7rem;color:#64748b;margin-top:.4rem}
+.live-empty{font-size:.8rem;color:#64748b;background:#1e293b;border:1px solid #334155;border-radius:12px;padding:.9rem 1rem;line-height:1.6}
 .recent-table{background:#1e293b;border:1px solid #334155;border-radius:12px;overflow:hidden;margin-bottom:1.25rem}
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:.78rem}
@@ -117,6 +127,13 @@ tr:hover td{background:#253347}
   </div>
   <div id="dashboard-content" style="display:none">
     <div class="stats-row" id="stats-row"></div>
+    <div class="live-section">
+      <div class="live-hdr">
+        <span class="live-dot"></span>
+        <div class="section-title" style="margin-bottom:0" id="live-title">Maquinas corriendo ahora mismo</div>
+      </div>
+      <div id="live-wrap"></div>
+    </div>
     <div class="teams-grid" id="teams-grid"></div>
     <div class="section-title">Ultimos 30 lotes registrados</div>
     <div class="recent-table">
@@ -280,6 +297,71 @@ function cargarDatos() {
       document.getElementById('error-div').style.display = 'block';
       document.getElementById('error-msg').textContent = 'Error: ' + e.message;
     });
+  cargarEstadoActual();
+}
+
+// ============================================================
+// Maquinas corriendo AHORA MISMO (hoja EnCurso, la misma que usa Hilos y
+// Materia Prima). A diferencia de las estadisticas de arriba (que solo
+// cuentan lotes ya CERRADOS), esto muestra en vivo que maquina esta
+// montada con que referencia en este instante, sin esperar a que el
+// operario cierre el lote.
+// ============================================================
+function cargarEstadoActual() {
+  if (!GAS_URL) return;
+  fetch(GAS_URL + '?action=leer_estado')
+    .then(function(r) { return r.json(); })
+    .then(function(data) { renderLive(data.estados || [], null); })
+    .catch(function(e) { renderLive(null, e); });
+}
+
+function renderLive(estados, err) {
+  var wrap = document.getElementById('live-wrap');
+  var title = document.getElementById('live-title');
+  if (err) {
+    wrap.innerHTML = '<div class="live-empty">No se pudo leer el estado en vivo (puede que el Apps Script aun no tenga la hoja EnCurso - vea la guia de Google Sheets). Las demas estadisticas de arriba si funcionan normalmente.</div>';
+    title.textContent = 'Maquinas corriendo ahora mismo';
+    return;
+  }
+  var corriendo = [];
+  for (var i = 0; i < estados.length; i++) {
+    if ((estados[i].Estado || '').toString().toUpperCase() === 'CORRIENDO') corriendo.push(estados[i]);
+  }
+  title.textContent = 'Maquinas corriendo ahora mismo (' + corriendo.length + ')';
+  if (!corriendo.length) {
+    wrap.innerHTML = '<div class="live-empty">Ninguna maquina esta marcada como corriendo en este momento.</div>';
+    return;
+  }
+  corriendo.sort(function(a, b) { return (a.MaqID || '').localeCompare(b.MaqID || '', undefined, {numeric: true}); });
+  var h = '<div class="live-grid">';
+  for (var i = 0; i < corriendo.length; i++) {
+    var e = corriendo[i];
+    h += '<div class="live-card">';
+    h += '<div class="live-maq">' + (e.MaqID || '?') + '</div>';
+    h += '<div class="live-ref">' + (e.RefID || '') + (e.Referencia ? ' - ' + e.Referencia : '') + '</div>';
+    h += '<div class="live-time">' + tiempoCorriendo(e.HoraInicio) + '</div>';
+    h += '</div>';
+  }
+  h += '</div>';
+  wrap.innerHTML = h;
+}
+
+// Calcula hace cuanto empezo (HoraInicio viene como "HH:MM"), cruzando
+// medianoche sin problema ya que la planta trabaja 24/7.
+function tiempoCorriendo(hi) {
+  if (!hi) return 'Hora de inicio no registrada';
+  var parts = String(hi).split(':');
+  if (parts.length < 2) return 'Desde ' + hi;
+  var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+  if (isNaN(h) || isNaN(m)) return 'Desde ' + hi;
+  var now = new Date();
+  var inicioMin = h * 60 + m;
+  var nowMin = now.getHours() * 60 + now.getMinutes();
+  var diff = nowMin - inicioMin;
+  if (diff < 0) diff += 24 * 60;
+  var hh = Math.floor(diff / 60), mm = diff % 60;
+  var txt = hh > 0 ? (hh + 'h ' + mm + 'm') : (mm + 'm');
+  return 'Corriendo hace ' + txt + ' (desde ' + hi + ')';
 }
 
 var EQUIPOS = [
