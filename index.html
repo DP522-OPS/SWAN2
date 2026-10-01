@@ -2085,10 +2085,21 @@ function localDate() {
 }
 
 // CLOUD SYNC
-function getGasUrl() { return sg('gas_url', ''); }
+// Quita comillas sueltas al inicio/final que a veces quedan pegadas a la URL
+// (por ejemplo al copiarla desde el inspector del navegador, que muestra los
+// textos entre comillas) y causaban el error "<!DOCTYPE... is not valid JSON"
+// en Tablero Maestro / Planeacion / Materia Prima.
+function limpiarGasUrl(v) {
+  v = (v || '').trim();
+  while (v.length > 1 && (v.charAt(0) === '"' || v.charAt(0) === "'")) v = v.slice(1);
+  while (v.length > 1 && (v.charAt(v.length - 1) === '"' || v.charAt(v.length - 1) === "'")) v = v.slice(0, -1);
+  return v.trim();
+}
+function getGasUrl() { return limpiarGasUrl(sg('gas_url', '')); }
 
 function saveGasUrl() {
-  var url = (document.getElementById('gas-url').value || '').trim();
+  var url = limpiarGasUrl(document.getElementById('gas-url').value || '');
+  document.getElementById('gas-url').value = url;
   ss('gas_url', url);
   try { localStorage.setItem('swx_gas_url', url); } catch(e){} // mismo nombre de llave que usan dashboard/planeacion/hilos
   syncGasUrlToCloud(url); // asi los demas equipos (PC, otros celulares) la reciben solos
@@ -2103,6 +2114,7 @@ function saveGasUrl() {
 function syncGasUrlToCloud(url) {
   var db = initFichasFirebase();
   if (!db) return;
+  url = limpiarGasUrl(url);
   db.collection('fichas').doc('SWAN2-GAS-URL').set({ url: url, updatedAt: Date.now() }).catch(function(e) {
     console.warn('Error sincronizando URL del servidor', e);
   });
@@ -2121,7 +2133,7 @@ function loadGasUrlFromCloud(cb) {
   if (!db) { if (cb) cb(); return; }
   db.collection('fichas').doc('SWAN2-GAS-URL').get().then(function(doc) {
     if (doc.exists) {
-      var url = (doc.data() || {}).url || '';
+      var url = limpiarGasUrl((doc.data() || {}).url || '');
       if (url) {
         ss('gas_url', url);
         try { localStorage.setItem('swx_gas_url', url); } catch(e){}

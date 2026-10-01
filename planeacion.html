@@ -212,9 +212,20 @@ function handleImageFile(file) {
 // ============================================================
 // Conexion (misma URL que usan dashboard.html / hilos.html)
 // ============================================================
+// Quita comillas sueltas al inicio/final que a veces quedan pegadas a la URL
+// (por ejemplo al copiarla desde el inspector del navegador, que muestra los
+// textos entre comillas) y causaban el error "<!DOCTYPE... is not valid JSON".
+function limpiarGasUrl(v) {
+  v = (v || '').trim();
+  while (v.length > 1 && (v.charAt(0) === '"' || v.charAt(0) === "'")) v = v.slice(1);
+  while (v.length > 1 && (v.charAt(v.length - 1) === '"' || v.charAt(v.length - 1) === "'")) v = v.slice(0, -1);
+  return v.trim();
+}
+
 var GAS_URL = '';
 try { GAS_URL = localStorage.getItem('swx_gas_url') || localStorage.getItem('swx_dash_url') || ''; } catch(e) {}
-if (GAS_URL) { var ui=document.getElementById('url-input'); if(ui) ui.value = GAS_URL; }
+GAS_URL = limpiarGasUrl(GAS_URL);
+if (GAS_URL) { var ui=document.getElementById('url-input'); if(ui) ui.value = GAS_URL; try { localStorage.setItem('swx_gas_url', GAS_URL); } catch(e){} }
 
 function toggleSetup() {
   document.getElementById('setup-div').classList.toggle('show');
@@ -225,9 +236,10 @@ if (!GAS_URL) {
 }
 
 function conectar() {
-  var url = (document.getElementById('url-input').value || '').trim();
+  var url = limpiarGasUrl(document.getElementById('url-input').value || '');
   if (!url) { document.getElementById('conn-status').textContent = 'Ingrese la URL'; return; }
   GAS_URL = url;
+  document.getElementById('url-input').value = url;
   try { localStorage.setItem('swx_gas_url', url); } catch(e) {}
   document.getElementById('conn-status').textContent = 'Conexion guardada.';
   document.getElementById('conn-status').className = 'status ok';
@@ -306,7 +318,7 @@ function cargarGasUrlDeLaNube() {
   if (!db) return;
   db.collection('fichas').doc('SWAN2-GAS-URL').get().then(function(doc) {
     if (!doc.exists) return;
-    var url = (doc.data() || {}).url || '';
+    var url = limpiarGasUrl((doc.data() || {}).url || '');
     if (!url) return;
     GAS_URL = url;
     try { localStorage.setItem('swx_gas_url', url); } catch(e){}

@@ -166,11 +166,23 @@ tr:last-child td{border-bottom:none}
 // Conexion a Google Sheets (produccion) - reutiliza la misma URL
 // que ya se configura en el Tablero Maestro (dashboard.html)
 // ============================================================
+// Quita comillas sueltas al inicio/final que a veces quedan pegadas a la URL
+// (por ejemplo al copiarla desde el inspector del navegador, que muestra los
+// textos entre comillas) y causaban el error "<!DOCTYPE... is not valid JSON".
+function limpiarGasUrl(v) {
+  v = (v || '').trim();
+  while (v.length > 1 && (v.charAt(0) === '"' || v.charAt(0) === "'")) v = v.slice(1);
+  while (v.length > 1 && (v.charAt(v.length - 1) === '"' || v.charAt(v.length - 1) === "'")) v = v.slice(0, -1);
+  return v.trim();
+}
+
 var GAS_URL = '';
 try { GAS_URL = localStorage.getItem('swx_gas_url') || localStorage.getItem('swx_dash_url') || ''; } catch(e) { GAS_URL = ''; }
+GAS_URL = limpiarGasUrl(GAS_URL);
 if (GAS_URL) {
   document.getElementById('url-input').value = GAS_URL;
   document.getElementById('setup-div').style.display = 'none';
+  try { localStorage.setItem('swx_gas_url', GAS_URL); } catch(e){}
 } else {
   setTimeout(cargarGasUrlDeLaNube, 0); // espera a que el resto del script (FICHAS_FB_CFG) termine de definirse
 }
@@ -181,10 +193,11 @@ function toggleSetup() {
 }
 
 function conectar() {
-  var url = (document.getElementById('url-input').value || '').trim();
+  var url = limpiarGasUrl(document.getElementById('url-input').value || '');
   if (!url) { document.getElementById('conn-status').textContent = 'Ingrese la URL'; return; }
   document.getElementById('conn-status').textContent = 'Conectando...';
   GAS_URL = url;
+  document.getElementById('url-input').value = url;
   try { localStorage.setItem('swx_gas_url', url); } catch(e){}
   fetch(url + '?action=leer_estado')
     .then(function(r) { return r.json(); })
@@ -253,7 +266,7 @@ function cargarGasUrlDeLaNube() {
   if (!db) return;
   db.collection('fichas').doc('SWAN2-GAS-URL').get().then(function(doc) {
     if (!doc.exists) return;
-    var url = (doc.data() || {}).url || '';
+    var url = limpiarGasUrl((doc.data() || {}).url || '');
     if (!url) return;
     GAS_URL = url;
     try { localStorage.setItem('swx_gas_url', url); } catch(e){}
