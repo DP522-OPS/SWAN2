@@ -44,6 +44,21 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .guide-t{font-size:14px;font-weight:600;color:#111111}
 .guide-d{font-size:12px;color:#818a94;margin-top:1px}
 
+/* Flujo (cómo funciona todo el sistema) */
+.flow{margin-top:8px}
+.flow-step{position:relative;padding:0 0 30px 58px}
+.flow-step:last-child{padding-bottom:0}
+.flow-step::before{content:'';position:absolute;left:19px;top:42px;bottom:-6px;width:2px;background:#e2e6ea}
+.flow-step:last-child::before{display:none}
+.flow-num{position:absolute;left:0;top:0;width:40px;height:40px;border-radius:50%;background:#0f2942;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0}
+.flow-card{border:1px solid #e6e8eb;padding:16px 18px}
+.flow-title{font-size:15.5px;font-weight:700;color:#111111}
+.flow-desc{font-size:12.8px;color:#5b6572;margin-top:5px;line-height:1.6}
+.flow-tool{display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:11px;font-weight:700;letter-spacing:.2px;color:#0f2942;background:#eef1f4;padding:5px 12px;border-radius:20px;text-decoration:none}
+.flow-tool:hover{background:#dfe4e9}
+.flow-tool svg{flex-shrink:0}
+.flow-note{display:flex;gap:10px;align-items:flex-start;padding:14px 18px;background:#fdf7e8;border:1px solid #f0e2b8;margin-top:28px;font-size:12.5px;color:#7a5c05;line-height:1.6}
+
 @media(max-width:720px){
   .wrap{flex-direction:column}
   .sidebar{width:100%;height:auto;position:static;flex-direction:row;overflow-x:auto;padding:16px}
@@ -65,7 +80,8 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
       <div class="brand-sub">Panel de herramientas</div>
     </div>
 
-    <button class="navitem active" data-sec="produccion" onclick="showSection('produccion')">Producción diaria</button>
+    <button class="navitem active" data-sec="flujo" onclick="showSection('flujo')">Cómo funciona</button>
+    <button class="navitem" data-sec="produccion" onclick="showSection('produccion')">Producción diaria</button>
     <button class="navitem" data-sec="fichas" onclick="showSection('fichas')">Fichas técnicas</button>
     <button class="navitem" data-sec="materia" onclick="showSection('materia')">Materia prima</button>
     <button class="navitem" data-sec="config" onclick="showSection('config')">Configuración y guías</button>
@@ -75,7 +91,81 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 
   <div class="content">
 
-    <div class="section active" id="sec-produccion">
+    <div class="section active" id="sec-flujo">
+      <div class="sec-title">Cómo funciona todo el sistema</div>
+      <div class="sec-sub">De la ficha técnica al Gantt de planeación: así se conecta cada herramienta</div>
+
+      <div class="flow">
+
+        <div class="flow-step">
+          <div class="flow-num">1</div>
+          <div class="flow-card">
+            <div class="flow-title">Se crea la ficha de precosteo (FT-CIR-004)</div>
+            <div class="flow-desc">Ingeniería define, por cada referencia, la estructura de hilos, el tiempo estándar por docena, el peso y la eficiencia esperada. Esta ficha es la "receta" base: todo lo demás se mide contra ella.</div>
+            <a class="flow-tool" href="https://dp522-ops.github.io/swantex-fichas/" target="_blank" rel="noopener">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path></svg>
+              Fichas Técnicas
+            </a>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">2</div>
+          <div class="flow-card">
+            <div class="flow-title">Los operarios registran producción por NFC</div>
+            <div class="flow-desc">Con esa referencia ya cargada en el sistema, cada operario escanea su carnet, la máquina y la referencia para abrir lote, cerrar lote, registrar paros y hacer entrega de turno — directo desde su celular, en tiempo real.</div>
+            <a class="flow-tool" href="https://dp522-ops.github.io/SWAN2/" target="_blank" rel="noopener">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="1"></rect></svg>
+              Registrar Producción
+            </a>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">3</div>
+          <div class="flow-card">
+            <div class="flow-title">Se calcula la eficiencia por máquina, equipo y operario</div>
+            <div class="flow-desc">Cada registro se compara contra el tiempo y peso estándar de la ficha (paso 1), calculando la eficiencia real al instante. El Tablero Maestro muestra esto en vivo: qué máquina está montada, con quién, y cómo va cada equipo de turno.</div>
+            <a class="flow-tool" href="https://dp522-ops.github.io/SWAN2/dashboard.html" target="_blank" rel="noopener">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="20"></line><rect x="6" y="12" width="3" height="8"></rect><rect x="11" y="7" width="3" height="13"></rect><rect x="16" y="10" width="3" height="10"></rect></svg>
+              Tablero Maestro
+            </a>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">4</div>
+          <div class="flow-card">
+            <div class="flow-title">Se calcula el consumo de hilos del día</div>
+            <div class="flow-desc">Con el registro en tiempo real de qué está montado en cada máquina (paso 2 y 3), el sistema calcula cuánto hilo —por título y por lote— se necesita hoy, para generar el pedido diario de materia prima a bodega, en kilos.</div>
+            <a class="flow-tool" href="https://dp522-ops.github.io/SWAN2/hilos.html" target="_blank" rel="noopener">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="6" ry="3"></ellipse><path d="M6 6v12c0 1.7 2.7 3 6 3s6-1.3 6-3V6"></path></svg>
+              Hilos y Materia Prima
+            </a>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">5</div>
+          <div class="flow-card">
+            <div class="flow-title">El programa mensual se convierte en el Gantt de planeación</div>
+            <div class="flow-desc">Con los tiempos estándar ya conocidos (paso 1) y la capacidad real de cada máquina, se ingresa el programa de producción del mes y el sistema arma el Gantt: qué referencia corre en qué máquina, cuándo termina y qué sigue después, equipo por equipo.</div>
+            <a class="flow-tool" href="https://dp522-ops.github.io/SWAN2/planeacion.html" target="_blank" rel="noopener">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1.5"></rect><line x1="3" y1="9" x2="21" y2="9"></line></svg>
+              Planeación de Producción
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="flow-note">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        <div>Solo el paso 2 (Registrar Producción) lo necesitan todos los operarios en su celular. Los pasos 1, 3, 4 y 5 son para ingeniería y supervisión — nadie más necesita tenerlos abiertos.</div>
+      </div>
+    </div>
+
+    <div class="section" id="sec-produccion">
       <div class="sec-title">Producción diaria</div>
       <div class="sec-sub">Herramientas de uso diario para operarios y supervisores</div>
 
@@ -186,7 +276,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 
 <script>
 function showSection(name) {
-  var secs = ['produccion', 'fichas', 'materia', 'config'];
+  var secs = ['flujo', 'produccion', 'fichas', 'materia', 'config'];
   for (var i = 0; i < secs.length; i++) {
     var isOn = secs[i] === name;
     document.getElementById('sec-' + secs[i]).classList.toggle('active', isOn);
@@ -199,7 +289,7 @@ function showSection(name) {
 }
 (function initFromHash() {
   var h = (location.hash || '').replace('#', '');
-  var valid = ['produccion', 'fichas', 'materia', 'config'];
+  var valid = ['flujo', 'produccion', 'fichas', 'materia', 'config'];
   if (valid.indexOf(h) >= 0) showSection(h);
 })();
 </script>
