@@ -295,6 +295,7 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
 
 <!-- ==================== REGISTRO ==================== -->
 <div class="view" id="view-reg">
+  <div id="reg-sync-alert"></div>
   <div id="reg-nfc-alert"></div>
 
   <!-- MODE SWITCHER -->
@@ -1150,6 +1151,8 @@ function initReg() {
 
   document.getElementById('r-maq').innerHTML = '<option value="">Seleccione equipo primero...</option>';
   document.getElementById('r-maq-info').style.display = 'none';
+
+  renderSyncAlert();
 
   var nfcOk = 'NDEFReader' in window;
   document.getElementById('reg-nfc-alert').innerHTML = nfcOk
@@ -2105,7 +2108,15 @@ function syncGasUrlToCloud(url) {
   });
 }
 function loadGasUrlFromCloud(cb) {
-  if (getGasUrl()) { if (cb) cb(); return; } // ya configurada en este equipo, no se sobreescribe
+  var localUrl = getGasUrl();
+  if (localUrl) {
+    // Este equipo ya tiene la URL (puede venir de antes de que existiera esta
+    // sincronizacion) - se vuelve a subir a la nube por si otros equipos
+    // (Tablero Maestro en el PC, otro celular) todavia no la tienen.
+    syncGasUrlToCloud(localUrl);
+    if (cb) cb();
+    return;
+  }
   var db = initFichasFirebase();
   if (!db) { if (cb) cb(); return; }
   db.collection('fichas').doc('SWAN2-GAS-URL').get().then(function(doc) {
@@ -2156,6 +2167,26 @@ function initNubePanel() {
     '<div style="text-align:center"><div style="font-size:1.5rem;font-weight:800;color:var(--navy)">' + lotes.length + '</div><div style="font-size:.72rem;color:var(--steel)">Total lotes</div></div>' +
     '</div>' +
     (pending > 0 ? '<button class="btn btn-amber btn-sm" onclick="syncPending()">Reintentar ' + pending + ' pendientes</button>' : '');
+  renderSyncAlert();
+}
+// Aviso visible en la pantalla de Registro (no solo en Config > Nube) de si
+// este celular/PC esta conectado al servidor - para que no pase desapercibido
+// que los lotes se estan quedando solo en este equipo, sin llegar al Tablero
+// Maestro ni a los demas equipos.
+function renderSyncAlert() {
+  var el = document.getElementById('reg-sync-alert');
+  if (!el) return;
+  var url = getGasUrl();
+  var lotes = sg_lotes();
+  var pending = 0;
+  for (var i=0; i<lotes.length; i++) { if(!lotes[i].synced) pending++; }
+  if (!url) {
+    el.innerHTML = '<div class="al al-warn">&#9888; Sin URL del servidor configurada en este equipo - los lotes se estan guardando SOLO en este celular/PC y no llegaran al Tablero Maestro. Vaya a Configuracion &rarr; Nube y pegue la URL (la misma en todos los equipos).</div>';
+  } else if (pending > 0) {
+    el.innerHTML = '<div class="al al-warn">&#9888; ' + pending + ' lote(s) todavia no se han sincronizado con el servidor. <a href="#" onclick="syncPending();return false;" style="color:inherit;font-weight:800">Reintentar ahora</a></div>';
+  } else {
+    el.innerHTML = '';
+  }
 }
 function buildSyncPayload(lote) {
   var maqs = sg('maqs', []), opList = sg('ops', []);
@@ -2184,7 +2215,7 @@ function buildSyncPayload(lote) {
 }
 function syncLote(lote) {
   var url = getGasUrl();
-  if (!url) return;
+  if (!url) { renderSyncAlert(); return; }
   var d = buildSyncPayload(lote);
   var qs = url + '?action=escribir&d=' + encodeURIComponent(JSON.stringify(d));
   fetch(qs)
@@ -2194,9 +2225,12 @@ function syncLote(lote) {
         var all = sg_lotes();
         for (var i=0; i<all.length; i++) { if(all[i].id===lote.id){all[i].synced=true;break;} }
         ss('lotes', all);
+      } else {
+        console.warn('syncLote: el servidor respondio sin ok', resp);
       }
+      renderSyncAlert();
     })
-    .catch(function() {});
+    .catch(function(e) { console.warn('syncLote: error de conexion', e); renderSyncAlert(); });
 }
 // Avisa al servidor que referencia esta corriendo (o que la maquina quedo
 // libre) AHORA MISMO, sin esperar a que el lote se cierre. Esto alimenta la
@@ -2219,6 +2253,7 @@ function syncPending() {
   var pending = sg_lotes().filter(function(l){return !l.synced;});
   for (var i=0; i<pending.length; i++) syncLote(pending[i]);
   toast('Reintentando ' + pending.length + ' lotes pendientes...');
+  renderSyncAlert();
   setTimeout(initNubePanel, 4000);
 }
 
