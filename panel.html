@@ -50,16 +50,14 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .fc-fase{font-size:11px;font-weight:800;letter-spacing:1px;color:#c9a227;text-transform:uppercase;margin:26px 0 10px}
 .fc-fase:first-child{margin-top:0}
 
-.fc-grid{display:grid;grid-template-columns:1fr 44px 1fr;position:relative}
-.fc-grid::before{content:'';grid-column:2;grid-row:1/-1;width:2px;background:#d7dbe0;justify-self:center;align-self:stretch}
-.fc-empty{min-height:1px}
-.fc-mid{position:relative;display:flex;align-items:flex-start;justify-content:center;padding-top:24px;z-index:1}
-.fc-dot{width:13px;height:13px;border-radius:50%;background:#0f2942;border:2px solid #fff;box-shadow:0 0 0 1px #c3ccd6}
-.fc-mid.to-left::after{content:'';position:absolute;top:30px;right:50%;width:22px;height:2px;background:#d7dbe0}
-.fc-mid.to-right::after{content:'';position:absolute;top:30px;left:50%;width:22px;height:2px;background:#d7dbe0}
+.fc-grid{position:relative}
+.fc-grid::before{content:'';position:absolute;left:50%;top:6px;bottom:6px;width:2px;background:#d7dbe0;transform:translateX(-1px);z-index:0}
+.fc-row{position:relative;display:flex;margin:10px 0}
+.fc-row.left{justify-content:flex-start}
+.fc-row.right{justify-content:flex-end}
+.fc-dot{position:absolute;left:50%;top:26px;width:13px;height:13px;border-radius:50%;background:#0f2942;border:2px solid #fff;box-shadow:0 0 0 1px #c3ccd6;transform:translate(-50%,-50%);z-index:1}
 
-.fc-box{border:1px solid #e6e8eb;padding:14px 17px;margin:8px 0}
-.fc-box.r{text-align:left}
+.fc-box{width:calc(50% - 28px);border:1px solid #e6e8eb;padding:14px 17px;position:relative;z-index:1;background:#fff}
 .fc-step{font-size:10px;font-weight:800;letter-spacing:.6px;color:#c9a227;text-transform:uppercase;margin-bottom:4px}
 .fc-title{font-size:14.5px;font-weight:700;color:#111111}
 .fc-desc{font-size:12.3px;color:#5b6572;margin-top:5px;line-height:1.65}
@@ -74,7 +72,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .fc-merge-t{font-size:10.5px;font-weight:800;letter-spacing:.6px;color:#818a94;text-transform:uppercase;margin-bottom:10px}
 .fc-merge-row{display:flex;flex-wrap:wrap;gap:10px}
 .fc-chip{font-size:11.5px;color:#374151;background:#fff;border:1px solid #e6e8eb;padding:6px 12px;border-radius:20px}
-.fc-final{border:1.5px solid #0f2942;padding:18px 20px;background:#0f2942;color:#fff}
+.fc-final{width:100%;border:1.5px solid #0f2942;padding:18px 20px;background:#0f2942;color:#fff}
 .fc-final .fc-step{color:#c9a227}
 .fc-final .fc-title{color:#fff;font-size:15.5px}
 .fc-final .fc-desc{color:#c3ccd6}
@@ -84,9 +82,10 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .flow-note{display:flex;gap:10px;align-items:flex-start;padding:14px 18px;background:#fdf7e8;border:1px solid #f0e2b8;margin-top:26px;font-size:12.5px;color:#7a5c05;line-height:1.6}
 
 @media(max-width:760px){
-  .fc-grid{display:block}
-  .fc-empty,.fc-mid{display:none}
-  .fc-box{margin-bottom:12px}
+  .fc-grid::before{display:none}
+  .fc-row{display:block}
+  .fc-dot{display:none}
+  .fc-box{width:100%;margin-bottom:12px}
 }
 
 @media(max-width:720px){
@@ -130,25 +129,27 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
         <div class="fc-fase">Fase 1 · Ingeniería (una vez por referencia)</div>
         <div class="fc-grid">
 
-          <div class="fc-box">
-            <div class="fc-step">Paso 1</div>
-            <div class="fc-title">Se crea la ficha de precosteo (FT-CIR-004)</div>
-            <div class="fc-desc">Ingeniería carga, por cada referencia, la estructura de hilos (títulos, torsiones), el tiempo estándar por docena, el peso estándar y la eficiencia esperada. Esta ficha es la "receta" base: todo el sistema mide contra estos valores.</div>
-            <a class="fc-tag" href="https://dp522-ops.github.io/swantex-fichas/" target="_blank" rel="noopener">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path></svg>
-              Fichas Técnicas
-            </a>
+          <div class="fc-row left">
+            <div class="fc-dot"></div>
+            <div class="fc-box">
+              <div class="fc-step">Paso 1</div>
+              <div class="fc-title">Se crea la ficha de precosteo (FT-CIR-004)</div>
+              <div class="fc-desc">Ingeniería carga, por cada referencia, la estructura de hilos (títulos, torsiones), el tiempo estándar por docena, el peso estándar y la eficiencia esperada. Esta ficha es la "receta" base: todo el sistema mide contra estos valores.</div>
+              <a class="fc-tag" href="https://dp522-ops.github.io/swantex-fichas/" target="_blank" rel="noopener">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path></svg>
+                Fichas Técnicas
+              </a>
+            </div>
           </div>
-          <div class="fc-mid to-left"><div class="fc-dot"></div></div>
-          <div class="fc-empty"></div>
 
-          <div class="fc-empty"></div>
-          <div class="fc-mid to-right"><div class="fc-dot"></div></div>
-          <div class="fc-box r">
-            <div class="fc-step">Paso 2</div>
-            <div class="fc-title">Esos datos alimentan la base de datos de Referencias</div>
-            <div class="fc-desc">La ficha sube sola a la nube (Firestore) y arma el catálogo central de REFS: código, nombre, tiempo estándar y peso estándar. Producción, Hilos y Planeación leen de ahí — nadie vuelve a digitar el dato dos veces.</div>
-            <span class="fc-tag" style="cursor:default">Catálogo de Referencias (nube)</span>
+          <div class="fc-row right">
+            <div class="fc-dot"></div>
+            <div class="fc-box">
+              <div class="fc-step">Paso 2</div>
+              <div class="fc-title">Esos datos alimentan la base de datos de Referencias</div>
+              <div class="fc-desc">La ficha sube sola a la nube (Firestore) y arma el catálogo central de REFS: código, nombre, tiempo estándar y peso estándar. Producción, Hilos y Planeación leen de ahí — nadie vuelve a digitar el dato dos veces.</div>
+              <span class="fc-tag" style="cursor:default">Catálogo de Referencias (nube)</span>
+            </div>
           </div>
 
         </div>
@@ -156,25 +157,27 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
         <div class="fc-fase">Fase 2 · Planta (todos los turnos, todos los días)</div>
         <div class="fc-grid">
 
-          <div class="fc-box">
-            <div class="fc-step">Paso 3</div>
-            <div class="fc-title">El operario monta la máquina y escanea NFC</div>
-            <div class="fc-desc">Acerca su carnet, el sticker de la máquina y el sticker de la referencia. El sistema abre el lote ya con el tiempo y peso estándar cargados (pasos 1 y 2), sin que el operario digite nada.</div>
-            <a class="fc-tag" href="https://dp522-ops.github.io/SWAN2/" target="_blank" rel="noopener">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="1"></rect></svg>
-              Registrar Producción
-            </a>
+          <div class="fc-row left">
+            <div class="fc-dot"></div>
+            <div class="fc-box">
+              <div class="fc-step">Paso 3</div>
+              <div class="fc-title">El operario monta la máquina y escanea NFC</div>
+              <div class="fc-desc">Acerca su carnet, el sticker de la máquina y el sticker de la referencia. El sistema abre el lote ya con el tiempo y peso estándar cargados (pasos 1 y 2), sin que el operario digite nada.</div>
+              <a class="fc-tag" href="https://dp522-ops.github.io/SWAN2/" target="_blank" rel="noopener">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="1"></rect></svg>
+                Registrar Producción
+              </a>
+            </div>
           </div>
-          <div class="fc-mid to-left"><div class="fc-dot"></div></div>
-          <div class="fc-empty"></div>
 
-          <div class="fc-empty"></div>
-          <div class="fc-mid to-right"><div class="fc-dot"></div></div>
-          <div class="fc-box r">
-            <div class="fc-step">Paso 4</div>
-            <div class="fc-title">Registra producción, paros y entrega de turno</div>
-            <div class="fc-desc">Unidades producidas, hora real de inicio y cierre del lote, motivo de cada paro y entrega de turno al siguiente operario. Todo queda guardado al instante, en la nube y en la hoja del servidor (Google Sheets vía Apps Script).</div>
-            <span class="fc-tag" style="cursor:default">Registro en tiempo real</span>
+          <div class="fc-row right">
+            <div class="fc-dot"></div>
+            <div class="fc-box">
+              <div class="fc-step">Paso 4</div>
+              <div class="fc-title">Registra producción, paros y entrega de turno</div>
+              <div class="fc-desc">Unidades producidas, hora real de inicio y cierre del lote, motivo de cada paro y entrega de turno al siguiente operario. Todo queda guardado al instante, en la nube y en la hoja del servidor (Google Sheets vía Apps Script).</div>
+              <span class="fc-tag" style="cursor:default">Registro en tiempo real</span>
+            </div>
           </div>
 
         </div>
@@ -192,48 +195,52 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 
         <div class="fc-grid">
 
-          <div class="fc-box">
-            <div class="fc-step">Paso 5a</div>
-            <div class="fc-title">Se calcula la eficiencia real</div>
-            <div class="fc-desc">Comparando lo producido contra el estándar: eficiencia % al instante, por máquina, por operario y por equipo de turno.</div>
+          <div class="fc-row left">
+            <div class="fc-dot"></div>
+            <div class="fc-box">
+              <div class="fc-step">Paso 5a</div>
+              <div class="fc-title">Se calcula la eficiencia real</div>
+              <div class="fc-desc">Comparando lo producido contra el estándar: eficiencia % al instante, por máquina, por operario y por equipo de turno.</div>
+            </div>
           </div>
-          <div class="fc-mid to-left"><div class="fc-dot"></div></div>
-          <div class="fc-empty"></div>
 
-          <div class="fc-empty"></div>
-          <div class="fc-mid to-right"><div class="fc-dot"></div></div>
-          <div class="fc-box r">
-            <div class="fc-step">Paso 5b</div>
-            <div class="fc-title">Se calcula el consumo de hilo</div>
-            <div class="fc-desc">Según la referencia montada en cada máquina y su estructura de hilos (paso 1): cuántos kilos de cada título se están gastando ahora mismo.</div>
+          <div class="fc-row right">
+            <div class="fc-dot"></div>
+            <div class="fc-box">
+              <div class="fc-step">Paso 5b</div>
+              <div class="fc-title">Se calcula el consumo de hilo</div>
+              <div class="fc-desc">Según la referencia montada en cada máquina y su estructura de hilos (paso 1): cuántos kilos de cada título se están gastando ahora mismo.</div>
+            </div>
           </div>
 
         </div>
 
         <div class="fc-grid">
 
-          <div class="fc-box">
-            <div class="fc-step">Paso 6a</div>
-            <div class="fc-title">Tablero Maestro en tiempo real</div>
-            <div class="fc-desc">Las 142 máquinas en vivo: cuál está corriendo, con qué operario, qué referencia, su eficiencia y los motivos de paro — se actualiza solo, sin que nadie digite nada ahí.</div>
-            <a class="fc-tag" href="https://dp522-ops.github.io/SWAN2/dashboard.html" target="_blank" rel="noopener">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="20"></line><rect x="6" y="12" width="3" height="8"></rect><rect x="11" y="7" width="3" height="13"></rect><rect x="16" y="10" width="3" height="10"></rect></svg>
-              Tablero Maestro
-            </a>
+          <div class="fc-row left">
+            <div class="fc-dot"></div>
+            <div class="fc-box">
+              <div class="fc-step">Paso 6a</div>
+              <div class="fc-title">Tablero Maestro en tiempo real</div>
+              <div class="fc-desc">Las 142 máquinas en vivo: cuál está corriendo, con qué operario, qué referencia, su eficiencia y los motivos de paro — se actualiza solo, sin que nadie digite nada ahí.</div>
+              <a class="fc-tag" href="https://dp522-ops.github.io/SWAN2/dashboard.html" target="_blank" rel="noopener">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="20"></line><rect x="6" y="12" width="3" height="8"></rect><rect x="11" y="7" width="3" height="13"></rect><rect x="16" y="10" width="3" height="10"></rect></svg>
+                Tablero Maestro
+              </a>
+            </div>
           </div>
-          <div class="fc-mid to-left"><div class="fc-dot"></div></div>
-          <div class="fc-empty"></div>
 
-          <div class="fc-empty"></div>
-          <div class="fc-mid to-right"><div class="fc-dot"></div></div>
-          <div class="fc-box r">
-            <div class="fc-step">Paso 6b</div>
-            <div class="fc-title">Pedido diario a bodega</div>
-            <div class="fc-desc">Consumo de materia prima en kilos, por título y por lote — listo para pedir hoy mismo, sin calcularlo a mano.</div>
-            <a class="fc-tag" href="https://dp522-ops.github.io/SWAN2/hilos.html" target="_blank" rel="noopener">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="6" ry="3"></ellipse><path d="M6 6v12c0 1.7 2.7 3 6 3s6-1.3 6-3V6"></path></svg>
-              Hilos y Materia Prima
-            </a>
+          <div class="fc-row right">
+            <div class="fc-dot"></div>
+            <div class="fc-box">
+              <div class="fc-step">Paso 6b</div>
+              <div class="fc-title">Pedido diario a bodega</div>
+              <div class="fc-desc">Consumo de materia prima en kilos, por título y por lote — listo para pedir hoy mismo, sin calcularlo a mano.</div>
+              <a class="fc-tag" href="https://dp522-ops.github.io/SWAN2/hilos.html" target="_blank" rel="noopener">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="6" ry="3"></ellipse><path d="M6 6v12c0 1.7 2.7 3 6 3s6-1.3 6-3V6"></path></svg>
+                Hilos y Materia Prima
+              </a>
+            </div>
           </div>
 
         </div>
