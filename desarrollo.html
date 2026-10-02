@@ -72,6 +72,19 @@ header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;di
 .btn-cancel{background:#334155;color:#e2e8f0}
 .btn-cancel:hover{background:#475569}
 
+.card-hist{color:#c4b5fd;font-weight:700}
+
+.hist-form{background:#0f172a;border:1px solid var(--border);border-radius:8px;padding:.6rem;margin-bottom:.7rem}
+.hist-form-row{display:flex;gap:.5rem;margin-bottom:.5rem}
+.hist-list{display:flex;flex-direction:column;gap:.5rem;max-height:220px;overflow-y:auto}
+.hist-item{background:#0f172a;border:1px solid var(--border);border-left:3px solid var(--purple);border-radius:8px;padding:.5rem .6rem}
+.hist-item-top{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.3rem;flex-wrap:wrap}
+.hist-campo{font-size:.64rem;font-weight:700;color:#c4b5fd;background:rgba(139,92,246,.15);border-radius:999px;padding:.1rem .55rem;text-transform:uppercase;letter-spacing:.2px}
+.hist-fecha{font-size:.64rem;color:#64748b}
+.hist-desc{font-size:.76rem;color:#e2e8f0;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.hist-resp{font-size:.66rem;color:#94a3b8;margin-top:.35rem}
+.hist-empty{font-size:.72rem;color:#475569;text-align:center;padding:.8rem .5rem}
+
 .empty-board{color:#64748b;font-size:.85rem;text-align:center;padding:3rem 1rem}
 @media(max-width:700px){
   .col{min-width:78vw;max-width:78vw}
@@ -166,6 +179,26 @@ header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;di
       <label class="f-lbl">Notas</label>
       <textarea class="f-txt" id="c-nota"></textarea>
     </div>
+
+    <div class="f-row">
+      <label class="f-lbl">Historial de cambios</label>
+      <div class="hist-form">
+        <div class="hist-form-row">
+          <select class="f-sel" id="h-campo" style="flex:1">
+            <option value="Tallaje">Tallaje</option>
+            <option value="Modelo">Modelo</option>
+            <option value="Hilos">Hilos</option>
+            <option value="Color">Color</option>
+            <option value="Otro">Otro</option>
+          </select>
+          <input class="f-inp" id="h-resp" placeholder="Quien lo hizo" style="flex:1">
+        </div>
+        <textarea class="f-txt" id="h-desc" placeholder="Que cambio y por que..." style="min-height:50px;margin-bottom:.5rem"></textarea>
+        <button class="btn btn-amber" style="width:100%" onclick="addHistorial()">Registrar cambio</button>
+      </div>
+      <div class="hist-list" id="hist-list"></div>
+    </div>
+
     <div class="modal-act">
       <button class="btn-del" onclick="deleteCard()">Eliminar</button>
       <div class="modal-act-right">
@@ -284,13 +317,16 @@ function cardHtml(c) {
   var nota = (c.nota || '').length > 110 ? c.nota.slice(0,108) + '...' : (c.nota || '');
   var d = daysSince(c.updatedAt || c.createdAt);
   var staleCls = d >= 14 ? ' stale' : '';
+  var histCount = (c.historial || []).length;
   var fechaHtml = c.fecha ? '<span class="card-fecha">' + c.fecha + '</span>' : '<span></span>';
+  var histHtml = histCount ? '<span class="card-hist" title="' + histCount + ' cambio(s) registrado(s)">&#9998; ' + histCount + '</span>' : '';
   var h = '<div class="card p-' + (c.prioridad||'media') + '" draggable="true" data-id="' + c.id + '"' +
     ' ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" onclick="openCard(\'' + c.id + '\')">';
   h += '<div class="card-top"><div class="card-nom">' + escHtml(c.nombre || '(sin nombre)') + '</div></div>';
   if (catTxt) h += '<span class="card-cat">' + escHtml(catTxt) + '</span>';
   if (nota) h += '<div class="card-nota">' + escHtml(nota) + '</div>';
-  h += '<div class="card-meta"><span class="card-days' + staleCls + '">' + d + ' dia' + (d===1?'':'s') + ' aqui</span>' + fechaHtml + '</div>';
+  h += '<div class="card-meta"><span class="card-days' + staleCls + '">' + d + ' dia' + (d===1?'':'s') + ' aqui</span>';
+  h += '<span style="display:flex;align-items:center;gap:.5rem">' + histHtml + fechaHtml + '</span></div>';
   h += '</div>';
   return h;
 }
@@ -408,6 +444,10 @@ function openCard(id) {
   var sel = document.getElementById('c-etapa');
   sel.innerHTML = ETAPAS.map(function(et) { return '<option value="' + et.id + '">' + et.label + '</option>'; }).join('');
   sel.value = c.etapa;
+  document.getElementById('h-campo').value = 'Tallaje';
+  document.getElementById('h-desc').value = '';
+  try { document.getElementById('h-resp').value = localStorage.getItem('swx_dev_user') || ''; } catch(e) {}
+  renderHistorial(c);
   document.getElementById('ov-card').classList.add('on');
 }
 function saveCardModal() {
@@ -427,6 +467,42 @@ function saveCardModal() {
   saveCardToCloud(c);
   closeOv('ov-card');
 }
+/* ---------- Historial de cambios ---------- */
+function renderHistorial(c) {
+  var list = document.getElementById('hist-list');
+  var hist = (c.historial || []).slice().sort(function(a,b) { return (b.ts||0) - (a.ts||0); });
+  if (!hist.length) { list.innerHTML = '<div class="hist-empty">Sin cambios registrados todavia.</div>'; return; }
+  var h = '';
+  hist.forEach(function(e) {
+    var d = new Date(e.ts);
+    var fechaStr = d.toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) + ' - ' + d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'});
+    h += '<div class="hist-item">';
+    h += '<div class="hist-item-top"><span class="hist-campo">' + escHtml(e.campo || 'Otro') + '</span><span class="hist-fecha">' + fechaStr + '</span></div>';
+    h += '<div class="hist-desc">' + escHtml(e.descripcion || '') + '</div>';
+    h += '<div class="hist-resp">Por: ' + escHtml(e.responsable || 'Sin especificar') + '</div>';
+    h += '</div>';
+  });
+  list.innerHTML = h;
+}
+function addHistorial() {
+  var c = CARDS.find(function(x) { return x.id === editingId; });
+  if (!c) return;
+  var desc = (document.getElementById('h-desc').value || '').trim();
+  if (!desc) { document.getElementById('h-desc').focus(); return; }
+  var campo = document.getElementById('h-campo').value;
+  var resp = (document.getElementById('h-resp').value || '').trim();
+  if (!c.historial) c.historial = [];
+  var now = Date.now();
+  c.historial.push({ ts: now, campo: campo, descripcion: desc, responsable: resp || 'Sin especificar' });
+  c.updatedAt = now;
+  try { if (resp) localStorage.setItem('swx_dev_user', resp); } catch(e) {}
+  document.getElementById('h-desc').value = '';
+  persistLocal();
+  renderBoard();
+  renderHistorial(c);
+  saveCardToCloud(c);
+}
+
 function deleteCard() {
   if (!editingId) return;
   if (!confirm('Eliminar este desarrollo? No se puede deshacer.')) return;
