@@ -38,6 +38,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .tag-ref{color:#6d28d9;background:#f3edfe}
 .tag-cfg{color:#92400e;background:#fdf1de}
 .tag-plan{color:#b45309;background:#fef3e0}
+.tag-dev{color:#7e22ce;background:#f5eaff}
 
 .guide-row{display:flex;align-items:center;gap:14px;padding:16px 20px;border:1px solid #e6e8eb;margin-bottom:10px;text-decoration:none;color:inherit;transition:.15s}
 .guide-row:hover{background:#f7f8f9;border-color:#d7dbe0}
@@ -112,6 +113,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
     <button class="navitem active" data-sec="flujo" onclick="showSection('flujo')">Cómo funciona</button>
     <button class="navitem" data-sec="produccion" onclick="showSection('produccion')">Producción diaria</button>
     <button class="navitem" data-sec="fichas" onclick="showSection('fichas')">Fichas técnicas</button>
+    <button class="navitem" data-sec="desarrollo" onclick="showSection('desarrollo')">Desarrollo de producto</button>
     <button class="navitem" data-sec="materia" onclick="showSection('materia')">Materia prima</button>
     <button class="navitem" data-sec="config" onclick="showSection('config')">Configuración y guías</button>
 
@@ -331,6 +333,22 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
       </a>
     </div>
 
+    <div class="section" id="sec-desarrollo">
+      <div class="sec-title">Desarrollo de producto</div>
+      <div class="sec-sub">Seguimiento de ideas y nuevos desarrollos, de la idea a producción</div>
+
+      <a class="row" href="https://dp522-ops.github.io/SWAN2/desarrollo.html" target="_blank" rel="noopener">
+        <div class="row-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3"></path><path d="M12 19v3"></path><path d="M4.2 4.2l2.1 2.1"></path><path d="M17.7 17.7l2.1 2.1"></path><path d="M2 12h3"></path><path d="M19 12h3"></path><path d="M4.2 19.8l2.1-2.1"></path><path d="M17.7 6.3l2.1-2.1"></path></svg>
+        </div>
+        <div style="flex-grow:1">
+          <div class="row-t">Tablero de Desarrollo</div>
+          <div class="row-d">Tablero Kanban para capturar ideas rápido y hacer seguimiento a cada desarrollo: Idea → Diseño → Muestra → Aprobación → Ficha técnica → Producción.</div>
+        </div>
+        <span class="row-tag tag-dev">Diseño</span>
+      </a>
+    </div>
+
     <div class="section" id="sec-materia">
       <div class="sec-title">Materia prima</div>
       <div class="sec-sub">Consumo y pedido de hilo para bodega</div>
@@ -388,7 +406,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 
 <script>
 function showSection(name) {
-  var secs = ['flujo', 'produccion', 'fichas', 'materia', 'config'];
+  var secs = ['flujo', 'produccion', 'fichas', 'desarrollo', 'materia', 'config'];
   for (var i = 0; i < secs.length; i++) {
     var isOn = secs[i] === name;
     document.getElementById('sec-' + secs[i]).classList.toggle('active', isOn);
@@ -403,7 +421,7 @@ function showSection(name) {
 }
 (function initFromHash() {
   var h = (location.hash || '').replace('#', '');
-  var valid = ['flujo', 'produccion', 'fichas', 'materia', 'config'];
+  var valid = ['flujo', 'produccion', 'fichas', 'desarrollo', 'materia', 'config'];
   if (valid.indexOf(h) >= 0) showSection(h);
 })();
 </script>

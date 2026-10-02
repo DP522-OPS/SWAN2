@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Swantex - Desarrollo de Producto</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#1e3a5f;--amber:#f59e0b;--amberd:#d97706;--green:#10b981;--red:#ef4444;--steel:#64748b;--border:#334155;--purple:#8b5cf6;--teal:#0891b2;--pink:#ec4899}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem}
+.brand{font-size:1.2rem;font-weight:800;color:#fff}
+.brand span{font-weight:400;opacity:.6;font-size:.85rem;margin-left:.5rem}
+.hdr-right{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.btn{border:none;border-radius:8px;padding:.5rem 1rem;font-size:.82rem;font-weight:700;cursor:pointer;transition:.15s}
+.btn-amber{background:var(--amber);color:#1a1205}
+.btn-amber:hover{background:var(--amberd)}
+.btn-ghost{background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.3)}
+.btn-ghost:hover{background:rgba(255,255,255,.25)}
+.sync-pill{font-size:.72rem;color:rgba(255,255,255,.65);background:rgba(0,0,0,.2);border-radius:999px;padding:.3rem .7rem}
+
+.setup-panel{background:#1e293b;border:2px solid var(--amber);border-radius:12px;padding:1.25rem;margin:1.25rem auto;max-width:520px}
+.setup-panel h2{font-size:.95rem;font-weight:700;color:var(--amber);margin-bottom:.6rem}
+.setup-panel p{font-size:.82rem;color:#94a3b8;line-height:1.55}
+
+.filters{display:flex;gap:.6rem;flex-wrap:wrap;padding:1rem 1.25rem 0}
+.filt-chip{font-size:.74rem;font-weight:700;color:#94a3b8;background:#1e293b;border:1.5px solid var(--border);border-radius:999px;padding:.35rem .85rem;cursor:pointer;user-select:none}
+.filt-chip.on{background:var(--amber);color:#1a1205;border-color:var(--amber)}
+.search-inp{flex:1;min-width:160px;background:#1e293b;border:1.5px solid var(--border);border-radius:999px;padding:.35rem 1rem;font-size:.8rem;color:#e2e8f0}
+.search-inp:focus{outline:none;border-color:var(--amber)}
+
+.board{display:flex;gap:.85rem;padding:1.25rem;overflow-x:auto;align-items:flex-start}
+.col{background:#131c2e;border-radius:12px;min-width:250px;max-width:250px;flex-shrink:0;display:flex;flex-direction:column;max-height:calc(100vh - 170px)}
+.col.dragover{outline:2px dashed var(--amber);outline-offset:-2px}
+.col-hdr{padding:.75rem .9rem;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.col-t{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:#fff}
+.col-n{font-size:.72rem;font-weight:700;color:rgba(255,255,255,.75);background:rgba(0,0,0,.2);border-radius:999px;padding:.1rem .55rem}
+.col-add{background:none;border:none;color:rgba(255,255,255,.7);font-size:1.1rem;cursor:pointer;line-height:1;padding:0 .2rem}
+.col-add:hover{color:#fff}
+.col-body{padding:.6rem;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:.55rem}
+.col-empty{font-size:.72rem;color:#475569;text-align:center;padding:1.2rem .5rem;line-height:1.5}
+
+.card{background:#1e293b;border:1px solid var(--border);border-left:3px solid var(--steel);border-radius:9px;padding:.65rem .75rem;cursor:grab;transition:.12s}
+.card:hover{border-color:#475569;background:#24334a}
+.card.dragging{opacity:.4}
+.card.p-alta{border-left-color:var(--red)}
+.card.p-media{border-left-color:var(--amber)}
+.card.p-baja{border-left-color:#475569}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:.4rem}
+.card-nom{font-size:.84rem;font-weight:700;color:#f1f5f9;line-height:1.3}
+.card-cat{display:inline-block;font-size:.62rem;font-weight:700;letter-spacing:.2px;color:#93c5fd;background:rgba(59,130,246,.12);border-radius:999px;padding:.12rem .5rem;margin-top:.35rem}
+.card-nota{font-size:.72rem;color:#94a3b8;margin-top:.4rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.card-meta{display:flex;align-items:center;justify-content:space-between;margin-top:.5rem;font-size:.66rem;color:#64748b}
+.card-days{font-variant-numeric:tabular-nums}
+.card-days.stale{color:var(--red);font-weight:700}
+.card-fecha{color:#fbbf24}
+
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);align-items:center;justify-content:center;z-index:50;padding:1rem}
+.ov.on{display:flex}
+.modal{background:#1e293b;border:1px solid var(--border);border-radius:14px;padding:1.3rem;max-width:440px;width:100%;max-height:88vh;overflow-y:auto}
+.modal-t{font-size:1.02rem;font-weight:800;color:#fff;margin-bottom:1rem}
+.f-row{margin-bottom:.9rem}
+.f-lbl{font-size:.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.3px;margin-bottom:.35rem;display:block}
+.f-inp,.f-sel,.f-txt{width:100%;background:#0f172a;border:1.5px solid var(--border);border-radius:8px;padding:.55rem .7rem;font-size:.85rem;color:#e2e8f0;font-family:inherit}
+.f-inp:focus,.f-sel:focus,.f-txt:focus{outline:none;border-color:var(--amber)}
+.f-txt{resize:vertical;min-height:70px}
+.f-grid2{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.modal-act{display:flex;justify-content:space-between;align-items:center;margin-top:1.2rem;gap:.6rem}
+.btn-del{background:none;border:none;color:var(--red);font-size:.78rem;font-weight:700;cursor:pointer}
+.btn-del:hover{text-decoration:underline}
+.modal-act-right{display:flex;gap:.5rem}
+.btn-cancel{background:#334155;color:#e2e8f0}
+.btn-cancel:hover{background:#475569}
+
+.empty-board{color:#64748b;font-size:.85rem;text-align:center;padding:3rem 1rem}
+@media(max-width:700px){
+  .col{min-width:78vw;max-width:78vw}
+  .board{padding:.85rem}
+}
+</style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="brand">Swantex <span>Desarrollo de Producto</span></div>
+  <div class="hdr-right">
+    <span class="sync-pill" id="sync-pill">Cargando...</span>
+    <button class="btn btn-amber" onclick="openQuick()">+ Nueva idea</button>
+  </div>
+</header>
+
+<div class="filters">
+  <input class="search-inp" id="search-inp" placeholder="Buscar por nombre..." oninput="renderBoard()">
+  <span class="filt-chip" data-cat="" onclick="toggleFiltCat(this)">Todas</span>
+  <span class="filt-chip" data-cat="Shapewear/Underwear" onclick="toggleFiltCat(this)">Shapewear/Underwear</span>
+  <span class="filt-chip" data-cat="Activewear" onclick="toggleFiltCat(this)">Activewear</span>
+  <span class="filt-chip" data-cat="Medias/Pantyhose" onclick="toggleFiltCat(this)">Medias/Pantyhose</span>
+  <span class="filt-chip" data-cat="Otro" onclick="toggleFiltCat(this)">Otro</span>
+</div>
+
+<div class="board" id="board"></div>
+
+<!-- Modal: captura rapida de idea -->
+<div class="ov" id="ov-quick">
+  <div class="modal">
+    <div class="modal-t">Nueva idea</div>
+    <div class="f-row">
+      <label class="f-lbl">Nombre / concepto</label>
+      <input class="f-inp" id="q-nombre" placeholder="Ej: Panty control cintura alta en algodon">
+    </div>
+    <div class="f-row">
+      <label class="f-lbl">Nota (opcional)</label>
+      <textarea class="f-txt" id="q-nota" placeholder="De donde viene la idea, referencia, inspiracion..."></textarea>
+    </div>
+    <div class="modal-act">
+      <span></span>
+      <div class="modal-act-right">
+        <button class="btn btn-cancel" onclick="closeOv('ov-quick')">Cancelar</button>
+        <button class="btn btn-amber" onclick="saveQuick()">Guardar idea</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: tarjeta completa -->
+<div class="ov" id="ov-card">
+  <div class="modal">
+    <div class="modal-t" id="card-modal-t">Desarrollo</div>
+    <div class="f-row">
+      <label class="f-lbl">Nombre / concepto</label>
+      <input class="f-inp" id="c-nombre">
+    </div>
+    <div class="f-grid2">
+      <div class="f-row">
+        <label class="f-lbl">Categoria</label>
+        <select class="f-sel" id="c-categoria">
+          <option value="">Sin categoria</option>
+          <option value="Shapewear/Underwear">Shapewear/Underwear</option>
+          <option value="Activewear">Activewear</option>
+          <option value="Medias/Pantyhose">Medias/Pantyhose</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+      <div class="f-row">
+        <label class="f-lbl">Prioridad</label>
+        <select class="f-sel" id="c-prioridad">
+          <option value="alta">Alta</option>
+          <option value="media" selected>Media</option>
+          <option value="baja">Baja</option>
+        </select>
+      </div>
+    </div>
+    <div class="f-grid2">
+      <div class="f-row">
+        <label class="f-lbl">Etapa</label>
+        <select class="f-sel" id="c-etapa"></select>
+      </div>
+      <div class="f-row">
+        <label class="f-lbl">Fecha objetivo</label>
+        <input class="f-inp" type="date" id="c-fecha">
+      </div>
+    </div>
+    <div class="f-row">
+      <label class="f-lbl">Notas</label>
+      <textarea class="f-txt" id="c-nota"></textarea>
+    </div>
+    <div class="modal-act">
+      <button class="btn-del" onclick="deleteCard()">Eliminar</button>
+      <div class="modal-act-right">
+        <button class="btn btn-cancel" onclick="closeOv('ov-card')">Cerrar</button>
+        <button class="btn btn-amber" onclick="saveCardModal()">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Desarrollo de Producto - tablero Kanban de nuevos desarrollos.
+   Guarda cada tarjeta como un documento en la MISMA coleccion
+   'fichas' de Firestore que ya usan Produccion/Hilos/Planeacion
+   (permisos ya probados y abiertos), distinguido con tipo:'desarrollo'
+   e id con prefijo 'DEV-'. No usa Google Sheets / Apps Script: todo
+   vive en la nube de Firestore directamente.
+   ============================================================ */
+
+var ETAPAS = [
+  {id:'idea',       label:'Idea',          col:'#581c87'},
+  {id:'diseno',     label:'Diseno',        col:'#1e3a5f'},
+  {id:'muestra',    label:'Muestra',       col:'#9a3412'},
+  {id:'aprobacion', label:'Aprobacion',    col:'#854d0e'},
+  {id:'ficha',      label:'Ficha tecnica', col:'#0e7490'},
+  {id:'produccion', label:'Produccion',    col:'#065f46'}
+];
+
+var CARDS = [];
+var filtCat = '';
+var dragId = null;
+
+/* ---------- Firebase (mismo proyecto que el resto de SWAN2) ---------- */
+var FICHAS_FB_CFG = {
+  apiKey:'AIzaSyCQqlJRxiyJPNkgiBNnF5kquWpBxKuMiQ8',
+  authDomain:'swantex-fichas-5ca6b.firebaseapp.com',
+  projectId:'swantex-fichas-5ca6b',
+  storageBucket:'swantex-fichas-5ca6b.firebasestorage.app',
+  messagingSenderId:'60295471678',
+  appId:'1:60295471678:web:67a732cfbd97cdf20aa76f'
+};
+var _fichasDb = null;
+function initFichasFirebase() {
+  if (_fichasDb) return _fichasDb;
+  try {
+    if (typeof firebase === 'undefined') return null;
+    var app = firebase.apps && firebase.apps.some(function(a){return a.name==='fichas';})
+      ? firebase.app('fichas') : firebase.initializeApp(FICHAS_FB_CFG, 'fichas');
+    _fichasDb = app.firestore();
+    return _fichasDb;
+  } catch(e) { console.error('Firebase fichas error', e); return null; }
+}
+
+function setPill(txt, ok) {
+  var el = document.getElementById('sync-pill');
+  el.textContent = txt;
+  el.style.color = ok === false ? '#fca5a5' : (ok === true ? '#6ee7b7' : 'rgba(255,255,255,.65)');
+}
+
+/* ---------- Carga / guardado ---------- */
+function loadCards() {
+  // Pinta de inmediato lo que haya en cache local, mientras llega la nube.
+  try {
+    var cached = JSON.parse(localStorage.getItem('swx_dev_cards') || '[]');
+    if (cached.length) { CARDS = cached; renderBoard(); }
+  } catch(e) {}
+
+  var db = initFichasFirebase();
+  if (!db) { setPill('Sin conexion a la nube', false); return; }
+  setPill('Cargando...');
+  db.collection('fichas').where('tipo', '==', 'desarrollo').get().then(function(snap) {
+    var list = [];
+    snap.forEach(function(doc) { list.push(doc.data()); });
+    CARDS = list;
+    try { localStorage.setItem('swx_dev_cards', JSON.stringify(CARDS)); } catch(e) {}
+    renderBoard();
+    setPill(CARDS.length + ' desarrollos - sincronizado', true);
+  }).catch(function(e) {
+    console.warn('Error cargando desarrollos', e);
+    setPill('Error de conexion (viendo copia local)', false);
+  });
+}
+
+function saveCardToCloud(card) {
+  var db = initFichasFirebase();
+  if (!db) { setPill('Sin conexion - no se guardo en la nube', false); return; }
+  db.collection('fichas').doc(card.id).set(card).then(function() {
+    setPill('Guardado', true);
+  }).catch(function(e) {
+    console.warn('Error guardando desarrollo', e);
+    setPill('Error guardando en la nube', false);
+  });
+}
+
+function deleteCardFromCloud(id) {
+  var db = initFichasFirebase();
+  if (!db) return;
+  db.collection('fichas').doc(id).delete().catch(function(e) {
+    console.warn('Error eliminando desarrollo', e);
+  });
+}
+
+function persistLocal() {
+  try { localStorage.setItem('swx_dev_cards', JSON.stringify(CARDS)); } catch(e) {}
+}
+
+/* ---------- Render ---------- */
+function daysSince(ts) {
+  if (!ts) return 0;
+  return Math.floor((Date.now() - ts) / 86400000);
+}
+
+function cardHtml(c) {
+  var catTxt = c.categoria || '';
+  var nota = (c.nota || '').length > 110 ? c.nota.slice(0,108) + '...' : (c.nota || '');
+  var d = daysSince(c.updatedAt || c.createdAt);
+  var staleCls = d >= 14 ? ' stale' : '';
+  var fechaHtml = c.fecha ? '<span class="card-fecha">' + c.fecha + '</span>' : '<span></span>';
+  var h = '<div class="card p-' + (c.prioridad||'media') + '" draggable="true" data-id="' + c.id + '"' +
+    ' ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" onclick="openCard(\'' + c.id + '\')">';
+  h += '<div class="card-top"><div class="card-nom">' + escHtml(c.nombre || '(sin nombre)') + '</div></div>';
+  if (catTxt) h += '<span class="card-cat">' + escHtml(catTxt) + '</span>';
+  if (nota) h += '<div class="card-nota">' + escHtml(nota) + '</div>';
+  h += '<div class="card-meta"><span class="card-days' + staleCls + '">' + d + ' dia' + (d===1?'':'s') + ' aqui</span>' + fechaHtml + '</div>';
+  h += '</div>';
+  return h;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderBoard() {
+  var board = document.getElementById('board');
+  var q = (document.getElementById('search-inp').value || '').toLowerCase().trim();
+  var h = '';
+  ETAPAS.forEach(function(et) {
+    var items = CARDS.filter(function(c) {
+      if (c.etapa !== et.id) return false;
+      if (filtCat && c.categoria !== filtCat) return false;
+      if (q && (c.nombre||'').toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
+    items.sort(function(a,b) { return (b.updatedAt||0) - (a.updatedAt||0); });
+    h += '<div class="col" data-etapa="' + et.id + '" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">';
+    h += '<div class="col-hdr" style="background:' + et.col + '">';
+    h += '<span class="col-t">' + et.label + '</span>';
+    h += '<span style="display:flex;align-items:center;gap:.4rem">';
+    h += '<span class="col-n">' + items.length + '</span>';
+    if (et.id === 'idea') h += '<button class="col-add" onclick="openQuick()" title="Agregar idea">+</button>';
+    h += '</span></div>';
+    h += '<div class="col-body">';
+    if (!items.length) {
+      h += '<div class="col-empty">' + (et.id==='idea' ? 'Sin ideas pendientes.<br>Usa "+ Nueva idea" arriba.' : 'Sin desarrollos en esta etapa.') + '</div>';
+    } else {
+      items.forEach(function(c) { h += cardHtml(c); });
+    }
+    h += '</div></div>';
+  });
+  board.innerHTML = h;
+}
+
+/* ---------- Filtros ---------- */
+function toggleFiltCat(el) {
+  var chips = document.querySelectorAll('.filt-chip');
+  for (var i=0;i<chips.length;i++) chips[i].classList.remove('on');
+  el.classList.add('on');
+  filtCat = el.getAttribute('data-cat') || '';
+  renderBoard();
+}
+
+/* ---------- Drag and drop ---------- */
+function onDragStart(e) {
+  dragId = e.target.getAttribute('data-id');
+  e.target.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragEnd(e) { e.target.classList.remove('dragging'); }
+function onDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
+function onDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+function onDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  var etapa = e.currentTarget.getAttribute('data-etapa');
+  if (!dragId) return;
+  var card = CARDS.find(function(c) { return c.id === dragId; });
+  if (!card || card.etapa === etapa) { dragId = null; return; }
+  card.etapa = etapa;
+  card.updatedAt = Date.now();
+  persistLocal();
+  renderBoard();
+  saveCardToCloud(card);
+  dragId = null;
+}
+
+/* ---------- Modal: captura rapida ---------- */
+function openQuick() {
+  document.getElementById('q-nombre').value = '';
+  document.getElementById('q-nota').value = '';
+  document.getElementById('ov-quick').classList.add('on');
+  setTimeout(function() { document.getElementById('q-nombre').focus(); }, 50);
+}
+function saveQuick() {
+  var nombre = (document.getElementById('q-nombre').value || '').trim();
+  if (!nombre) { document.getElementById('q-nombre').focus(); return; }
+  var nota = (document.getElementById('q-nota').value || '').trim();
+  var now = Date.now();
+  var card = {
+    id: 'DEV-' + now + '-' + Math.random().toString(36).slice(2,7),
+    tipo: 'desarrollo',
+    nombre: nombre,
+    categoria: '',
+    prioridad: 'media',
+    etapa: 'idea',
+    nota: nota,
+    fecha: '',
+    createdAt: now,
+    updatedAt: now
+  };
+  CARDS.push(card);
+  persistLocal();
+  renderBoard();
+  saveCardToCloud(card);
+  closeOv('ov-quick');
+}
+
+/* ---------- Modal: tarjeta completa ---------- */
+var editingId = null;
+function openCard(id) {
+  var c = CARDS.find(function(x) { return x.id === id; });
+  if (!c) return;
+  editingId = id;
+  document.getElementById('card-modal-t').textContent = c.nombre || 'Desarrollo';
+  document.getElementById('c-nombre').value = c.nombre || '';
+  document.getElementById('c-categoria').value = c.categoria || '';
+  document.getElementById('c-prioridad').value = c.prioridad || 'media';
+  document.getElementById('c-fecha').value = c.fecha || '';
+  document.getElementById('c-nota').value = c.nota || '';
+  var sel = document.getElementById('c-etapa');
+  sel.innerHTML = ETAPAS.map(function(et) { return '<option value="' + et.id + '">' + et.label + '</option>'; }).join('');
+  sel.value = c.etapa;
+  document.getElementById('ov-card').classList.add('on');
+}
+function saveCardModal() {
+  var c = CARDS.find(function(x) { return x.id === editingId; });
+  if (!c) return;
+  var nombre = (document.getElementById('c-nombre').value || '').trim();
+  if (!nombre) { document.getElementById('c-nombre').focus(); return; }
+  c.nombre = nombre;
+  c.categoria = document.getElementById('c-categoria').value;
+  c.prioridad = document.getElementById('c-prioridad').value;
+  c.etapa = document.getElementById('c-etapa').value;
+  c.fecha = document.getElementById('c-fecha').value;
+  c.nota = document.getElementById('c-nota').value;
+  c.updatedAt = Date.now();
+  persistLocal();
+  renderBoard();
+  saveCardToCloud(c);
+  closeOv('ov-card');
+}
+function deleteCard() {
+  if (!editingId) return;
+  if (!confirm('Eliminar este desarrollo? No se puede deshacer.')) return;
+  var id = editingId;
+  CARDS = CARDS.filter(function(c) { return c.id !== id; });
+  persistLocal();
+  renderBoard();
+  deleteCardFromCloud(id);
+  closeOv('ov-card');
+}
+
+function closeOv(id) { document.getElementById(id).classList.remove('on'); }
+
+/* ---------- Arranque ---------- */
+loadCards();
+</script>
+
+</body>
+</html>
