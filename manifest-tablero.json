@@ -1,0 +1,12 @@
+{
+  "name": "Swantex - Tablero Maestro",
+  "short_name": "Swan Tablero",
+  "start_url": "./dashboard.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#1d4ed8",
+  "icons": [
+    {"src": "icons/icon-tablero-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-tablero-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}
