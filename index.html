@@ -281,6 +281,7 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
     <div>
       <div class="hdr-t" id="d-date">Cargando...</div>
       <div style="font-size:.8rem;color:var(--steel)" id="d-shift"></div>
+      <div id="cloud-pill" style="font-size:.72rem;font-weight:700;margin-top:.2rem"></div>
     </div>
     <button class="btn btn-out btn-sm" onclick="doExport()">Exportar CSV</button>
   </div>
@@ -719,6 +720,13 @@ function sg(k, def) {
   return MEM.hasOwnProperty(k) ? MEM[k] : def;
 }
 function ss(k, v) {
+  if (k === 'lotes') v = stampLotes(v); // marca cambios para subirlos a la nube compartida
+  MEM[k] = v;
+  if (LS_OK) { try { localStorage.setItem('swx_' + k, JSON.stringify(v)); } catch(e) {} }
+  if (k === 'lotes') scheduleLotesPush();
+}
+// Guarda sin marcar cambios ni disparar subida (lo usa la mezcla con la nube)
+function ssRaw(k, v) {
   MEM[k] = v;
   if (LS_OK) { try { localStorage.setItem('swx_' + k, JSON.stringify(v)); } catch(e) {} }
 }
@@ -824,7 +832,7 @@ function renderDash() {
   var maq_cnt = Object.keys(maq_set).length;
   var eff_sum = 0, eff_cnt = 0;
   for (var i=0; i<hoy.length; i++) {
-    if (hoy[i].eff !== null && hoy[i].eff !== undefined) { eff_sum += hoy[i].eff; eff_cnt++; }
+    if (effOk(hoy[i].eff)) { eff_sum += hoy[i].eff; eff_cnt++; }
   }
   var avg_eff = eff_cnt ? Math.round(eff_sum / eff_cnt) : null;
 
@@ -848,7 +856,7 @@ function renderDash() {
     var l = hoy[i];
     maq_lots[l.maqId] = (maq_lots[l.maqId] || 0) + 1;
     maq_tubos[l.maqId] = (maq_tubos[l.maqId] || 0) + (l.tubos || 0);
-    if (l.eff !== null && l.eff !== undefined) {
+    if (effOk(l.eff)) {
       maq_eff_s[l.maqId] = (maq_eff_s[l.maqId] || 0) + l.eff;
       maq_eff_c[l.maqId] = (maq_eff_c[l.maqId] || 0) + 1;
     }
@@ -881,7 +889,7 @@ function renderDash() {
       if (found) {
         eq_lots++;
         eq_tubos += (hoy[li].tubos || 0);
-        if (hoy[li].eff !== null && hoy[li].eff !== undefined) { eq_eff_s += hoy[li].eff; eq_eff_c++; }
+        if (effOk(hoy[li].eff)) { eq_eff_s += hoy[li].eff; eq_eff_c++; }
       }
     }
     var eq_eff = eq_eff_c ? Math.round(eq_eff_s / eq_eff_c) : null;
@@ -936,7 +944,7 @@ function showMotivo(maqId) {
   var keys = Object.keys(paros).sort(function(a,b){return paros[b]-paros[a];});
   var lotes = sg_lotes().filter(function(l){return l.maqId===maqId && l.fecha===localDate() && !isOpen(l);});
   var tubos = 0, effS = 0, effC = 0;
-  for (var i=0;i<lotes.length;i++){ tubos += (lotes[i].tubos||0); if(lotes[i].eff!==null&&lotes[i].eff!==undefined){effS+=lotes[i].eff;effC++;} }
+  for (var i=0;i<lotes.length;i++){ tubos += (lotes[i].tubos||0); if(effOk(lotes[i].eff)){effS+=lotes[i].eff;effC++;} }
   var eff = effC ? Math.round(effS/effC) : null;
   document.getElementById('mv-title').textContent = maqId + (m?' - '+m.model:'') + (eff!==null?' - '+eff+'% ef.':'');
   var h = '';
@@ -2406,13 +2414,196 @@ function loadOpsFromCloud(cb) {
   }).catch(function(e) { console.warn('Error cargando operarios de la nube', e); if (cb) cb(); });
 }
 
+// ============ LOTES COMPARTIDOS EN LA NUBE (Firestore) ============
+// Antes cada celular/PC guardaba sus lotes SOLO en su localStorage: el
+// servidor (Apps Script) era de solo escritura y el Dashboard nunca leia de
+// vuelta, asi que cada equipo mostraba "su" version. Ahora la coleccion
+// LOTES_COL es la fuente comun: cada cambio local se sube, y un listener en
+// tiempo real trae los cambios de los demas equipos. localStorage queda como
+// copia de trabajo (sirve sin senal; lo pendiente se sube al volver la red).
+//
+// Reglas de mezcla (ver mergeRemoteLote):
+//  - un lote CERRADO nunca vuelve a "abierto" por una copia vieja;
+//  - entre dos versiones del mismo estado gana la mas reciente (_upd);
+//  - borrar un lote deja una "lapida" (_del) para que los demas lo quiten;
+//  - los lotes que llegan de la nube se marcan synced:true (el equipo que los
+//    creo es quien los manda a Google Sheets, para no duplicar filas alla).
+// Metadatos por lote (no se suben tal cual): _h hash del contenido, _upd
+// momento del ultimo cambio, _p ultimo _upd confirmado en la nube.
+var LOTES_COL = 'swan2_lotes';
+try { LOTES_COL = localStorage.getItem('swx_lotes_col') || LOTES_COL; } catch(e) {} // solo para pruebas
+var LOTES_WINDOW_MS = 3 * 24 * 3600 * 1000;   // primera carga: ultimos 3 dias (+ todos los abiertos)
+var LOTES_MARGIN_MS = 3600 * 1000;            // margen por diferencia de reloj entre equipos
+var _lotesPushT = null, _lotesPushing = {}, _lotesStarted = false;
+var _lotesCloud = { state: 'init', err: '', lastOk: 0 };
+
+function effOk(e) { return e !== null && e !== undefined && !isNaN(e) && e >= 0 && e <= 200; } // >200% es dato de prueba/erroneo
+
+function loteHash(l) {
+  var keys = Object.keys(l).filter(function(x) { return x.charAt(0) !== '_' && x !== 'synced'; }).sort();
+  var s = '';
+  for (var i = 0; i < keys.length; i++) s += keys[i] + '=' + JSON.stringify(l[keys[i]]) + '|';
+  var h = 5381;
+  for (var j = 0; j < s.length; j++) h = ((h << 5) + h + s.charCodeAt(j)) | 0;
+  return String(h);
+}
+// Se llama desde ss('lotes', ...): detecta que lotes cambiaron o se borraron
+function stampLotes(arr) {
+  if (!Array.isArray(arr)) return arr;
+  var prev = sg('lotes', []), seen = {}, now = Date.now();
+  for (var i = 0; i < arr.length; i++) {
+    var l = arr[i]; seen[l.id] = 1;
+    var h = loteHash(l);
+    if (l._h !== h) { l._h = h; l._upd = Math.max(now, (l._p || 0) + 1); }
+  }
+  var del = sg('lotes_del', []), added = false;
+  for (var j = 0; j < prev.length; j++) {
+    if (!seen[prev[j].id]) { del.push({ id: prev[j].id, upd: now }); added = true; }
+  }
+  if (added) ssRaw('lotes_del', del);
+  return arr;
+}
+function cleanLote(l) {
+  var o = {};
+  for (var k in l) { if (k === '_h' || k === '_p' || k === 'synced') continue; o[k] = l[k]; }
+  return o;
+}
+function lotesPending() {
+  var n = 0, all = sg_lotes();
+  for (var i = 0; i < all.length; i++) if (all[i]._p !== all[i]._upd) n++;
+  return n + sg('lotes_del', []).length;
+}
+function lotesCloudState(st, err) {
+  _lotesCloud.state = st;
+  if (err !== undefined) _lotesCloud.err = err;
+  if (st === 'ok') _lotesCloud.lastOk = Date.now();
+  renderCloudPill();
+}
+function renderCloudPill() {
+  var el = document.getElementById('cloud-pill'); if (!el) return;
+  var pend = lotesPending(), st = _lotesCloud.state, c, t;
+  if (st === 'error') { c = 'var(--red)'; t = '&#9679; Sin sincronizar: ' + (_lotesCloud.err || 'error de nube') + (pend ? ' (' + pend + ' pendientes)' : ''); }
+  else if (st === 'offline') { c = 'var(--amberd)'; t = '&#9679; Sin conexion' + (pend ? ' - ' + pend + ' cambio(s) pendientes' : ''); }
+  else if (st === 'ok') {
+    c = pend ? 'var(--amberd)' : 'var(--green)';
+    var d = new Date(_lotesCloud.lastOk);
+    t = '&#9679; ' + (pend ? 'Subiendo ' + pend + ' cambio(s)...' : 'Sincronizado ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'));
+  } else { c = 'var(--steel)'; t = '&#9679; Conectando...'; }
+  el.style.color = c; el.innerHTML = t;
+}
+function scheduleLotesPush() {
+  clearTimeout(_lotesPushT);
+  _lotesPushT = setTimeout(pushLotes, 250);
+  renderCloudPill();
+}
+function markLotePushed(id, upd) {
+  var all = sg_lotes();
+  for (var i = 0; i < all.length; i++) {
+    if (all[i].id === id) { if (all[i]._upd === upd) { all[i]._p = upd; ssRaw('lotes', all); } break; }
+  }
+}
+function pushLotes() {
+  var db = initFichasFirebase();
+  if (!db) { lotesCloudState('offline'); return; }
+  var col = db.collection(LOTES_COL), all = sg_lotes();
+  all.forEach(function(l) {
+    if (l._p === l._upd) return;
+    var key = l.id + ':' + l._upd;
+    if (_lotesPushing[key]) return;
+    _lotesPushing[key] = 1;
+    var upd = l._upd, id = l.id;
+    col.doc(id).set(cleanLote(l)).then(function() {
+      markLotePushed(id, upd); lotesCloudState('ok', '');
+    }).catch(function(e) {
+      lotesCloudError(e);
+    }).then(function() { delete _lotesPushing[key]; });
+  });
+  sg('lotes_del', []).forEach(function(d) {
+    var key = 'del:' + d.id + ':' + d.upd;
+    if (_lotesPushing[key]) return;
+    _lotesPushing[key] = 1;
+    col.doc(d.id).set({ id: d.id, _del: true, _upd: d.upd }).then(function() {
+      ssRaw('lotes_del', sg('lotes_del', []).filter(function(x) { return !(x.id === d.id && x.upd === d.upd); }));
+      lotesCloudState('ok', '');
+    }).catch(function(e) { lotesCloudError(e); }).then(function() { delete _lotesPushing[key]; });
+  });
+  renderCloudPill();
+}
+function lotesCloudError(e) {
+  var code = (e && e.code) || '';
+  if (code === 'permission-denied') lotesCloudState('error', 'la nube rechazo guardar (revisar reglas de Firestore para "' + LOTES_COL + '")');
+  else if (code === 'unavailable') lotesCloudState('offline');
+  else lotesCloudState('error', (e && e.message) ? e.message : 'error de conexion');
+  console.warn('lotes nube:', e);
+}
+// Mezcla UN lote recibido de la nube. Devuelve true si cambio algo local.
+function mergeRemoteLote(r) {
+  if (!r || !r.id) return false;
+  var dq = sg('lotes_del', []);
+  for (var d = 0; d < dq.length; d++) if (dq[d].id === r.id && !r._del) return false; // lo borre aqui y falta subir la lapida
+  var all = sg_lotes(), idx = -1;
+  for (var i = 0; i < all.length; i++) { if (all[i].id === r.id) { idx = i; break; } }
+  if (r._del) {
+    if (idx < 0) return false;
+    all.splice(idx, 1); ssRaw('lotes', all); return true;
+  }
+  var rUpd = r._upd || 0;
+  var n = Object.assign({}, r, { synced: true });
+  n._upd = rUpd; n._p = rUpd; n._h = loteHash(n);
+  if (idx < 0) { all.push(n); ssRaw('lotes', all); return true; }
+  var l = all[idx], take;
+  var lc = l.status === 'cerrado', rc = r.status === 'cerrado';
+  if (lc !== rc) take = rc;                 // cerrado gana siempre a abierto
+  else take = rUpd > (l._upd || 0);         // mismo estado: gana lo mas reciente
+  if (!take) return false;
+  all[idx] = n; ssRaw('lotes', all); return true;
+}
+function onLotesRemoteChange() {
+  var on = function(id) { var e = document.getElementById(id); return !!(e && e.classList.contains('on')); };
+  if (on('view-dash')) renderDash();
+  if (on('view-hist')) renderHist();
+  if (on('view-reg')) { try { updateRegStatus(); } catch(e) {} }
+}
+function startLotesSync() {
+  if (_lotesStarted) return;
+  var db = initFichasFirebase();
+  if (!db) { lotesCloudState('offline'); setTimeout(startLotesSync, 5000); return; }
+  _lotesStarted = true;
+  var col = db.collection(LOTES_COL);
+  var startedAt = Date.now();
+  var lastOk = parseInt(sg('lotes_last_ok', 0)) || 0;
+  var since = (lastOk ? lastOk : startedAt - LOTES_WINDOW_MS) - LOTES_MARGIN_MS;
+  function applySnap(snap) {
+    var changed = false;
+    snap.docChanges().forEach(function(ch) {
+      if (ch.type === 'removed') return;   // las bajas se manejan con lapidas, no con 'removed'
+      if (mergeRemoteLote(ch.doc.data())) changed = true;
+    });
+    if (changed) onLotesRemoteChange();
+  }
+  col.where('_upd', '>=', since).onSnapshot(function(snap) {
+    applySnap(snap);
+    ssRaw('lotes_last_ok', startedAt);
+    lotesCloudState('ok', '');
+  }, function(err) { lotesCloudError(err); });
+  // lotes que siguen abiertos aunque sean viejos (nadie los ha tocado en dias)
+  col.where('status', '==', 'abierto').get().then(applySnap).catch(function(err) { lotesCloudError(err); });
+  pushLotes();
+}
+window.addEventListener('online', function() { pushLotes(); });
+window.addEventListener('offline', function() { lotesCloudState('offline'); });
+document.addEventListener('visibilitychange', function() { if (!document.hidden) { pushLotes(); renderCloudPill(); } });
+
 // START
 init();
+ss('lotes', sg_lotes()); // sella lotes viejos (de antes de la nube) para que se suban una vez
 initRefsFromCache();
 syncRefsFromFichas(false);
 loadOpsFromCloud();
 loadGasUrlFromCloud();
 renderDash();
+renderCloudPill();
+startLotesSync();
 </script>
 </body>
 </html>
