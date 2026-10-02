@@ -2,11 +2,21 @@
   "name": "Swantex - Produccion (Operarios)",
   "short_name": "Swan Produccion",
   "start_url": "./index.html",
+  "scope": "index.html",
+  "id": "/SWAN2/index.html",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f7a4d",
   "icons": [
-    {"src": "icons/icon-operario-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "icons/icon-operario-512.png", "sizes": "512x512", "type": "image/png"}
+    {
+      "src": "icons/icon-operario-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-operario-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ]
 }
