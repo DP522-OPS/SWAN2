@@ -2422,10 +2422,14 @@ function loadOpsFromCloud(cb) {
 // ============ LOTES COMPARTIDOS EN LA NUBE (Firestore) ============
 // Antes cada celular/PC guardaba sus lotes SOLO en su localStorage: el
 // servidor (Apps Script) era de solo escritura y el Dashboard nunca leia de
-// vuelta, asi que cada equipo mostraba "su" version. Ahora la coleccion
-// LOTES_COL es la fuente comun: cada cambio local se sube, y un listener en
-// tiempo real trae los cambios de los demas equipos. localStorage queda como
-// copia de trabajo (sirve sin senal; lo pendiente se sube al volver la red).
+// vuelta, asi que cada equipo mostraba "su" version. Ahora los lotes se
+// guardan en la MISMA coleccion 'fichas' que usan las demas herramientas
+// (marcados con tipo:'lote'), porque esa coleccion es la que ya tiene permiso
+// de lectura/escritura en las reglas de Firestore; una coleccion aparte
+// ('swan2_lotes') no tenia reglas y la nube rechazaba guardar. Cada cambio
+// local se sube, y un listener en tiempo real trae los cambios de los demas
+// equipos. localStorage queda como copia de trabajo (sirve sin senal; lo
+// pendiente se sube al volver la red).
 //
 // Reglas de mezcla (ver mergeRemoteLote):
 //  - un lote CERRADO nunca vuelve a "abierto" por una copia vieja;
@@ -2435,10 +2439,8 @@ function loadOpsFromCloud(cb) {
 //    creo es quien los manda a Google Sheets, para no duplicar filas alla).
 // Metadatos por lote (no se suben tal cual): _h hash del contenido, _upd
 // momento del ultimo cambio, _p ultimo _upd confirmado en la nube.
-var LOTES_COL = 'swan2_lotes';
-try { LOTES_COL = localStorage.getItem('swx_lotes_col') || LOTES_COL; } catch(e) {} // solo para pruebas
-var LOTES_WINDOW_MS = 3 * 24 * 3600 * 1000;   // primera carga: ultimos 3 dias (+ todos los abiertos)
-var LOTES_MARGIN_MS = 3600 * 1000;            // margen por diferencia de reloj entre equipos
+var LOTES_TIPO = 'lote';
+var LOTES_DOC_PREFIX = 'LOTE-'; // evita choque de ids con fichas de otras herramientas
 var _lotesPushT = null, _lotesPushing = {}, _lotesStarted = false;
 var _lotesCloud = { state: 'init', err: '', lastOk: 0 };
 
@@ -2471,6 +2473,7 @@ function stampLotes(arr) {
 function cleanLote(l) {
   var o = {};
   for (var k in l) { if (k === '_h' || k === '_p' || k === 'synced') continue; o[k] = l[k]; }
+  o.tipo = LOTES_TIPO;
   return o;
 }
 function lotesPending() {
@@ -2510,14 +2513,14 @@ function markLotePushed(id, upd) {
 function pushLotes() {
   var db = initFichasFirebase();
   if (!db) { lotesCloudState('offline'); return; }
-  var col = db.collection(LOTES_COL), all = sg_lotes();
+  var col = db.collection('fichas'), all = sg_lotes();
   all.forEach(function(l) {
     if (l._p === l._upd) return;
     var key = l.id + ':' + l._upd;
     if (_lotesPushing[key]) return;
     _lotesPushing[key] = 1;
     var upd = l._upd, id = l.id;
-    col.doc(id).set(cleanLote(l)).then(function() {
+    col.doc(LOTES_DOC_PREFIX + id).set(cleanLote(l)).then(function() {
       markLotePushed(id, upd); lotesCloudState('ok', '');
     }).catch(function(e) {
       lotesCloudError(e);
@@ -2527,7 +2530,7 @@ function pushLotes() {
     var key = 'del:' + d.id + ':' + d.upd;
     if (_lotesPushing[key]) return;
     _lotesPushing[key] = 1;
-    col.doc(d.id).set({ id: d.id, _del: true, _upd: d.upd }).then(function() {
+    col.doc(LOTES_DOC_PREFIX + d.id).set({ id: d.id, tipo: LOTES_TIPO, _del: true, _upd: d.upd }).then(function() {
       ssRaw('lotes_del', sg('lotes_del', []).filter(function(x) { return !(x.id === d.id && x.upd === d.upd); }));
       lotesCloudState('ok', '');
     }).catch(function(e) { lotesCloudError(e); }).then(function() { delete _lotesPushing[key]; });
@@ -2536,7 +2539,7 @@ function pushLotes() {
 }
 function lotesCloudError(e) {
   var code = (e && e.code) || '';
-  if (code === 'permission-denied') lotesCloudState('error', 'la nube rechazo guardar (revisar reglas de Firestore para "' + LOTES_COL + '")');
+  if (code === 'permission-denied') lotesCloudState('error', 'la nube rechazo guardar (revisar reglas de Firestore para "fichas")');
   else if (code === 'unavailable') lotesCloudState('offline');
   else lotesCloudState('error', (e && e.message) ? e.message : 'error de conexion');
   console.warn('lotes nube:', e);
@@ -2574,10 +2577,7 @@ function startLotesSync() {
   var db = initFichasFirebase();
   if (!db) { lotesCloudState('offline'); setTimeout(startLotesSync, 5000); return; }
   _lotesStarted = true;
-  var col = db.collection(LOTES_COL);
-  var startedAt = Date.now();
-  var lastOk = parseInt(sg('lotes_last_ok', 0)) || 0;
-  var since = (lastOk ? lastOk : startedAt - LOTES_WINDOW_MS) - LOTES_MARGIN_MS;
+  var col = db.collection('fichas');
   function applySnap(snap) {
     var changed = false;
     snap.docChanges().forEach(function(ch) {
@@ -2586,13 +2586,12 @@ function startLotesSync() {
     });
     if (changed) onLotesRemoteChange();
   }
-  col.where('_upd', '>=', since).onSnapshot(function(snap) {
+  // Un solo filtro por igualdad (tipo=='lote'): no necesita indice compuesto,
+  // a diferencia de combinarlo con un rango de fecha o con otro campo.
+  col.where('tipo', '==', LOTES_TIPO).onSnapshot(function(snap) {
     applySnap(snap);
-    ssRaw('lotes_last_ok', startedAt);
     lotesCloudState('ok', '');
   }, function(err) { lotesCloudError(err); });
-  // lotes que siguen abiertos aunque sean viejos (nadie los ha tocado en dias)
-  col.where('status', '==', 'abierto').get().then(applySnap).catch(function(err) { lotesCloudError(err); });
   pushLotes();
 }
 window.addEventListener('online', function() { pushLotes(); });
