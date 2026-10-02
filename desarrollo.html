@@ -78,6 +78,21 @@ header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;di
 .btn-cancel:hover{background:#475569}
 
 .card-hist{color:#c4b5fd;font-weight:700}
+.card-foto{color:#67e8f9;font-weight:700}
+
+.img-tools{display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;flex-wrap:wrap}
+.img-upload-btn{display:inline-block;cursor:pointer}
+.img-status{font-size:.7rem;color:#94a3b8}
+.img-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.img-thumb{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:#0f172a;cursor:pointer}
+.img-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.img-del{position:absolute;top:.2rem;right:.2rem;background:rgba(0,0,0,.65);color:#fca5a5;border:none;border-radius:50%;width:1.3rem;height:1.3rem;font-size:.75rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.img-del:hover{background:rgba(239,68,68,.85);color:#fff}
+.img-empty{font-size:.72rem;color:#475569;text-align:center;padding:.6rem .5rem;grid-column:1/-1}
+.lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:60;align-items:center;justify-content:center;padding:1.5rem}
+.lightbox.on{display:flex}
+.lightbox img{max-width:100%;max-height:100%;border-radius:8px}
+.lightbox-close{position:absolute;top:1rem;right:1.2rem;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:50%;width:2.2rem;height:2.2rem;font-size:1.1rem;cursor:pointer}
 
 .hist-form{background:#0f172a;border:1px solid var(--border);border-radius:8px;padding:.6rem;margin-bottom:.7rem}
 .hist-form-row{display:flex;gap:.5rem;margin-bottom:.5rem}
@@ -186,6 +201,18 @@ header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;di
     </div>
 
     <div class="f-row">
+      <label class="f-lbl">Fotos, bosquejos y ayudas visuales</label>
+      <div class="img-tools">
+        <label class="btn btn-ghost img-upload-btn">
+          + Agregar fotos
+          <input type="file" id="img-input" accept="image/*" multiple style="display:none" onchange="onImgSelect(event)">
+        </label>
+        <span class="img-status" id="img-status"></span>
+      </div>
+      <div class="img-grid" id="img-grid"></div>
+    </div>
+
+    <div class="f-row">
       <label class="f-lbl">Historial de cambios</label>
       <div class="hist-form">
         <div class="hist-form-row">
@@ -212,6 +239,11 @@ header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;di
       </div>
     </div>
   </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="event.stopPropagation();closeLightbox()">&times;</button>
+  <img id="lightbox-img" src="" onclick="event.stopPropagation()">
 </div>
 
 <script>
@@ -323,15 +355,17 @@ function cardHtml(c) {
   var d = daysSince(c.updatedAt || c.createdAt);
   var staleCls = d >= 14 ? ' stale' : '';
   var histCount = (c.historial || []).length;
+  var fotoCount = c.fotoCount || 0;
   var fechaHtml = c.fecha ? '<span class="card-fecha">' + c.fecha + '</span>' : '<span></span>';
   var histHtml = histCount ? '<span class="card-hist" title="' + histCount + ' cambio(s) registrado(s)">&#9998; ' + histCount + '</span>' : '';
+  var fotoHtml = fotoCount ? '<span class="card-foto" title="' + fotoCount + ' foto(s)">&#128247; ' + fotoCount + '</span>' : '';
   var h = '<div class="card p-' + (c.prioridad||'media') + '" draggable="true" data-id="' + c.id + '"' +
     ' ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" onclick="openCard(\'' + c.id + '\')">';
   h += '<div class="card-top"><div class="card-nom">' + escHtml(c.nombre || '(sin nombre)') + '</div></div>';
   if (catTxt) h += '<span class="card-cat">' + escHtml(catTxt) + '</span>';
   if (nota) h += '<div class="card-nota">' + escHtml(nota) + '</div>';
   h += '<div class="card-meta"><span class="card-days' + staleCls + '">' + d + ' dia' + (d===1?'':'s') + ' aqui</span>';
-  h += '<span style="display:flex;align-items:center;gap:.5rem">' + histHtml + fechaHtml + '</span></div>';
+  h += '<span style="display:flex;align-items:center;gap:.5rem">' + fotoHtml + histHtml + fechaHtml + '</span></div>';
   h += '</div>';
   return h;
 }
@@ -453,6 +487,7 @@ function openCard(id) {
   document.getElementById('h-desc').value = '';
   try { document.getElementById('h-resp').value = localStorage.getItem('swx_dev_user') || ''; } catch(e) {}
   renderHistorial(c);
+  loadImagesForCard(c.id);
   document.getElementById('ov-card').classList.add('on');
 }
 function saveCardModal() {
@@ -516,7 +551,146 @@ function deleteCard() {
   persistLocal();
   renderBoard();
   deleteCardFromCloud(id);
+  // Limpia tambien las fotos asociadas, para no dejar basura en la nube.
+  var db = initFichasFirebase();
+  if (db) {
+    CARD_IMAGES.forEach(function(img) {
+      db.collection('fichas').doc(img.id).delete().catch(function(e) { console.warn('Error eliminando foto', e); });
+    });
+  }
+  CARD_IMAGES = [];
   closeOv('ov-card');
+}
+
+/* ---------- Fotos, bosquejos y ayudas visuales ---------- */
+var CARD_IMAGES = [];
+
+function loadImagesForCard(cardId) {
+  CARD_IMAGES = [];
+  renderImages();
+  var statusEl = document.getElementById('img-status');
+  var db = initFichasFirebase();
+  if (!db) { statusEl.textContent = 'Sin conexion - no se pueden ver las fotos'; return; }
+  statusEl.textContent = 'Cargando fotos...';
+  db.collection('fichas').where('tipo', '==', 'imagen_desarrollo').where('cardId', '==', cardId).get().then(function(snap) {
+    var list = [];
+    snap.forEach(function(doc) { list.push(doc.data()); });
+    list.sort(function(a,b) { return (a.ts||0) - (b.ts||0); });
+    // Solo reemplaza si seguimos viendo la misma tarjeta (evita pisar datos si el usuario ya cambio de tarjeta).
+    if (editingId === cardId) { CARD_IMAGES = list; renderImages(); statusEl.textContent = ''; }
+  }).catch(function(e) {
+    console.warn('Error cargando fotos', e);
+    if (editingId === cardId) statusEl.textContent = 'Error cargando fotos';
+  });
+}
+
+function renderImages() {
+  var grid = document.getElementById('img-grid');
+  if (!grid) return;
+  if (!CARD_IMAGES.length) { grid.innerHTML = '<div class="img-empty">Sin fotos todavia.</div>'; return; }
+  var h = '';
+  CARD_IMAGES.forEach(function(img) {
+    h += '<div class="img-thumb" onclick="openLightbox(\'' + img.id + '\')">';
+    h += '<img src="' + img.dataUrl + '" loading="lazy" alt="Foto del desarrollo">';
+    h += '<button class="img-del" onclick="event.stopPropagation();deleteImage(\'' + img.id + '\')" title="Eliminar foto">&times;</button>';
+    h += '</div>';
+  });
+  grid.innerHTML = h;
+}
+
+function openLightbox(id) {
+  var img = CARD_IMAGES.find(function(x) { return x.id === id; });
+  if (!img) return;
+  document.getElementById('lightbox-img').src = img.dataUrl;
+  document.getElementById('lightbox').classList.add('on');
+}
+function closeLightbox() { document.getElementById('lightbox').classList.remove('on'); }
+
+// Redimensiona y recomprime la foto en el navegador antes de subirla, para
+// que quepa comoda dentro del limite de 1MB por documento de Firestore
+// (una foto de camara sin comprimir puede pesar varios MB).
+function compressImage(file, maxDim, quality) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() {
+        var w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = function() { reject(new Error('No se pudo leer esa imagen')); };
+      img.src = ev.target.result;
+    };
+    reader.onerror = function() { reject(new Error('No se pudo leer el archivo')); };
+    reader.readAsDataURL(file);
+  });
+}
+
+function onImgSelect(ev) {
+  var files = Array.prototype.slice.call(ev.target.files || []);
+  ev.target.value = ''; // permite volver a elegir el mismo archivo despues
+  if (!files.length || !editingId) return;
+  var cardId = editingId;
+  var c = CARDS.find(function(x) { return x.id === cardId; });
+  if (!c) return;
+  var statusEl = document.getElementById('img-status');
+  var db = initFichasFirebase();
+  if (!db) { statusEl.textContent = 'Sin conexion - no se pudo subir'; return; }
+  var done = 0, total = files.length, fallas = 0;
+  statusEl.textContent = 'Subiendo 1 de ' + total + '...';
+  files.forEach(function(file) {
+    compressImage(file, 1280, 0.68).then(function(dataUrl) {
+      var now = Date.now();
+      var imgDoc = {
+        id: 'IMG-' + now + '-' + Math.random().toString(36).slice(2,7),
+        tipo: 'imagen_desarrollo',
+        cardId: cardId,
+        dataUrl: dataUrl,
+        ts: now
+      };
+      return db.collection('fichas').doc(imgDoc.id).set(imgDoc).then(function() {
+        if (editingId === cardId) { CARD_IMAGES.push(imgDoc); renderImages(); }
+        c.fotoCount = (c.fotoCount || 0) + 1;
+        c.updatedAt = now;
+        persistLocal();
+        renderBoard();
+        saveCardToCloud(c);
+      });
+    }).catch(function(e) {
+      console.warn('Error subiendo foto', e);
+      fallas++;
+    }).then(function() {
+      done++;
+      if (editingId === cardId) {
+        statusEl.textContent = done < total ? ('Subiendo ' + (done+1) + ' de ' + total + '...') :
+          (fallas ? (fallas + ' foto(s) no se pudieron subir') : '');
+      }
+    });
+  });
+}
+
+function deleteImage(id) {
+  if (!confirm('Eliminar esta foto? No se puede deshacer.')) return;
+  var cardId = editingId;
+  var c = CARDS.find(function(x) { return x.id === cardId; });
+  CARD_IMAGES = CARD_IMAGES.filter(function(x) { return x.id !== id; });
+  renderImages();
+  if (c) {
+    c.fotoCount = Math.max(0, (c.fotoCount || 1) - 1);
+    c.updatedAt = Date.now();
+    persistLocal();
+    renderBoard();
+    saveCardToCloud(c);
+  }
+  var db = initFichasFirebase();
+  if (db) db.collection('fichas').doc(id).delete().catch(function(e) { console.warn('Error eliminando foto', e); });
 }
 
 function closeOv(id) { document.getElementById(id).classList.remove('on'); }
