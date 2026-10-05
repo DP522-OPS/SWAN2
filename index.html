@@ -2183,6 +2183,20 @@ function processNfc(data) {
   var type = data.type, id = data.id;
   if (!type || !id) { toast('Formato invalido'); return; }
 
+  if (type === 'paro' && (_fichaMaq || document.getElementById('ov-vparo').classList.contains('on'))) {
+    var pc = findParoNfc(id);
+    if (!pc) { toast('Categoria de paro no reconocida: ' + id); return; }
+    if (document.getElementById('ov-vparo').classList.contains('on')) {   // ya esta el formulario abierto: solo cambia el motivo
+      fillMotivos('vp-mot', pc[1]); document.getElementById('vp-otro-g').style.display = 'none';
+      toast('Motivo: ' + pc[2]); return;
+    }
+    var pl = null, pls = sg_lotes();
+    for (var pj = 0; pj < pls.length; pj++) if (pls[pj].maqId === _fichaMaq && isOpen(pls[pj])) { pl = pls[pj]; break; }
+    if (!pl) { toast('Esa maquina no tiene lote abierto'); return; }
+    if (pl.parado) { toast('Esa maquina ya esta parada (' + pl.parado.mot + '). Use Reanudar.'); return; }
+    openVParo(pl.id, pc[1]); toast('Paro: ' + pc[2] + ' - confirme la hora y guarde'); return;
+  }
+  if (type === 'paro' && viewOn('view-dash')) { toast('Abra primero la maquina (escanee su sticker o toque la casilla) y luego escanee el paro'); return; }
   if (type === 'maquina' && viewOn('view-dash')) {
     var mq = null, ml = sg('maqs', []);
     for (var qi = 0; qi < ml.length; qi++) if (ml[qi].id === id) { mq = ml[qi]; break; }
@@ -2704,12 +2718,12 @@ function fillMotivos(selId, val) {
 }
 
 // ----- Reportar paro -----
-function openVParo(id) {
+function openVParo(id, motivo) {
   var l = findOpenLote(sg_lotes(), id); if (!l || !isOpen(l)) { toast('Lote no encontrado'); return; }
   if (l.parado) { toast('Esa maquina ya tiene un paro abierto'); renderLive(); return; }
   _rVId = id; _vOpenMs = Date.now(); _vHoraDef = fmtClock(_vOpenMs);
   document.getElementById('vp-title').textContent = 'Reportar paro - ' + l.maqId;
-  fillMotivos('vp-mot', '');
+  fillMotivos('vp-mot', motivo || '');
   document.getElementById('vp-otro-g').style.display = 'none';
   document.getElementById('vp-otro').value = '';
   document.getElementById('vp-hora').value = _vHoraDef;
@@ -2883,7 +2897,14 @@ function liveCardHtml(l, m, now) {
     h += '<button class="btn btn-red" onclick="openVParo(\'' + l.id + '\')">Reportar paro</button>';
   }
   h += '<button class="btn btn-out" onclick="openVCtr(\'' + l.id + '\')">Contador</button>';
-  h += '</div></div>';
+  h += '</div>';
+  if (!pd) {   // motivos rapidos (mismos del sticker NFC de paro)
+    h += '<div style="font-size:.68rem;color:var(--steel);margin-top:.55rem;font-weight:700">PARO RAPIDO</div><div class="lv-act" style="margin-top:.25rem">';
+    if ('NDEFReader' in window) h += '<button type="button" class="btn btn-amber" style="padding:.4rem .6rem;font-size:.74rem" onclick="nfcScan(\'paro\')">Escanear sticker</button>';
+    for (var qi = 0; qi < PAROS_NFC.length; qi++) h += '<button type="button" class="btn" style="background:#fff;border:1.5px solid ' + PAROS_NFC[qi][3] + ';color:' + PAROS_NFC[qi][3] + ';padding:.4rem .5rem;font-size:.74rem" onclick="openVParo(\'' + l.id + '\', \'' + PAROS_NFC[qi][1] + '\')">' + PAROS_NFC[qi][2] + '</button>';
+    h += '</div>';
+  }
+  h += '</div>';
   return h;
 }
 function openFicha(maqId) { _fichaMaq = maqId; _fichaOpening = true; renderLive(); _fichaOpening = false; openOv('ov-maq'); }
