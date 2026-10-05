@@ -235,7 +235,6 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
     <div class="nav-brand">Swantex<span>Produccion</span></div>
     <div class="nav-tabs">
       <div class="tab on" id="tab-dash" onclick="goTo('dash')">Dashboard</div>
-      <div class="tab" id="tab-live" onclick="goTo('live')">En vivo</div>
       <div class="tab" id="tab-reg" onclick="goTo('reg')">Registrar</div>
       <div class="tab" id="tab-hist" onclick="goTo('hist')">Historial</div>
       <div class="tab" id="tab-cfg" onclick="goTo('cfg')">Config</div>
@@ -325,7 +324,11 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
       <div style="font-size:.8rem;color:var(--steel)" id="d-shift"></div>
       <div id="cloud-pill" style="font-size:.72rem;font-weight:700;margin-top:.2rem"></div>
     </div>
-    <button class="btn btn-out btn-sm" onclick="doExport()">Exportar CSV</button>
+    <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+      <button class="btn btn-amber btn-sm" id="btn-nfc-ficha" onclick="nfcScan('maquina')" style="display:none">Escanear maquina</button>
+      <select class="inp" id="d-pick" style="width:auto;min-width:130px;padding:.35rem .5rem" onchange="if(this.value){openFicha(this.value);this.value='';}"></select>
+      <button class="btn btn-out btn-sm" onclick="doExport()">Exportar CSV</button>
+    </div>
   </div>
   <div id="d-stops"></div>
   <div class="g4" style="margin-bottom:1rem" id="d-stats">
@@ -337,16 +340,12 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
   <div class="tgrid" id="d-teams"></div>
 </div>
 
-<!-- ==================== EN VIVO ==================== -->
-<div class="view" id="view-live">
-  <div class="hdr">
-    <div>
-      <div class="hdr-t">Maquinas en vivo</div>
-      <div style="font-size:.78rem;color:var(--steel)">Paros con cronometro, eficiencia y hora estimada de fin de cada lote abierto.</div>
-    </div>
-    <select class="inp" id="live-eq" style="width:auto;min-width:150px" onchange="renderLive()"></select>
+<!-- MODAL: Ficha de maquina (en vivo) -->
+<div class="ov" id="ov-maq">
+  <div class="modal" style="max-width:480px">
+    <div id="fm-body"></div>
+    <div class="modal-act"><button class="btn btn-out" onclick="closeFicha()">Cerrar</button></div>
   </div>
-  <div id="live-body"></div>
 </div>
 
 <!-- MODAL: Reportar paro en vivo -->
@@ -942,12 +941,11 @@ function init() {
 
 // ============ NAV ============
 function goTo(v) {
-  ['dash','live','reg','hist','cfg'].forEach(function(n) {
+  ['dash','reg','hist','cfg'].forEach(function(n) {
     document.getElementById('view-'+n).classList.toggle('on', n===v);
     document.getElementById('tab-'+n).classList.toggle('on', n===v);
   });
   if (v==='dash') renderDash();
-  if (v==='live') initLive();
   if (v==='reg') initReg();
   if (v==='hist') renderHist();
   if (v==='cfg') renderCfg();
@@ -1013,6 +1011,13 @@ function renderDash() {
   var EFF_MIN = 75;
   var mmap = {}; for (var qi=0; qi<maqs.length; qi++) mmap[maqs[qi].id] = maqs[qi];
   var nowMs = Date.now();
+  var nb = document.getElementById('btn-nfc-ficha'); if (nb) nb.style.display = ('NDEFReader' in window) ? '' : 'none';
+  var pk = document.getElementById('d-pick');
+  if (pk && pk.options.length < 2) {
+    var ph = '<option value="">Buscar maquina...</option>';
+    for (var pi = 0; pi < maqs.length; pi++) if (maqs[pi].active) ph += '<option value="' + maqs[pi].id + '">' + maqs[pi].id + ' - ' + lvEsc(maqs[pi].model) + (maqs[pi].diam ? ' ' + lvEsc(maqs[pi].diam) : '') + '</option>';
+    pk.innerHTML = ph;
+  }
   var stopEl = document.getElementById('d-stops');
   if (stopEl) stopEl.innerHTML = stopbarHtml(abiertos, mmap, nowMs);
 
@@ -1054,9 +1059,9 @@ function renderDash() {
         var mkeys = Object.keys(maq_paros[m.id]).sort(function(a,b){return maq_paros[m.id][b]-maq_paros[m.id][a];});
         if (mkeys.length) topMot = mkeys[0] + ' (' + maq_paros[m.id][mkeys[0]] + 'm)';
       }
-      var tip = m.id + ' ' + m.model + (mEff!==null?' | Ef: '+mEff+'%':'') + (topMot?' | Principal paro: '+topMot:'') + (run ? ' | ABIERTO: ' + (run.refId||'') + ' desde ctr ' + run.ctrStart : '') + (has||maq_paros[m.id] ? ' | Toque para ver detalle' : '');
-      var clickable = (has || maq_paros[m.id]) ? ' style="cursor:pointer"' : '';
-      var clickAttr = (has || maq_paros[m.id]) ? ' onclick="showMotivo(\''+m.id+'\')"' : '';
+      var tip = m.id + ' ' + m.model + (mEff!==null?' | Ef: '+mEff+'%':'') + (topMot?' | Principal paro: '+topMot:'') + (run ? ' | ABIERTO: ' + (run.refId||'') + ' desde ctr ' + run.ctrStart : '') + ' | Toque para abrir la ficha en vivo';
+      var clickable = ' style="cursor:pointer"';
+      var clickAttr = ' onclick="openFicha(\''+m.id+'\')"';
       tiles += '<div class="mt ' + cls + '"' + clickable + clickAttr + ' title="' + tip + '">';
       tiles += '<div class="mt-id">' + m.id + '</div>';
       tiles += '<div class="mt-m">' + m.model + '</div>';
@@ -1084,7 +1089,7 @@ function renderDash() {
   document.getElementById('d-teams').innerHTML = html;
 }
 
-function showMotivo(maqId) {
+function showMotivo(maqId, noOpen) {
   var maqs = sg('maqs', []);
   var m = null; for (var i=0;i<maqs.length;i++){if(maqs[i].id===maqId){m=maqs[i];break;}}
   var paros = (window._dashMaqParos && window._dashMaqParos[maqId]) || {};
@@ -1094,7 +1099,7 @@ function showMotivo(maqId) {
   var tubos = 0, effS = 0, effC = 0;
   for (var i=0;i<lotes.length;i++){ tubos += (lotes[i].tubos||0); if(effOk(lotes[i].eff)){effS+=lotes[i].eff;effC++;} }
   var eff = effC ? Math.round(effS/effC) : null;
-  document.getElementById('mv-title').textContent = maqId + (m?' - '+m.model:'') + (eff!==null?' - '+eff+'% ef.':'');
+  if (!noOpen) document.getElementById('mv-title').textContent = maqId + (m?' - '+m.model:'') + (eff!==null?' - '+eff+'% ef.':'');
   var h = '';
   h += '<div style="display:flex;gap:1rem;margin-bottom:.7rem;font-size:.78rem;color:var(--steel)">';
   h += '<div><strong style="color:var(--navy);font-size:1rem">' + lotes.length + '</strong> lotes hoy</div>';
@@ -1113,6 +1118,7 @@ function showMotivo(maqId) {
       h += '</div>';
     }
   }
+  if (noOpen) return h;
   document.getElementById('mv-body').innerHTML = h;
   openOv('ov-motivo');
 }
@@ -2177,6 +2183,12 @@ function processNfc(data) {
   var type = data.type, id = data.id;
   if (!type || !id) { toast('Formato invalido'); return; }
 
+  if (type === 'maquina' && viewOn('view-dash')) {
+    var mq = null, ml = sg('maqs', []);
+    for (var qi = 0; qi < ml.length; qi++) if (ml[qi].id === id) { mq = ml[qi]; break; }
+    if (!mq) { toast('Maquina no encontrada: ' + id); return; }
+    openFicha(id); return;
+  }
   if (type === 'maquina') {
     var maqs = sg('maqs', []);
     var m = null; for(var i=0;i<maqs.length;i++){if(maqs[i].id===id){m=maqs[i];break;}}
@@ -2826,16 +2838,8 @@ function saveVCtr() {
   renderLive(); refreshDashIfOn();
 }
 
-// ----- Vista "En vivo" -----
-function initLive() {
-  var sel = document.getElementById('live-eq');
-  if (sel && sel.options.length < 1) {
-    var h = '<option value="">Todos los equipos</option>';
-    for (var i = 0; i < EQS.length; i++) h += '<option value="' + EQS[i].id + '">' + EQS[i].name + '</option>';
-    sel.innerHTML = h;
-  }
-  renderLive();
-}
+// ----- Ficha en vivo de una maquina (modal desde el Dashboard) -----
+var _fichaMaq = null;
 function liveCardHtml(l, m, now) {
   var li = liveInfo(l, now), pd = li.parado, ref = li.ref, ops = sg('ops', []), op = null;
   for (var i = 0; i < ops.length; i++) if (ops[i].id === l.opId) { op = ops[i]; break; }
@@ -2882,35 +2886,30 @@ function liveCardHtml(l, m, now) {
   h += '</div></div>';
   return h;
 }
-function renderLive() {
-  var body = document.getElementById('live-body'); if (!body) return;
-  var eqF = (document.getElementById('live-eq') || {}).value || '';
-  var lotes = sg_lotes().filter(isOpen), maqs = sg('maqs', []), mm = {}, now = Date.now();
-  for (var i = 0; i < maqs.length; i++) mm[maqs[i].id] = maqs[i];
-  var stops = [], runs = [];
-  for (var j = 0; j < lotes.length; j++) {
-    var l = lotes[j], m = mm[l.maqId] || null;
-    if (eqF && (!m || m.teamId !== eqF)) continue;
-    (l.parado ? stops : runs).push(l);
+function openFicha(maqId) { _fichaMaq = maqId; _fichaOpening = true; renderLive(); _fichaOpening = false; openOv('ov-maq'); }
+function closeFicha() { _fichaMaq = null; closeOv('ov-maq'); refreshDashIfOn(); }
+function abrirLoteDe(maqId) {
+  _fichaMaq = null; closeOv('ov-maq'); goTo('reg'); setRegMode('abrir');
+  var ml = sg('maqs', []);
+  for (var i = 0; i < ml.length; i++) if (ml[i].id === maqId) {
+    document.getElementById('r-eq').value = ml[i].teamId; onEqChange();
+    document.getElementById('r-maq').value = maqId; onMaqChange(); break;
   }
-  stops.sort(function(a, b) { return a.parado.ini - b.parado.ini; });
-  runs.sort(function(a, b) { return a.maqId < b.maqId ? -1 : a.maqId > b.maqId ? 1 : 0; });
-  var h = '<div class="lv-sum"><span class="lv-chip run">' + runs.length + ' corriendo</span><span class="lv-chip stop">' + stops.length + ' parada(s)</span></div>';
-  if (!stops.length && !runs.length) {
-    h += '<div class="card"><div style="font-size:.85rem;color:var(--steel);text-align:center;padding:1rem">No hay lotes abiertos' + (eqF ? ' en este equipo' : '') + '. Abra un lote en <strong>Registrar</strong> y aparecera aqui.</div></div>';
-  }
-  if (stops.length) {
-    h += '<div class="lv-sec">Paradas ahora (la que lleva mas tiempo primero)</div><div class="lv-grid">';
-    for (var s = 0; s < stops.length; s++) h += liveCardHtml(stops[s], mm[stops[s].maqId], now);
-    h += '</div>';
-  }
-  if (runs.length) {
-    h += '<div class="lv-sec">Corriendo</div><div class="lv-grid">';
-    for (var r = 0; r < runs.length; r++) h += liveCardHtml(runs[r], mm[runs[r].maqId], now);
-    h += '</div>';
-  }
-  body.innerHTML = h;
 }
+// Redibuja la ficha abierta (se llama despues de cada accion y cuando llegan cambios de la nube)
+function renderLive() {
+  var box = document.getElementById('fm-body');
+  if (!box || !_fichaMaq || !document.getElementById('ov-maq').classList.contains('on') && !_fichaOpening) return;
+  var maqId = _fichaMaq, now = Date.now(), ml = sg('maqs', []), m = null, l = null, ls = sg_lotes();
+  for (var i = 0; i < ml.length; i++) if (ml[i].id === maqId) { m = ml[i]; break; }
+  for (var j = 0; j < ls.length; j++) if (ls[j].maqId === maqId && isOpen(ls[j])) { l = ls[j]; break; }
+  var h = '';
+  if (l) h += liveCardHtml(l, m, now);
+  else h += '<div class="lv-hd"><div class="lv-maq">' + lvEsc(maqId) + (m ? ' <span style="font-weight:500;font-size:.78rem;color:var(--steel)">' + lvEsc(m.model) + (m.diam ? ' ' + lvEsc(m.diam) : '') + '</span>' : '') + '</div></div><div class="lv-note" style="margin:.6rem 0">Esta maquina no tiene lote abierto.</div><div class="lv-act"><button class="btn btn-amber" onclick="abrirLoteDe(\'' + lvEsc(maqId) + '\')">Abrir lote</button></div>';
+  try { var det = showMotivo(maqId, true); if (det) h += '<div class="lv-sec" style="margin-top:1rem">Hoy en esta maquina</div>' + det; } catch (e) {}
+  box.innerHTML = h;
+}
+var _fichaOpening = false;
 function viewOn(id) { var e = document.getElementById(id); return !!(e && e.classList.contains('on')); }
 function refreshDashIfOn() { if (viewOn('view-dash')) renderDash(); }
 // Reloj: actualiza cada segundo los cronometros visibles y redibuja cada 30 s
@@ -2923,7 +2922,7 @@ function liveTick() {
   _liveFull++;
   if (_liveFull >= 30) {
     _liveFull = 0;
-    if (viewOn('view-live') && !document.querySelector('.ov.on')) renderLive();
+    if (_fichaMaq && document.querySelectorAll('.ov.on').length === 1) renderLive();
     if (viewOn('view-dash')) renderDash();
   }
 }
@@ -2935,7 +2934,7 @@ function stopbarHtml(abiertos, mm, now) {
   var h = '<div class="stopbar"><div class="stopbar-t">&#9632; ' + st.length + ' maquina(s) parada(s) ahora</div>';
   for (var i = 0; i < st.length; i++) {
     var l = st[i], pd = l.parado, m = mm[l.maqId];
-    h += '<div class="stop-row" onclick="goTo(\'live\')"><strong>' + l.maqId + '</strong><span style="color:var(--steel)">' + (m ? lvEsc(m.model) : '') + '</span>';
+    h += '<div class="stop-row" onclick="openFicha(\'' + l.maqId + '\')"><strong>' + l.maqId + '</strong><span style="color:var(--steel)">' + (m ? lvEsc(m.model) : '') + '</span>';
     h += '<span style="font-weight:700">' + lvEsc(pd.mot) + '</span><span class="stop-clk lv-tm" data-ini="' + pd.ini + '">' + fmtDurSec(now - pd.ini) + '</span>';
     h += '<span style="font-size:.72rem;color:' + (pd.atiende ? '#065f46' : '#b45309') + ';font-weight:700">' + (pd.atiende ? 'Atiende: ' + lvEsc(pd.atiende.nom) : 'Sin mecanico') + '</span></div>';
   }
@@ -3130,7 +3129,7 @@ function onLotesRemoteChange() {
   var on = function(id) { var e = document.getElementById(id); return !!(e && e.classList.contains('on')); };
   if (on('view-dash')) renderDash();
   if (on('view-hist')) renderHist();
-  if (on('view-live') && !document.querySelector('.ov.on')) renderLive();
+  if (_fichaMaq) renderLive();
   if (on('view-reg')) { try { updateRegStatus(); } catch(e) {} }
 }
 function startLotesSync() {
