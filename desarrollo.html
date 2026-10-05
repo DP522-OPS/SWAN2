@@ -120,7 +120,7 @@ header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;di
   <div class="brand">Swantex <span>Desarrollo de Producto</span></div>
   <div class="hdr-right">
     <span class="sync-pill" id="sync-pill">Cargando...</span>
-    <button class="btn btn-amber" onclick="openQuick()">+ Nueva idea</button>
+    <button class="btn btn-amber" onclick="openQuick()">+ Nueva referencia</button>
   </div>
 </header>
 
@@ -135,23 +135,23 @@ header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;di
 
 <div class="board" id="board"></div>
 
-<!-- Modal: captura rapida de idea -->
+<!-- Modal: captura rapida de referencia -->
 <div class="ov" id="ov-quick">
   <div class="modal">
-    <div class="modal-t">Nueva idea</div>
+    <div class="modal-t">Nueva referencia</div>
     <div class="f-row">
       <label class="f-lbl">Nombre / concepto</label>
       <input class="f-inp" id="q-nombre" placeholder="Ej: Panty control cintura alta en algodon">
     </div>
     <div class="f-row">
       <label class="f-lbl">Nota (opcional)</label>
-      <textarea class="f-txt" id="q-nota" placeholder="De donde viene la idea, referencia, inspiracion..."></textarea>
+      <textarea class="f-txt" id="q-nota" placeholder="De donde viene, codigo de referencia, inspiracion..."></textarea>
     </div>
     <div class="modal-act">
       <span></span>
       <div class="modal-act-right">
         <button class="btn btn-cancel" onclick="closeOv('ov-quick')">Cancelar</button>
-        <button class="btn btn-amber" onclick="saveQuick()">Guardar idea</button>
+        <button class="btn btn-amber" onclick="saveQuick()">Guardar referencia</button>
       </div>
     </div>
   </div>
@@ -257,13 +257,25 @@ header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;di
    ============================================================ */
 
 var ETAPAS = [
-  {id:'idea',       label:'Idea',          col:'#581c87'},
-  {id:'diseno',     label:'Diseno',        col:'#1e3a5f'},
-  {id:'muestra',    label:'Muestra',       col:'#9a3412'},
-  {id:'aprobacion', label:'Aprobacion',    col:'#854d0e'},
-  {id:'ficha',      label:'Ficha tecnica', col:'#0e7490'},
-  {id:'produccion', label:'Produccion',    col:'#065f46'}
+  {id:'referencia',  label:'Referencia',          col:'#581c87'},
+  {id:'diseno',      label:'Diseno',              col:'#1e3a5f'},
+  {id:'circulares',  label:'Circulares',          col:'#9a3412'},
+  {id:'tintoreria',  label:'Tintoreria',          col:'#be185d'},
+  {id:'confeccion',  label:'Confeccion',          col:'#854d0e'},
+  {id:'ingenieria',  label:'Ingenieria',          col:'#0e7490'},
+  {id:'aprobacion',  label:'Aprobacion gerencia', col:'#4d7c0f'},
+  {id:'produccion',  label:'Produccion',          col:'#065f46'}
 ];
+// Etapas del flujo anterior -> flujo nuevo (las tarjetas existentes se migran solas)
+var ETAPA_MAP = {idea:'referencia', muestra:'circulares', ficha:'ingenieria'};
+function migrarEtapas(list) {
+  var cambiadas = [];
+  list.forEach(function(c) {
+    var n = ETAPA_MAP[c.etapa];
+    if (n) { c.etapa = n; cambiadas.push(c); }
+  });
+  return cambiadas;
+}
 
 var CARDS = [];
 var filtCat = '';
@@ -301,7 +313,7 @@ function loadCards() {
   // Pinta de inmediato lo que haya en cache local, mientras llega la nube.
   try {
     var cached = JSON.parse(localStorage.getItem('swx_dev_cards') || '[]');
-    if (cached.length) { CARDS = cached; renderBoard(); }
+    if (cached.length) { migrarEtapas(cached); CARDS = cached; renderBoard(); }
   } catch(e) {}
 
   var db = initFichasFirebase();
@@ -310,6 +322,7 @@ function loadCards() {
   db.collection('fichas').where('tipo', '==', 'desarrollo').get().then(function(snap) {
     var list = [];
     snap.forEach(function(doc) { list.push(doc.data()); });
+    migrarEtapas(list).forEach(saveCardToCloud);
     CARDS = list;
     try { localStorage.setItem('swx_dev_cards', JSON.stringify(CARDS)); } catch(e) {}
     renderBoard();
@@ -391,11 +404,11 @@ function renderBoard() {
     h += '<span class="col-t">' + et.label + '</span>';
     h += '<span style="display:flex;align-items:center;gap:.4rem">';
     h += '<span class="col-n">' + items.length + '</span>';
-    if (et.id === 'idea') h += '<button class="col-add" onclick="openQuick()" title="Agregar idea">+</button>';
+    if (et.id === 'referencia') h += '<button class="col-add" onclick="openQuick()" title="Agregar referencia">+</button>';
     h += '</span></div>';
     h += '<div class="col-body">';
     if (!items.length) {
-      h += '<div class="col-empty">' + (et.id==='idea' ? 'Sin ideas pendientes.<br>Usa "+ Nueva idea" arriba.' : 'Sin desarrollos en esta etapa.') + '</div>';
+      h += '<div class="col-empty">' + (et.id==='referencia' ? 'Sin referencias nuevas.<br>Usa "+ Nueva referencia" arriba.' : 'Sin desarrollos en esta etapa.') + '</div>';
     } else {
       items.forEach(function(c) { h += cardHtml(c); });
     }
@@ -455,7 +468,7 @@ function saveQuick() {
     nombre: nombre,
     categoria: '',
     prioridad: 'media',
-    etapa: 'idea',
+    etapa: 'referencia',
     nota: nota,
     fecha: '',
     createdAt: now,
