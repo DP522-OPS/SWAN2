@@ -168,6 +168,42 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
 .br{background:var(--redl);color:#b91c1c}
 .ba{background:var(--amberl);color:var(--amberd)}
 
+/* EN VIVO (paros y eficiencia en tiempo real) */
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:#dc2626}
+.btn-grn{background:var(--green);color:#fff}.btn-grn:hover{background:#059669}
+@keyframes lvpulse{50%{opacity:.55}}
+.lv-sum{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem;align-items:center}
+.lv-chip{border-radius:999px;padding:.3rem .8rem;font-size:.76rem;font-weight:700}
+.lv-chip.run{background:#e0ecff;color:var(--navy)}
+.lv-chip.stop{background:var(--redl);color:#b91c1c}
+.lv-sec{font-size:.72rem;font-weight:800;color:var(--steel);text-transform:uppercase;letter-spacing:.6px;margin:.4rem 0 .5rem}
+.lv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.8rem;margin-bottom:1rem}
+.lv-card{background:#fff;border:1px solid var(--border);border-left:5px solid #7aa2e3;border-radius:12px;padding:.85rem .95rem;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.lv-card.stop{border-left-color:var(--red);background:#fff7f7;border-color:#fecaca}
+.lv-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem}
+.lv-maq{font-size:1.05rem;font-weight:800;color:var(--navy)}
+.lv-sub{font-size:.72rem;color:var(--steel);margin-top:.1rem;line-height:1.35}
+.lv-badge{padding:.18rem .6rem;border-radius:999px;font-size:.66rem;font-weight:800;white-space:nowrap}
+.lv-badge.run{background:var(--greenl);color:#065f46}
+.lv-badge.stop{background:var(--red);color:#fff;animation:lvpulse 1.2s infinite}
+.lv-clock{font-size:2rem;font-weight:800;color:var(--red);font-variant-numeric:tabular-nums;line-height:1.1}
+.lv-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin:.6rem 0 .4rem}
+.lv-k{background:var(--steell);border-radius:8px;padding:.4rem .3rem;text-align:center}
+.lv-kv{font-size:1rem;font-weight:800}
+.lv-kl{font-size:.58rem;color:var(--steel);text-transform:uppercase;letter-spacing:.3px}
+.lv-bar{height:8px;background:var(--border);border-radius:5px;overflow:hidden;margin:.25rem 0 .15rem}
+.lv-barf{height:100%;background:var(--green);border-radius:5px}
+.lv-act{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.7rem}
+.lv-act .btn{flex:1;justify-content:center;padding:.6rem .5rem;min-width:110px}
+.lv-note{font-size:.7rem;color:var(--steel);margin-top:.3rem;line-height:1.4}
+.stopbar{background:#fff1f2;border:1.5px solid #fecaca;border-radius:12px;padding:.7rem .9rem;margin-bottom:1rem}
+.stopbar-t{font-size:.72rem;font-weight:800;color:#b91c1c;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.3rem}
+.stop-row{display:flex;align-items:center;gap:.6rem;font-size:.8rem;padding:.3rem 0;border-top:1px solid #fee2e2;flex-wrap:wrap;cursor:pointer}
+.stop-row:first-of-type{border-top:none}
+.stop-clk{font-weight:800;color:var(--red);font-variant-numeric:tabular-nums}
+.mt-stop{background:#fee2e2;border-color:var(--red);animation:lvpulse 1.2s infinite}
+.mt-stop .mt-id,.mt-stop .mt-l{color:#b91c1c}
+
 /* MODALS */
 .ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:1rem}
 .ov.on{display:flex}
@@ -199,6 +235,7 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
     <div class="nav-brand">Swantex<span>Produccion</span></div>
     <div class="nav-tabs">
       <div class="tab on" id="tab-dash" onclick="goTo('dash')">Dashboard</div>
+      <div class="tab" id="tab-live" onclick="goTo('live')">En vivo</div>
       <div class="tab" id="tab-reg" onclick="goTo('reg')">Registrar</div>
       <div class="tab" id="tab-hist" onclick="goTo('hist')">Historial</div>
       <div class="tab" id="tab-cfg" onclick="goTo('cfg')">Config</div>
@@ -290,6 +327,7 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
     </div>
     <button class="btn btn-out btn-sm" onclick="doExport()">Exportar CSV</button>
   </div>
+  <div id="d-stops"></div>
   <div class="g4" style="margin-bottom:1rem" id="d-stats">
     <div class="card"><div class="stat-l">Lotes cerrados hoy</div><div class="stat-v" id="d-lotes" style="color:var(--navy)">0</div></div>
     <div class="card"><div class="stat-l">Tubos hoy</div><div class="stat-v" id="d-tubos" style="color:var(--amberd)">0</div></div>
@@ -297,6 +335,102 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
     <div class="card"><div class="stat-l">Ef. promedio</div><div class="stat-v" id="d-eff" style="color:var(--steel)">--</div></div>
   </div>
   <div class="tgrid" id="d-teams"></div>
+</div>
+
+<!-- ==================== EN VIVO ==================== -->
+<div class="view" id="view-live">
+  <div class="hdr">
+    <div>
+      <div class="hdr-t">Maquinas en vivo</div>
+      <div style="font-size:.78rem;color:var(--steel)">Paros con cronometro, eficiencia y hora estimada de fin de cada lote abierto.</div>
+    </div>
+    <select class="inp" id="live-eq" style="width:auto;min-width:150px" onchange="renderLive()"></select>
+  </div>
+  <div id="live-body"></div>
+</div>
+
+<!-- MODAL: Reportar paro en vivo -->
+<div class="ov" id="ov-vparo">
+  <div class="modal">
+    <div class="modal-t" id="vp-title">Reportar paro</div>
+    <div class="fg">
+      <label class="lbl">Motivo</label>
+      <select class="inp" id="vp-mot" onchange="document.getElementById('vp-otro-g').style.display=this.value=='Otro'?'block':'none'"></select>
+    </div>
+    <div class="fg" id="vp-otro-g" style="display:none">
+      <label class="lbl">Especifique</label>
+      <input type="text" class="inp" id="vp-otro">
+    </div>
+    <div class="fg">
+      <label class="lbl">Hora en que se detuvo</label>
+      <input type="time" class="inp" id="vp-hora">
+      <div class="lv-note">Si se detuvo ahora deje la hora como esta: el tiempo empieza a contar solo. Si ya llevaba un rato parada, cambie la hora.</div>
+    </div>
+    <div class="fg">
+      <label class="lbl">Quien reporta</label>
+      <input type="text" class="inp" id="vp-rep" placeholder="Nombre">
+    </div>
+    <div class="fg">
+      <label class="lbl">Detalle (opcional)</label>
+      <textarea class="inp" id="vp-obs" rows="2" placeholder="Ej: se rompio una aguja del cilindro, falla en el cuerpo 3..."></textarea>
+    </div>
+    <div class="modal-act">
+      <button class="btn btn-out" onclick="closeOv('ov-vparo')">Cancelar</button>
+      <button class="btn btn-red" onclick="saveVParo()">Reportar paro</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Reanudar maquina (cerrar el paro) -->
+<div class="ov" id="ov-vresume">
+  <div class="modal">
+    <div class="modal-t" id="vr-title">Reanudar maquina</div>
+    <div id="vr-info" style="background:var(--redl);border:1.5px solid #fecaca;border-radius:10px;padding:.6rem .8rem;margin-bottom:.8rem;font-size:.82rem"></div>
+    <div class="fg">
+      <label class="lbl">Causa real del paro</label>
+      <select class="inp" id="vr-mot" onchange="document.getElementById('vr-otro-g').style.display=this.value=='Otro'?'block':'none'"></select>
+    </div>
+    <div class="fg" id="vr-otro-g" style="display:none">
+      <label class="lbl">Especifique</label>
+      <input type="text" class="inp" id="vr-otro">
+    </div>
+    <div class="fg">
+      <label class="lbl">Hora en que quedo funcionando</label>
+      <input type="time" class="inp" id="vr-hora">
+    </div>
+    <div class="fg">
+      <label class="lbl">Quien la arreglo / reanudo</label>
+      <input type="text" class="inp" id="vr-rec" placeholder="Nombre del mecanico u operario">
+    </div>
+    <div class="fg">
+      <label class="lbl">Que se hizo (opcional)</label>
+      <textarea class="inp" id="vr-obs" rows="2" placeholder="Ej: cambio de 3 agujas, limpieza de cilindro..."></textarea>
+    </div>
+    <div class="modal-act" style="justify-content:space-between">
+      <button class="btn btn-out" style="color:var(--red)" onclick="anularParo()">Fue un error</button>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-out" onclick="closeOv('ov-vresume')">Volver</button>
+        <button class="btn btn-grn" onclick="saveVResume()">Maquina corriendo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Actualizar contador (eficiencia en vivo) -->
+<div class="ov" id="ov-vctr">
+  <div class="modal">
+    <div class="modal-t" id="vc-title">Actualizar contador</div>
+    <div class="fg">
+      <label class="lbl">Contador actual de la maquina</label>
+      <input type="number" min="0" class="ctr-inp" id="vc-v" oninput="previewVCtr()" placeholder="--">
+      <div class="lv-note" id="vc-ini"></div>
+    </div>
+    <div id="vc-prev"></div>
+    <div class="modal-act">
+      <button class="btn btn-out" onclick="closeOv('ov-vctr')">Cancelar</button>
+      <button class="btn btn-navy" onclick="saveVCtr()">Guardar lectura</button>
+    </div>
+  </div>
 </div>
 
 <!-- ==================== REGISTRO ==================== -->
@@ -808,11 +942,12 @@ function init() {
 
 // ============ NAV ============
 function goTo(v) {
-  ['dash','reg','hist','cfg'].forEach(function(n) {
+  ['dash','live','reg','hist','cfg'].forEach(function(n) {
     document.getElementById('view-'+n).classList.toggle('on', n===v);
     document.getElementById('tab-'+n).classList.toggle('on', n===v);
   });
   if (v==='dash') renderDash();
+  if (v==='live') initLive();
   if (v==='reg') initReg();
   if (v==='hist') renderHist();
   if (v==='cfg') renderCfg();
@@ -876,6 +1011,10 @@ function renderDash() {
   window._dashMaqParos = maq_paros;
   window._dashMaqParosMin = maq_parosMin;
   var EFF_MIN = 75;
+  var mmap = {}; for (var qi=0; qi<maqs.length; qi++) mmap[maqs[qi].id] = maqs[qi];
+  var nowMs = Date.now();
+  var stopEl = document.getElementById('d-stops');
+  if (stopEl) stopEl.innerHTML = stopbarHtml(abiertos, mmap, nowMs);
 
   var html = '';
   for (var ei=0; ei<EQS.length; ei++) {
@@ -907,7 +1046,9 @@ function renderDash() {
       var run = maq_open[m.id] || null;
       var mEff = maq_eff_c[m.id] ? Math.round(maq_eff_s[m.id] / maq_eff_c[m.id]) : null;
       var low = mEff !== null && mEff < EFF_MIN;
+      var liv = run ? liveInfo(run, nowMs) : null;
       var cls = low ? 'mt-bad' : (run ? 'mt-run' : (has ? 'mt-ok' : 'mt-no'));
+      if (run && run.parado) cls = 'mt-stop';
       var topMot = null;
       if (maq_paros[m.id]) {
         var mkeys = Object.keys(maq_paros[m.id]).sort(function(a,b){return maq_paros[m.id][b]-maq_paros[m.id][a];});
@@ -920,7 +1061,9 @@ function renderDash() {
       tiles += '<div class="mt-id">' + m.id + '</div>';
       tiles += '<div class="mt-m">' + m.model + '</div>';
       if (m.diam) tiles += '<div class="mt-d" style="color:' + (has?'var(--green)':'var(--steel)') + '">' + m.diam + '</div>';
-      var lbl = (run ? '&#9654;' : '') + (has ? ' ' + maq_lots[m.id] + 'L' : '') + (mEff!==null ? ' ' + mEff + '%' : '');
+      var lbl = (run ? (run.parado ? '&#9632;' : '&#9654;') : '') + (has ? ' ' + maq_lots[m.id] + 'L' : '') + (mEff!==null ? ' ' + mEff + '%' : '');
+      if (run && liv && liv.eff !== null && liv.eff !== undefined) lbl += ' ' + (has ? '| ' : '') + liv.eff + '% vivo';
+      if (run && run.parado) lbl = '&#9632; ' + lvEsc(run.parado.mot);
       if (!lbl.trim()) lbl = '-';
       tiles += '<div class="mt-l" style="' + ((has||run)?'':'color:var(--steel)') + '">' + lbl + '</div>';
       if (low && topMot) tiles += '<div style="font-size:.56rem;font-weight:800;color:var(--red);line-height:1.1;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + topMot + '</div>';
@@ -1046,9 +1189,21 @@ function makeContinuation(prev, ctr, opId, turno, hora) {
     parentId: prev.id
   };
 }
+// (la continuacion hereda un paro abierto: la maquina sigue parada)
+function carryParo(cont, prev, hora) {
+  if (prev && prev.parado) {
+    var pd = prev.parado;
+    cont.parado = { id: String(pd.id) + 'c', mot: pd.mot, ini: Math.max(pd.ini, hhmmToMs(hora)), rep: pd.rep || '', obs: pd.obs || '', atiende: pd.atiende || null };
+  }
+  return cont;
+}
 
 // Compute closed values for a lot given ctrEnd, hora fin and extra paros
 function closeValues(lote, ce, hf, extraParos, cierre) {
+  if (lote.parado) {   // se cierra con la maquina parada: el paro termina a la hora fin
+    lote = Object.assign({}, lote);
+    resolveParado(lote, hf ? hhmmToMs(hf) : Date.now(), '', '', 'Se cerro el lote con la maquina parada');
+  }
   var cs = lote.ctrStart;
   var tubos = (cs !== null && cs !== undefined && !isNaN(cs) && ce >= cs) ? Math.round(ce - cs) : null;
   var ref = null; for (var i=0;i<REFS.length;i++){ if (REFS[i][0]===lote.refId){ ref=REFS[i]; break; } }
@@ -1059,7 +1214,7 @@ function closeValues(lote, ce, hf, extraParos, cierre) {
   var std = null, eff = null, dur = null;
   if (tubos && ref) std = Math.round((tubos / ref[4]) * ref[5] * 10) / 10;
   if (lote.hi && hf) { dur = tdiff(lote.hi, hf); if (std && dur > pm) eff = Math.round(std / (dur - pm) * 100); }
-  return { ctrEnd: ce, tubos: tubos, hf: hf, dur: dur, paros: paros, parosMin: pm, std: std, eff: eff, status: 'cerrado', cierre: cierre };
+  return { parado: null, ctrEnd: ce, tubos: tubos, hf: hf, dur: dur, paros: paros, parosMin: pm, std: std, eff: eff, status: 'cerrado', cierre: cierre };
 }
 
 // ===== ENTREGA DE TURNO =====
@@ -1127,7 +1282,7 @@ function saveEntrega() {
     if (opOut) v.opId = opOut;
     all[i] = Object.assign({}, l, v);
     closed.push(all[i]);
-    if (!comp) created.push(makeContinuation(l, ce, opIn, turnoIn, hora));
+    if (!comp) created.push(carryParo(makeContinuation(l, ce, opIn, turnoIn, hora), l, hora));
     n++;
   }
   if (!n) { toast('Ingrese al menos un contador'); return; }
@@ -1502,7 +1657,8 @@ function calcCerrar() {
   var ce = cev !== '' ? parseFloat(cev) : NaN;
   var hf = document.getElementById('rc-hf').value;
   var hi = lote ? lote.hi : '';
-  var pm = cerrarParosSum();
+  var pm = cerrarParosSum() + (lote ? (lote.parosMin || 0) : 0);
+  if (lote && lote.parado && hf) pm += Math.max(1, Math.round((hhmmToMs(hf) - lote.parado.ini) / 60000));
   var ref = null; if(lote && lote.refId){ for(var i=0;i<REFS.length;i++){if(REFS[i][0]===lote.refId){ref=REFS[i];break;}} }
 
   var prodBox = document.getElementById('rc-prod');
@@ -1584,7 +1740,7 @@ function saveCerrar() {
     var opNew = document.getElementById('rc-op-new').value;
     var tNew = document.getElementById('rc-turno-new').value;
     if (!opNew || !tNew) { toast('Seleccione operario y turno que recibe'); return; }
-    cont = makeContinuation(lote, ce, opNew, tNew, hf || nowTime());
+    cont = carryParo(makeContinuation(lote, ce, opNew, tNew, hf || nowTime()), lote, hf || nowTime());
   }
   var v = closeValues(lote, ce, hf, rCerrarParos, rCierreTipo);
   v.obs = (lote.obs ? lote.obs + (obs ? ' | ' : '') : '') + obs;
@@ -2419,6 +2575,399 @@ function loadOpsFromCloud(cb) {
   }).catch(function(e) { console.warn('Error cargando operarios de la nube', e); if (cb) cb(); });
 }
 
+// ============ PAROS Y EFICIENCIA EN VIVO ============
+// Un lote ABIERTO puede tener un paro corriendo (l.parado): el tiempo cuenta
+// solo desde que alguien lo reporta hasta que el operario o el mecanico lo
+// cierra (desde cualquier celular/PC). Al cerrarse pasa a l.paros con su
+// duracion real y suma en l.parosMin, que es lo que ya usa el calculo de
+// eficiencia al cerrar el lote. Ademas el operario puede anotar el contador
+// actual (l.ctrAct / l.ctrLog) para ver la eficiencia y la hora estimada de
+// fin SIN cerrar el lote. Todo viaja dentro del mismo documento del lote en
+// la nube, asi que Tablero Maestro y Planeacion lo leen sin tocar Sheets.
+var MOTIVOS_PARO = ['Dano de aguja','Cambio de agujas','Dano de maquina','Falla electrica','Falta de hilo','Rotura de hilo','Cambio de bobina','Cambio de referencia','Mantenimiento preventivo','Limpieza','Almuerzo/descanso','Falta de personal','Otro'];
+var EFF_META = 80;            // meta de eficiencia para estimar la hora de fin "segun plan"
+var _liveFull = 0, _liveTick = null, _rVId = null, _vOpenMs = 0, _vHoraDef = '';
+
+function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+function lvEsc(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtClock(ms) { var d = new Date(ms); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+function fmtDurMin(min) { min = Math.max(0, Math.round(min)); var h = Math.floor(min / 60), m = min % 60; return h > 0 ? (h + 'h ' + pad2(m) + 'm') : (m + 'm'); }
+function fmtDurSec(ms) { var s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h > 0 ? (h + ':' + pad2(m) + ':' + pad2(x)) : (m + ':' + pad2(x)); }
+function savedNombre() { try { return localStorage.getItem('swx_user_nombre') || ''; } catch(e) { return ''; } }
+function saveNombre(n) { try { if (n) localStorage.setItem('swx_user_nombre', n); } catch(e) {} }
+function refOf(code) { for (var i = 0; i < REFS.length; i++) if (REFS[i][0] === code) return REFS[i]; return null; }
+
+// "HH:MM" -> ultimo momento en que fue esa hora (hoy, o ayer si aun no llega: turnos de noche)
+function hhmmToMs(hhmm, nowMs) {
+  nowMs = nowMs || Date.now();
+  var p = String(hhmm || '').split(':');
+  if (p.length < 2) return nowMs;
+  var d = new Date(nowMs); d.setHours(parseInt(p[0], 10), parseInt(p[1], 10), 0, 0);
+  var t = d.getTime();
+  if (isNaN(t)) return nowMs;
+  if (t > nowMs + 120000) t -= 86400000;
+  return t;
+}
+// Momento en que arranco el lote (fecha + hora de inicio); si no cuadra, la hora en que se registro
+function loteStartMs(l) {
+  var t = NaN;
+  if (l.fecha && l.hi) {
+    var d = String(l.fecha).split('-'), p = String(l.hi).split(':');
+    if (d.length === 3 && p.length >= 2) t = new Date(parseInt(d[0],10), parseInt(d[1],10) - 1, parseInt(d[2],10), parseInt(p[0],10), parseInt(p[1],10), 0, 0).getTime();
+  }
+  if (isNaN(t) || t > Date.now() + 3600000) t = l.ts || Date.now();
+  return t;
+}
+
+// Foto en vivo de un lote abierto: tiempos, disponibilidad, eficiencia y proyeccion de fin
+function liveInfo(l, nowMs) {
+  nowMs = nowMs || Date.now();
+  var startMs = loteStartMs(l);
+  var elapsed = Math.max(0, (nowMs - startMs) / 60000);
+  var pm = l.parosMin || 0, pd = l.parado || null;
+  var paroOpen = pd ? Math.max(0, (nowMs - pd.ini) / 60000) : 0;
+  var net = Math.max(0, elapsed - pm - paroOpen);
+  var c = l.ctrAct || null, ref = refOf(l.refId);
+  var o = { startMs: startMs, elapsed: elapsed, pm: pm, paroOpen: paroOpen, net: net,
+    disp: elapsed > 1 ? Math.round(net / elapsed * 100) : null, parado: pd, ctr: c, ref: ref,
+    tubos: null, eff: null, effInt: null, lotSize: l.lotSize || 0, pct: null, finProy: null, finPlan: null, atraso: null };
+  var stdLote = (c && c.stdLote) ? c.stdLote : ((ref && o.lotSize) ? o.lotSize / ref[4] * ref[5] : null);
+  if (c) {
+    o.tubos = c.tubos; o.eff = c.eff; o.effInt = c.effInt;
+    if (o.lotSize) o.pct = Math.max(0, Math.min(100, Math.round(c.tubos / o.lotSize * 100)));
+    if (c.rate > 0 && o.lotSize) {
+      var falta = Math.max(0, o.lotSize - c.tubos);
+      var extra = Math.max(0, (pm + paroOpen) - (c.pm || 0));   // paros ocurridos despues de la ultima lectura
+      o.finProy = c.t + (falta / c.rate + extra) * 60000;
+    }
+  }
+  if (stdLote) o.finPlan = startMs + (stdLote / (EFF_META / 100)) * 60000;
+  if (o.finProy && o.finPlan) o.atraso = Math.round((o.finProy - o.finPlan) / 60000);
+  return o;
+}
+
+// Lectura del contador -> tubos, eficiencia acumulada, eficiencia del ultimo intervalo y ritmo
+function computeCtrAct(l, v, tMs) {
+  var ref = refOf(l.refId), startMs = loteStartMs(l);
+  var pmAt = (l.parosMin || 0) + (l.parado ? Math.max(0, (tMs - l.parado.ini) / 60000) : 0);
+  var tubos = Math.round(v - l.ctrStart);
+  var c = { v: v, t: tMs, pm: Math.round(pmAt * 10) / 10, tubos: tubos, std: null, eff: null, effInt: null, rate: null, stdLote: null };
+  if (ref) {
+    c.std = Math.round(tubos / ref[4] * ref[5] * 10) / 10;
+    if (l.lotSize) c.stdLote = Math.round(l.lotSize / ref[4] * ref[5] * 10) / 10;
+  }
+  var netAt = (tMs - startMs) / 60000 - pmAt;
+  if (netAt > 0.5 && tubos >= 0) {
+    c.rate = Math.round(tubos / netAt * 1000) / 1000;
+    if (c.std) c.eff = Math.round(c.std / netAt * 100);
+  }
+  var prev = l.ctrAct || null;
+  if (prev && ref && tMs > prev.t && v >= prev.v) {
+    var netInt = (tMs - prev.t) / 60000 - (pmAt - (prev.pm || 0));
+    if (netInt > 0.5) c.effInt = Math.round(((v - prev.v) / ref[4] * ref[5]) / netInt * 100);
+  }
+  return c;
+}
+
+// Cierra el paro abierto de un lote (lo pasa a l.paros y suma sus minutos)
+function resolveParado(l, finMs, rec, mot, obs) {
+  var pd = l.parado; if (!pd) return null;
+  var dur = Math.max(1, Math.round((finMs - pd.ini) / 60000));
+  var p = { id: pd.id, mot: mot || pd.mot, dur: dur, ini: pd.ini, fin: finMs, rep: pd.rep || '', rec: rec || '',
+    at: pd.atiende ? pd.atiende.nom : '', atT: pd.atiende ? pd.atiende.t : null,
+    obs: (obs || '') || (pd.obs || ''), vivo: true };
+  l.paros = (l.paros || []).concat([p]);
+  l.parosMin = (l.parosMin || 0) + dur;
+  l.parado = null;
+  return p;
+}
+
+function findOpenLote(all, id) { for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i]; return null; }
+function fillMotivos(selId, val) {
+  var sel = document.getElementById(selId); if (!sel) return;
+  var h = '<option value="">Seleccionar...</option>', found = false;
+  for (var i = 0; i < MOTIVOS_PARO.length; i++) { var sl = MOTIVOS_PARO[i] === val; if (sl) found = true; h += '<option' + (sl ? ' selected' : '') + '>' + MOTIVOS_PARO[i] + '</option>'; }
+  sel.innerHTML = h;
+  if (val && !found) { sel.value = 'Otro'; }
+}
+
+// ----- Reportar paro -----
+function openVParo(id) {
+  var l = findOpenLote(sg_lotes(), id); if (!l || !isOpen(l)) { toast('Lote no encontrado'); return; }
+  if (l.parado) { toast('Esa maquina ya tiene un paro abierto'); renderLive(); return; }
+  _rVId = id; _vOpenMs = Date.now(); _vHoraDef = fmtClock(_vOpenMs);
+  document.getElementById('vp-title').textContent = 'Reportar paro - ' + l.maqId;
+  fillMotivos('vp-mot', '');
+  document.getElementById('vp-otro-g').style.display = 'none';
+  document.getElementById('vp-otro').value = '';
+  document.getElementById('vp-hora').value = _vHoraDef;
+  document.getElementById('vp-rep').value = savedNombre();
+  document.getElementById('vp-obs').value = '';
+  openOv('ov-vparo');
+}
+function saveVParo() {
+  var all = sg_lotes(), l = findOpenLote(all, _rVId);
+  if (!l || !isOpen(l)) { toast('Lote no encontrado'); return; }
+  if (l.parado) { toast('Esa maquina ya tiene un paro abierto'); closeOv('ov-vparo'); renderLive(); return; }
+  var mot = document.getElementById('vp-mot').value;
+  if (mot === 'Otro') mot = (document.getElementById('vp-otro').value || '').trim() || 'Otro';
+  if (!mot) { toast('Seleccione el motivo'); return; }
+  var hora = document.getElementById('vp-hora').value || _vHoraDef;
+  var ini = (hora === _vHoraDef) ? _vOpenMs : hhmmToMs(hora);
+  var st = loteStartMs(l); if (ini < st) ini = st;
+  var rep = (document.getElementById('vp-rep').value || '').trim();
+  saveNombre(rep);
+  l.parado = { id: Date.now(), mot: mot, ini: ini, rep: rep || 'Sin especificar', obs: (document.getElementById('vp-obs').value || '').trim(), atiende: null };
+  ss('lotes', all);
+  closeOv('ov-vparo');
+  toast('Paro reportado en ' + l.maqId + ' - cuenta desde ' + fmtClock(ini));
+  renderLive(); refreshDashIfOn();
+}
+// ----- Tomar el paro (mecanico en camino) -----
+function vAtender(id) {
+  var nom = prompt('Quien atiende esta maquina?', savedNombre());
+  if (nom === null) return;
+  nom = nom.trim(); if (!nom) return;
+  var all = sg_lotes(), l = findOpenLote(all, id);
+  if (!l || !l.parado) { toast('Esa maquina ya no tiene paro abierto'); renderLive(); return; }
+  saveNombre(nom);
+  l.parado = Object.assign({}, l.parado, { atiende: { nom: nom, t: Date.now() } });
+  ss('lotes', all);
+  toast(nom + ' atiende ' + l.maqId);
+  renderLive(); refreshDashIfOn();
+}
+// ----- Reanudar (cerrar el paro) -----
+function openVResume(id) {
+  var l = findOpenLote(sg_lotes(), id); if (!l || !l.parado) { toast('Esa maquina ya no tiene paro abierto'); renderLive(); return; }
+  var pd = l.parado;
+  _rVId = id; _vOpenMs = Date.now(); _vHoraDef = fmtClock(_vOpenMs);
+  document.getElementById('vr-title').textContent = 'Reanudar - ' + l.maqId;
+  document.getElementById('vr-info').innerHTML = '<strong>' + lvEsc(pd.mot) + '</strong><br>Parada desde ' + fmtClock(pd.ini) + ' (' + fmtDurMin((_vOpenMs - pd.ini) / 60000) + ')' +
+    (pd.atiende ? '<br>Atendida por ' + lvEsc(pd.atiende.nom) : '') + (pd.obs ? '<br><span style="color:var(--steel)">' + lvEsc(pd.obs) + '</span>' : '');
+  fillMotivos('vr-mot', pd.mot);
+  var known = MOTIVOS_PARO.indexOf(pd.mot) >= 0;
+  document.getElementById('vr-otro-g').style.display = known ? 'none' : 'block';
+  document.getElementById('vr-otro').value = known ? '' : pd.mot;
+  document.getElementById('vr-hora').value = _vHoraDef;
+  document.getElementById('vr-rec').value = (pd.atiende && pd.atiende.nom) || savedNombre();
+  document.getElementById('vr-obs').value = '';
+  openOv('ov-vresume');
+}
+function saveVResume() {
+  var all = sg_lotes(), l = findOpenLote(all, _rVId);
+  if (!l || !l.parado) { toast('Esa maquina ya no tiene paro abierto'); closeOv('ov-vresume'); renderLive(); return; }
+  var mot = document.getElementById('vr-mot').value;
+  if (mot === 'Otro') mot = (document.getElementById('vr-otro').value || '').trim() || 'Otro';
+  if (!mot) mot = l.parado.mot;
+  var hora = document.getElementById('vr-hora').value || _vHoraDef;
+  var now = Date.now();
+  var fin = (hora === _vHoraDef) ? _vOpenMs : hhmmToMs(hora, now);
+  if (fin < l.parado.ini) { toast('La hora no puede ser antes de que se detuviera (' + fmtClock(l.parado.ini) + ')'); return; }
+  var rec = (document.getElementById('vr-rec').value || '').trim();
+  saveNombre(rec);
+  var p = resolveParado(l, fin, rec || 'Sin especificar', mot, (document.getElementById('vr-obs').value || '').trim());
+  ss('lotes', all);
+  closeOv('ov-vresume');
+  toast(l.maqId + ' corriendo de nuevo - paro de ' + p.dur + ' min');
+  renderLive(); refreshDashIfOn();
+}
+// Reporte equivocado: se descarta (queda anotado para que otros equipos no lo vuelvan a abrir)
+function anularParo() {
+  if (!confirm('Descartar este paro? Use esto solo si se reporto por error.')) return;
+  var all = sg_lotes(), l = findOpenLote(all, _rVId);
+  if (!l || !l.parado) { closeOv('ov-vresume'); renderLive(); return; }
+  l.anul = (l.anul || []).concat([l.parado.id]);
+  l.parado = null;
+  ss('lotes', all);
+  closeOv('ov-vresume');
+  toast('Paro descartado');
+  renderLive(); refreshDashIfOn();
+}
+// ----- Contador actual -> eficiencia en vivo -----
+function openVCtr(id) {
+  var l = findOpenLote(sg_lotes(), id); if (!l || !isOpen(l)) { toast('Lote no encontrado'); return; }
+  if (l.ctrStart === null || l.ctrStart === undefined || isNaN(l.ctrStart)) { toast('Este lote no tiene contador inicio'); return; }
+  _rVId = id;
+  document.getElementById('vc-title').textContent = 'Contador - ' + l.maqId;
+  document.getElementById('vc-ini').textContent = 'Contador inicio: ' + l.ctrStart + (l.ctrAct ? ' - ultima lectura: ' + l.ctrAct.v + ' (' + fmtClock(l.ctrAct.t) + ')' : '');
+  document.getElementById('vc-v').value = '';
+  document.getElementById('vc-prev').innerHTML = '';
+  openOv('ov-vctr');
+  setTimeout(function() { document.getElementById('vc-v').focus(); }, 80);
+}
+function previewVCtr() {
+  var l = findOpenLote(sg_lotes(), _rVId), box = document.getElementById('vc-prev');
+  var raw = document.getElementById('vc-v').value, v = parseFloat(raw);
+  if (!l || raw === '' || isNaN(v)) { box.innerHTML = ''; return; }
+  if (v < l.ctrStart) { box.innerHTML = '<div class="al al-warn" style="margin:.4rem 0 0">El contador no puede ser menor que el inicio (' + l.ctrStart + ').</div>'; return; }
+  var now = Date.now(), c = computeCtrAct(l, v, now), tmp = Object.assign({}, l, { ctrAct: c }), li = liveInfo(tmp, now);
+  var h = '<div class="prod-box"><div class="prod-l">Llevan</div><div class="prod-n">' + c.tubos.toLocaleString() + '</div>';
+  h += '<div class="prod-s">tubos' + (li.pct !== null ? ' - ' + li.pct + '% del lote de ' + li.lotSize : '') + '</div></div>';
+  if (c.eff !== null) {
+    h += '<div class="eff-row"><div class="eff-bar"><div class="eff-fill ' + effCls(c.eff) + '" style="width:' + Math.min(c.eff, 150) + '%"></div></div><span class="eff-n" style="color:' + effColor(c.eff) + '">' + c.eff + '%</span></div>';
+    h += '<div class="lv-note">Eficiencia acumulada del lote hasta ahora' + (c.effInt !== null ? ' - desde la lectura anterior: ' + c.effInt + '%' : '') + '</div>';
+  }
+  if (li.finProy) h += '<div class="lv-note">Terminaria a las <strong>' + fmtClock(li.finProy) + '</strong> a este ritmo' + (li.atraso !== null ? (li.atraso > 15 ? ' (atrasado ' + fmtDurMin(li.atraso) + ' vs meta ' + EFF_META + '%)' : (li.atraso < -15 ? ' (adelantado ' + fmtDurMin(-li.atraso) + ' vs meta ' + EFF_META + '%)' : ' (en tiempo vs meta ' + EFF_META + '%)')) : '') + '</div>';
+  box.innerHTML = h;
+}
+function saveVCtr() {
+  var all = sg_lotes(), l = findOpenLote(all, _rVId);
+  if (!l || !isOpen(l)) { toast('Lote no encontrado'); return; }
+  var raw = document.getElementById('vc-v').value, v = parseFloat(raw);
+  if (raw === '' || isNaN(v)) { toast('Ingrese el contador actual'); return; }
+  if (v < l.ctrStart) { toast('El contador no puede ser menor que el inicio (' + l.ctrStart + ')'); return; }
+  if (l.ctrAct && v < l.ctrAct.v) { toast('Es menor que la lectura anterior (' + l.ctrAct.v + ')'); return; }
+  var now = Date.now(), c = computeCtrAct(l, v, now);
+  l.ctrAct = c;
+  l.ctrLog = (l.ctrLog || []).concat([{ t: now, v: v, pm: c.pm }]).slice(-80);
+  ss('lotes', all);
+  closeOv('ov-vctr');
+  toast(l.maqId + ': ' + c.tubos + ' tubos' + (c.eff !== null ? ' - Ef: ' + c.eff + '%' : ''));
+  renderLive(); refreshDashIfOn();
+}
+
+// ----- Vista "En vivo" -----
+function initLive() {
+  var sel = document.getElementById('live-eq');
+  if (sel && sel.options.length < 1) {
+    var h = '<option value="">Todos los equipos</option>';
+    for (var i = 0; i < EQS.length; i++) h += '<option value="' + EQS[i].id + '">' + EQS[i].name + '</option>';
+    sel.innerHTML = h;
+  }
+  renderLive();
+}
+function liveCardHtml(l, m, now) {
+  var li = liveInfo(l, now), pd = li.parado, ref = li.ref, ops = sg('ops', []), op = null;
+  for (var i = 0; i < ops.length; i++) if (ops[i].id === l.opId) { op = ops[i]; break; }
+  var h = '<div class="lv-card' + (pd ? ' stop' : '') + '">';
+  h += '<div class="lv-hd"><div><div class="lv-maq">' + l.maqId + (m ? ' <span style="font-weight:500;font-size:.78rem;color:var(--steel)">' + lvEsc(m.model) + (m.diam ? ' ' + lvEsc(m.diam) : '') + '</span>' : '') + '</div>';
+  h += '<div class="lv-sub">' + (ref ? lvEsc(ref[0] + ' - ' + ref[1]) : lvEsc(l.refId || 'Sin referencia')) + '</div>';
+  h += '<div class="lv-sub">' + (op ? lvEsc(op.name) + ' - ' : '') + lvEsc(l.turno || '') + ' - desde ' + lvEsc(l.hi || '--') + ' (<span class="lv-el" data-ini="' + li.startMs + '">' + fmtDurMin(li.elapsed) + '</span>)</div></div>';
+  h += '<span class="lv-badge ' + (pd ? 'stop' : 'run') + '">' + (pd ? 'PARADA' : 'CORRIENDO') + '</span></div>';
+  if (pd) {
+    h += '<div style="margin-top:.55rem"><div class="lv-clock lv-tm" data-ini="' + pd.ini + '">' + fmtDurSec(now - pd.ini) + '</div>';
+    h += '<div style="font-size:.86rem;font-weight:800;color:#b91c1c">' + lvEsc(pd.mot) + '</div>';
+    h += '<div class="lv-note">Desde ' + fmtClock(pd.ini) + ' - reporto: ' + lvEsc(pd.rep || '--') + (pd.obs ? '<br>' + lvEsc(pd.obs) : '') + '</div>';
+    if (pd.atiende) h += '<div class="lv-note" style="color:#065f46;font-weight:700">Atiende: ' + lvEsc(pd.atiende.nom) + ' (llego a los ' + fmtDurMin((pd.atiende.t - pd.ini) / 60000) + ')</div>';
+    else h += '<div class="lv-note" style="color:#b45309;font-weight:700">Esperando mecanico...</div>';
+    h += '</div>';
+  }
+  h += '<div class="lv-kpis">';
+  h += '<div class="lv-k"><div class="lv-kv" style="color:' + (li.disp !== null ? effColor(li.disp) : 'var(--steel)') + '">' + (li.disp !== null ? li.disp + '%' : '--') + '</div><div class="lv-kl">Disponib.</div></div>';
+  h += '<div class="lv-k"><div class="lv-kv" style="color:' + ((li.pm + li.paroOpen) > 0 ? 'var(--red)' : 'var(--steel)') + '">' + fmtDurMin(li.pm + li.paroOpen) + '</div><div class="lv-kl">Perdido</div></div>';
+  h += '<div class="lv-k"><div class="lv-kv" style="color:' + (li.eff !== null ? effColor(li.eff) : 'var(--steel)') + '">' + (li.eff !== null ? li.eff + '%' : '--') + '</div><div class="lv-kl">Eficiencia</div></div>';
+  h += '</div>';
+  if (li.ctr) {
+    h += '<div style="font-size:.76rem;display:flex;justify-content:space-between"><span><strong>' + li.tubos.toLocaleString() + '</strong> tubos' + (li.lotSize ? ' de ' + li.lotSize : '') + '</span>' + (li.pct !== null ? '<span style="font-weight:700">' + li.pct + '%</span>' : '') + '</div>';
+    if (li.pct !== null) h += '<div class="lv-bar"><div class="lv-barf" style="width:' + li.pct + '%"></div></div>';
+    var ex = 'Contador leido a las ' + fmtClock(li.ctr.t) + ' (hace <span class="lv-ago" data-ini="' + li.ctr.t + '">' + fmtDurMin((now - li.ctr.t) / 60000) + '</span>)';
+    if (li.effInt !== null) ex += ' - ultimo intervalo: ' + li.effInt + '%';
+    h += '<div class="lv-note">' + ex + '</div>';
+    if (li.finProy) {
+      var cmp = '';
+      if (li.atraso !== null) cmp = li.atraso > 15 ? ' <span style="color:var(--red);font-weight:700">atrasado ' + fmtDurMin(li.atraso) + '</span>' : (li.atraso < -15 ? ' <span style="color:var(--green);font-weight:700">adelantado ' + fmtDurMin(-li.atraso) + '</span>' : ' <span style="color:var(--green);font-weight:700">en tiempo</span>');
+      h += '<div class="lv-note">Fin estimado a este ritmo: <strong>' + fmtClock(li.finProy) + '</strong>' + (li.finProy - now > 86400000 ? ' (otro dia)' : '') + cmp + (pd ? ' (si reanuda ya)' : '') + '</div>';
+    }
+  } else {
+    h += '<div class="lv-note">Anote el contador para ver la eficiencia y la hora estimada de fin sin cerrar el lote.</div>';
+  }
+  h += '<div class="lv-act">';
+  if (pd) {
+    if (!pd.atiende) h += '<button class="btn btn-out" onclick="vAtender(\'' + l.id + '\')">Atender</button>';
+    h += '<button class="btn btn-grn" onclick="openVResume(\'' + l.id + '\')">Reanudar</button>';
+  } else {
+    h += '<button class="btn btn-red" onclick="openVParo(\'' + l.id + '\')">Reportar paro</button>';
+  }
+  h += '<button class="btn btn-out" onclick="openVCtr(\'' + l.id + '\')">Contador</button>';
+  h += '</div></div>';
+  return h;
+}
+function renderLive() {
+  var body = document.getElementById('live-body'); if (!body) return;
+  var eqF = (document.getElementById('live-eq') || {}).value || '';
+  var lotes = sg_lotes().filter(isOpen), maqs = sg('maqs', []), mm = {}, now = Date.now();
+  for (var i = 0; i < maqs.length; i++) mm[maqs[i].id] = maqs[i];
+  var stops = [], runs = [];
+  for (var j = 0; j < lotes.length; j++) {
+    var l = lotes[j], m = mm[l.maqId] || null;
+    if (eqF && (!m || m.teamId !== eqF)) continue;
+    (l.parado ? stops : runs).push(l);
+  }
+  stops.sort(function(a, b) { return a.parado.ini - b.parado.ini; });
+  runs.sort(function(a, b) { return a.maqId < b.maqId ? -1 : a.maqId > b.maqId ? 1 : 0; });
+  var h = '<div class="lv-sum"><span class="lv-chip run">' + runs.length + ' corriendo</span><span class="lv-chip stop">' + stops.length + ' parada(s)</span></div>';
+  if (!stops.length && !runs.length) {
+    h += '<div class="card"><div style="font-size:.85rem;color:var(--steel);text-align:center;padding:1rem">No hay lotes abiertos' + (eqF ? ' en este equipo' : '') + '. Abra un lote en <strong>Registrar</strong> y aparecera aqui.</div></div>';
+  }
+  if (stops.length) {
+    h += '<div class="lv-sec">Paradas ahora (la que lleva mas tiempo primero)</div><div class="lv-grid">';
+    for (var s = 0; s < stops.length; s++) h += liveCardHtml(stops[s], mm[stops[s].maqId], now);
+    h += '</div>';
+  }
+  if (runs.length) {
+    h += '<div class="lv-sec">Corriendo</div><div class="lv-grid">';
+    for (var r = 0; r < runs.length; r++) h += liveCardHtml(runs[r], mm[runs[r].maqId], now);
+    h += '</div>';
+  }
+  body.innerHTML = h;
+}
+function viewOn(id) { var e = document.getElementById(id); return !!(e && e.classList.contains('on')); }
+function refreshDashIfOn() { if (viewOn('view-dash')) renderDash(); }
+// Reloj: actualiza cada segundo los cronometros visibles y redibuja cada 30 s
+function liveTick() {
+  if (document.hidden) return;
+  var now = Date.now(), els = document.querySelectorAll('.lv-tm'), i, ini;
+  for (i = 0; i < els.length; i++) { ini = parseInt(els[i].getAttribute('data-ini'), 10); if (ini) els[i].textContent = fmtDurSec(now - ini); }
+  els = document.querySelectorAll('.lv-el, .lv-ago');
+  for (i = 0; i < els.length; i++) { ini = parseInt(els[i].getAttribute('data-ini'), 10); if (ini) els[i].textContent = fmtDurMin((now - ini) / 60000); }
+  _liveFull++;
+  if (_liveFull >= 30) {
+    _liveFull = 0;
+    if (viewOn('view-live') && !document.querySelector('.ov.on')) renderLive();
+    if (viewOn('view-dash')) renderDash();
+  }
+}
+// Barra de maquinas paradas (Dashboard)
+function stopbarHtml(abiertos, mm, now) {
+  var st = abiertos.filter(function(l) { return l.parado; });
+  if (!st.length) return '';
+  st.sort(function(a, b) { return a.parado.ini - b.parado.ini; });
+  var h = '<div class="stopbar"><div class="stopbar-t">&#9632; ' + st.length + ' maquina(s) parada(s) ahora</div>';
+  for (var i = 0; i < st.length; i++) {
+    var l = st[i], pd = l.parado, m = mm[l.maqId];
+    h += '<div class="stop-row" onclick="goTo(\'live\')"><strong>' + l.maqId + '</strong><span style="color:var(--steel)">' + (m ? lvEsc(m.model) : '') + '</span>';
+    h += '<span style="font-weight:700">' + lvEsc(pd.mot) + '</span><span class="stop-clk lv-tm" data-ini="' + pd.ini + '">' + fmtDurSec(now - pd.ini) + '</span>';
+    h += '<span style="font-size:.72rem;color:' + (pd.atiende ? '#065f46' : '#b45309') + ';font-weight:700">' + (pd.atiende ? 'Atiende: ' + lvEsc(pd.atiende.nom) : 'Sin mecanico') + '</span></div>';
+  }
+  return h + '</div>';
+}
+// Mezcla campo a campo lo "en vivo" de dos copias abiertas del mismo lote
+// (paros, paro abierto, lecturas de contador) para que operario y mecanico
+// puedan editar a la vez desde equipos distintos sin pisarse.
+function mergeLiveFields(base, other) {
+  var m = Object.assign({}, base), i, k;
+  var seen = {}, list = [], src = (base.paros || []).concat(other.paros || []);
+  for (i = 0; i < src.length; i++) { k = String(src[i].id); if (seen[k]) continue; seen[k] = 1; list.push(src[i]); }
+  if (list.length !== (base.paros || []).length) {
+    m.paros = list;
+    var sum = 0; for (i = 0; i < list.length; i++) sum += (list[i].dur || 0);
+    m.parosMin = sum;
+  }
+  var an = {}, anl = [], asrc = (base.anul || []).concat(other.anul || []);
+  for (i = 0; i < asrc.length; i++) { k = String(asrc[i]); if (an[k]) continue; an[k] = 1; anl.push(asrc[i]); }
+  if (anl.length !== (base.anul || []).length) m.anul = anl;
+  var pd = base.parado || other.parado || null;
+  if (base.parado && other.parado && String(base.parado.id) !== String(other.parado.id)) pd = (base.parado.ini >= other.parado.ini) ? base.parado : other.parado;
+  if (pd && (seen[String(pd.id)] || an[String(pd.id)])) pd = null;
+  if (pd && !pd.atiende && other.parado && String(other.parado.id) === String(pd.id) && other.parado.atiende) pd = Object.assign({}, pd, { atiende: other.parado.atiende });
+  if (pd || ('parado' in base)) m.parado = pd;
+  if (other.ctrAct && (!base.ctrAct || other.ctrAct.t > base.ctrAct.t)) m.ctrAct = other.ctrAct;
+  var lg = {}, arr = [], lsrc = (base.ctrLog || []).concat(other.ctrLog || []);
+  for (i = 0; i < lsrc.length; i++) { k = String(lsrc[i].t); if (lg[k]) continue; lg[k] = 1; arr.push(lsrc[i]); }
+  if (arr.length) { arr.sort(function(a, b) { return a.t - b.t; }); if (arr.length > 80) arr = arr.slice(arr.length - 80); if (arr.length !== (base.ctrLog || []).length) m.ctrLog = arr; }
+  return m;
+}
+
 // ============ LOTES COMPARTIDOS EN LA NUBE (Firestore) ============
 // Antes cada celular/PC guardaba sus lotes SOLO en su localStorage: el
 // servidor (Apps Script) era de solo escritura y el Dashboard nunca leia de
@@ -2563,6 +3112,17 @@ function mergeRemoteLote(r) {
   var lc = l.status === 'cerrado', rc = r.status === 'cerrado';
   if (lc !== rc) take = rc;                 // cerrado gana siempre a abierto
   else take = rUpd > (l._upd || 0);         // mismo estado: gana lo mas reciente
+  if (!lc && !rc) {                         // ambos abiertos: mezclar lo "en vivo" campo a campo
+    var sig = function(o) { return JSON.stringify([o.paros, o.parado, o.anul, o.ctrAct, o.ctrLog]); };
+    var mg = take ? mergeLiveFields(n, l) : mergeLiveFields(l, n);
+    var needPush = sig(mg) !== sig(n);      // aqui hay datos en vivo que la nube aun no tiene
+    if (!take && sig(mg) === sig(l)) return false;
+    if (needPush) { mg._upd = Date.now(); mg._p = 0; }
+    mg._h = loteHash(mg);
+    all[idx] = mg; ssRaw('lotes', all);
+    if (needPush) scheduleLotesPush();
+    return true;
+  }
   if (!take) return false;
   all[idx] = n; ssRaw('lotes', all); return true;
 }
@@ -2570,6 +3130,7 @@ function onLotesRemoteChange() {
   var on = function(id) { var e = document.getElementById(id); return !!(e && e.classList.contains('on')); };
   if (on('view-dash')) renderDash();
   if (on('view-hist')) renderHist();
+  if (on('view-live') && !document.querySelector('.ov.on')) renderLive();
   if (on('view-reg')) { try { updateRegStatus(); } catch(e) {} }
 }
 function startLotesSync() {
@@ -2605,6 +3166,7 @@ initRefsFromCache();
 syncRefsFromFichas(false);
 loadOpsFromCloud();
 loadGasUrlFromCloud();
+setInterval(liveTick, 1000);
 renderDash();
 renderCloudPill();
 startLotesSync();
