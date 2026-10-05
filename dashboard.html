@@ -72,6 +72,17 @@ header{background:linear-gradient(90deg,#1e3a5f,#2d5a9e);padding:.9rem 1.5rem;di
 .live-maq{font-size:.95rem;font-weight:800;color:#fff}
 .live-ref{font-size:.76rem;color:#cbd5e1;margin-top:.2rem;line-height:1.4}
 .live-time{font-size:.7rem;color:#64748b;margin-top:.4rem}
+.live-card.stop{border-left-color:#ef4444;background:#2a1618}
+.live-card.late{border-left-color:#f97316}
+.lc-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.4rem}
+.lc-pill{font-size:.62rem;font-weight:800;padding:.12rem .45rem;border-radius:10px;white-space:nowrap}
+.lc-ok{background:#064e3b;color:#6ee7b7}.lc-late{background:#7c2d12;color:#fdba74}.lc-stop{background:#ef4444;color:#fff}.lc-na{background:#334155;color:#cbd5e1}
+.lc-clock{font-size:1.5rem;font-weight:800;color:#ef4444;font-variant-numeric:tabular-nums;margin-top:.35rem;line-height:1}
+.lc-mot{font-size:.78rem;font-weight:800;color:#fca5a5;margin-top:.15rem}
+.lc-kpi{display:flex;gap:.8rem;margin-top:.45rem;font-size:.66rem;color:#94a3b8}
+.lc-kpi b{display:block;font-size:.95rem;color:#fff}
+.lc-bar{height:6px;background:#0f172a;border-radius:3px;overflow:hidden;margin-top:.45rem}
+.lc-fill{height:100%;background:var(--green)}
 .live-empty{font-size:.8rem;color:#64748b;background:#1e293b;border:1px solid #334155;border-radius:12px;padding:.9rem 1rem;line-height:1.6}
 .recent-table{background:#1e293b;border:1px solid #334155;border-radius:12px;overflow:hidden;margin-bottom:1.25rem}
 .tw{overflow-x:auto}
@@ -130,15 +141,15 @@ tr:hover td{background:#253347}
     <div>Esperando URL del servidor...</div>
     <div style="margin-top:.5rem;font-size:.8rem">Haga clic en <strong>Configurar</strong> arriba para empezar</div>
   </div>
-  <div id="dashboard-content" style="display:none">
-    <div class="stats-row" id="stats-row"></div>
-    <div class="live-section">
+  <div class="live-section">
       <div class="live-hdr">
         <span class="live-dot"></span>
         <div class="section-title" style="margin-bottom:0" id="live-title">Maquinas corriendo ahora mismo</div>
       </div>
       <div id="live-wrap"></div>
     </div>
+  <div id="dashboard-content" style="display:none">
+    <div class="stats-row" id="stats-row"></div>
     <div class="teams-grid" id="teams-grid"></div>
     <div class="section-title">Ultimos 30 lotes registrados</div>
     <div class="recent-table">
@@ -320,36 +331,86 @@ function cargarEstadoActual() {
     .catch(function(e) { renderLive(null, e); });
 }
 
-function renderLive(estados, err) {
-  var wrap = document.getElementById('live-wrap');
-  var title = document.getElementById('live-title');
-  if (err) {
-    wrap.innerHTML = '<div class="live-empty">No se pudo leer el estado en vivo (puede que el Apps Script aun no tenga la hoja EnCurso - vea la guia de Google Sheets). Las demas estadisticas de arriba si funcionan normalmente.</div>';
-    title.textContent = 'Maquinas corriendo ahora mismo';
-    return;
+var _gasEstados = null, _gasErr = null, _fsLotes = [];
+function renderLive(estados, err) { _gasEstados = estados; _gasErr = err; pintarLive(); }
+function dEsc(t) { return String(t === null || t === undefined ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function dHm(ms) { var d = new Date(ms); return ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2); }
+function dDur(min) { min = Math.max(0, Math.round(min)); var h = Math.floor(min/60), m = min % 60; return h > 0 ? (h + 'h ' + ('0'+m).slice(-2) + 'm') : (m + 'm'); }
+function dClock(ms) { var s = Math.max(0, Math.floor(ms/1000)), h = Math.floor(s/3600), m = Math.floor((s%3600)/60), x = s%60; return (h > 0 ? h + ':' + ('0'+m).slice(-2) : m) + ':' + ('0'+x).slice(-2); }
+function loteStartMsD(l) {
+  var t = NaN;
+  if (l.fecha && l.hi) { var d = String(l.fecha).split('-'), p = String(l.hi).split(':'); if (d.length === 3 && p.length >= 2) t = new Date(+d[0], +d[1]-1, +d[2], +p[0], +p[1], 0, 0).getTime(); }
+  if (isNaN(t) || t > Date.now() + 3600000) t = l.ts || Date.now();
+  return t;
+}
+// Tarjeta de un lote abierto (datos de Firestore: paros y contador en vivo)
+function liveCardFs(l, now) {
+  var start = loteStartMsD(l), pd = l.parado || null, c = l.ctrAct || null, pm = l.parosMin || 0;
+  var paroOpen = pd ? Math.max(0, (now - pd.ini)/60000) : 0, el = Math.max(0, (now - start)/60000);
+  var disp = el > 1 ? Math.round(Math.max(0, el - pm - paroOpen)/el*100) : null;
+  var pct = (c && l.lotSize) ? Math.max(0, Math.min(100, Math.round(c.tubos / l.lotSize * 100))) : null;
+  var atraso = null, finProy = null;
+  if (c && c.rate > 0 && l.lotSize) {
+    var extra = Math.max(0, (pm + paroOpen) - (c.pm || 0));
+    finProy = c.t + (Math.max(0, l.lotSize - c.tubos) / c.rate + extra) * 60000;
+    if (c.stdLote) atraso = Math.round((finProy - (start + c.stdLote/0.80*60000))/60000);
   }
-  var corriendo = [];
-  for (var i = 0; i < estados.length; i++) {
-    if ((estados[i].Estado || '').toString().toUpperCase() === 'CORRIENDO') corriendo.push(estados[i]);
+  var cls = 'live-card', pill, pc;
+  if (pd) { cls += ' stop'; pill = 'PARADA'; pc = 'lc-stop'; }
+  else if (atraso === null) { pill = 'CORRIENDO'; pc = 'lc-na'; }
+  else if (atraso > 30) { cls += ' late'; pill = 'ATRASADO ' + dDur(atraso); pc = 'lc-late'; }
+  else { pill = atraso < -30 ? 'ADELANTADO ' + dDur(-atraso) : 'EN PLAN'; pc = 'lc-ok'; }
+  var h = '<div class="' + cls + '"><div class="lc-top"><div class="live-maq">' + dEsc(l.maqId) + '</div><span class="lc-pill ' + pc + '">' + pill + '</span></div>';
+  h += '<div class="live-ref">' + dEsc(l.refId || '') + (l.lotSize ? ' - lote ' + l.lotSize : '') + '</div>';
+  if (pd) {
+    h += '<div class="lc-clock" data-ini="' + pd.ini + '">' + dClock(now - pd.ini) + '</div><div class="lc-mot">' + dEsc(pd.mot) + '</div>';
+    h += '<div class="live-time">desde ' + dHm(pd.ini) + (pd.atiende ? ' - atiende ' + dEsc(pd.atiende.nom) : ' - sin mecanico') + '</div>';
   }
-  title.textContent = 'Maquinas corriendo ahora mismo (' + corriendo.length + ')';
-  if (!corriendo.length) {
-    wrap.innerHTML = '<div class="live-empty">Ninguna maquina esta marcada como corriendo en este momento.</div>';
-    return;
+  h += '<div class="lc-kpi"><div><b style="color:' + (c && c.eff !== null && c.eff !== undefined ? (c.eff >= 80 ? '#34d399' : (c.eff >= 65 ? '#fbbf24' : '#f87171')) : '#94a3b8') + '">' + (c && c.eff !== null && c.eff !== undefined ? c.eff + '%' : '--') + '</b>efic.</div><div><b>' + (disp !== null ? disp + '%' : '--') + '</b>disp.</div><div><b>' + dDur(pm + paroOpen) + '</b>perdido</div></div>';
+  if (pct !== null) h += '<div class="lc-bar"><div class="lc-fill" style="width:' + pct + '%"></div></div><div class="live-time" style="margin-top:.2rem">' + c.tubos + ' / ' + l.lotSize + ' (' + pct + '%)' + (finProy ? ' - fin ~' + dHm(Math.max(finProy, now)) : '') + '</div>';
+  else h += '<div class="live-time">Corriendo hace ' + dDur(el) + ' (desde ' + dEsc(l.hi || '') + ') - sin lectura de contador</div>';
+  return h + '</div>';
+}
+function pintarLive() {
+  var wrap = document.getElementById('live-wrap'), title = document.getElementById('live-title');
+  var now = Date.now(), fs = _fsLotes.slice(), seen = {}, i;
+  fs.sort(function(a, b) { return (a.parado ? 0 : 1) - (b.parado ? 0 : 1) || String(a.maqId).localeCompare(String(b.maqId), undefined, {numeric: true}); });
+  var h = '<div class="live-grid">', n = 0, stopped = 0;
+  for (i = 0; i < fs.length; i++) { seen[String(fs[i].maqId).toUpperCase()] = 1; h += liveCardFs(fs[i], now); n++; if (fs[i].parado) stopped++; }
+  // maquinas que EnCurso (Sheets) marca corriendo y que no estan en la nube
+  var extra = [];
+  if (_gasEstados) for (i = 0; i < _gasEstados.length; i++) {
+    var e = _gasEstados[i];
+    if ((e.Estado || '').toString().toUpperCase() === 'CORRIENDO' && !seen[String(e.MaqID || '').toUpperCase()]) extra.push(e);
   }
-  corriendo.sort(function(a, b) { return (a.MaqID || '').localeCompare(b.MaqID || '', undefined, {numeric: true}); });
-  var h = '<div class="live-grid">';
-  for (var i = 0; i < corriendo.length; i++) {
-    var e = corriendo[i];
-    h += '<div class="live-card">';
-    h += '<div class="live-maq">' + (e.MaqID || '?') + '</div>';
-    h += '<div class="live-ref">' + (e.RefID || '') + (e.Referencia ? ' - ' + e.Referencia : '') + '</div>';
-    h += '<div class="live-time">' + tiempoCorriendo(e.HoraInicio) + '</div>';
-    h += '</div>';
+  extra.sort(function(a, b) { return (a.MaqID || '').localeCompare(b.MaqID || '', undefined, {numeric: true}); });
+  for (i = 0; i < extra.length; i++) {
+    h += '<div class="live-card"><div class="live-maq">' + dEsc(extra[i].MaqID || '?') + '</div><div class="live-ref">' + dEsc(extra[i].RefID || '') + (extra[i].Referencia ? ' - ' + dEsc(extra[i].Referencia) : '') + '</div><div class="live-time">' + tiempoCorriendo(extra[i].HoraInicio) + '</div></div>';
+    n++;
   }
   h += '</div>';
+  title.textContent = 'Maquinas corriendo ahora mismo (' + n + ')' + (stopped ? ' - ' + stopped + ' parada(s)' : '');
+  if (!n) {
+    wrap.innerHTML = '<div class="live-empty">' + (_gasErr && !_fsLotes.length ? 'No se pudo leer el estado en vivo de la hoja EnCurso. ' : '') + 'Ninguna maquina esta marcada como corriendo en este momento.</div>';
+    return;
+  }
   wrap.innerHTML = h;
 }
+function iniciarLotesVivos() {
+  var db = initFichasFirebase();
+  if (!db) { setTimeout(iniciarLotesVivos, 4000); return; }
+  db.collection('fichas').where('tipo', '==', 'lote').onSnapshot(function(snap) {
+    var arr = []; snap.forEach(function(doc) { var d = doc.data() || {}; if (!d._del && d.status === 'abierto') arr.push(d); });
+    _fsLotes = arr; pintarLive();
+  }, function(e) { console.warn('lotes en vivo', e); });
+  setInterval(function() {
+    if (document.hidden) return;
+    var els = document.querySelectorAll('.lc-clock'), now = Date.now();
+    for (var i = 0; i < els.length; i++) { var ini = parseInt(els[i].getAttribute('data-ini'), 10); if (ini) els[i].textContent = dClock(now - ini); }
+  }, 1000);
+  setInterval(function() { if (!document.hidden) pintarLive(); }, 30000);
+}
+setTimeout(iniciarLotesVivos, 0);
 
 // Calcula hace cuanto empezo (HoraInicio viene como "HH:MM"), cruzando
 // medianoche sin problema ya que la planta trabaja 24/7.
