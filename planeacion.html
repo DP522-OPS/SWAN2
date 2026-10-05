@@ -68,6 +68,11 @@ table.resumen td{padding:.45rem .5rem;border-bottom:1px solid #1f2937}
 .tag-santoni{background:#1d3a5f;color:#93c5fd}
 .tag-lonati{background:#3a2f5f;color:#c4b5fd}
 .empty{text-align:center;color:#475569;padding:2rem;font-size:.85rem}
+.vv-bar{height:7px;background:#0f172a;border-radius:4px;overflow:hidden;min-width:70px}
+.vv-fill{height:100%;background:var(--green);border-radius:4px}
+.vv-pill{font-size:.68rem;font-weight:800;padding:.15rem .5rem;border-radius:10px;white-space:nowrap}
+.vv-ok{background:#064e3b;color:#6ee7b7}.vv-late{background:#7f1d1d;color:#fca5a5}.vv-warn{background:#78350f;color:#fcd34d}.vv-stop{background:#ef4444;color:#fff}
+.gbar.vivo{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.28) 0,rgba(255,255,255,.28) 4px,transparent 4px,transparent 8px);border:1.5px solid rgba(255,255,255,.7)}
 </style>
 </head>
 <body>
@@ -90,6 +95,8 @@ table.resumen td{padding:.45rem .5rem;border-bottom:1px solid #1f2937}
     </div>
     <div class="status" id="conn-status"></div>
   </div>
+
+  <div id="vivo-holder"></div>
 
   <div class="card">
     <h2>1. Catalogo</h2>
@@ -372,6 +379,7 @@ function cargarFichasMaquina(cb) {
   });
 }
 cargarCatalogo();
+iniciarVivo();
 
 // ============================================================
 // Emparejar el modelo de maquina de una referencia (REFS[3], texto
@@ -457,7 +465,19 @@ function refByCode(code) {
 // la cantidad restante del lote abierto).
 // ============================================================
 function cargarEstadoReal(cb) {
-  if (!GAS_URL) { cb({}); return; }
+  // Los lotes abiertos que reporta index.html en tiempo real (Firestore) mandan:
+  // la maquina queda libre cuando termina su lote segun el ritmo medido, no
+  // "a fin del dia". Lo que Firestore no tenga se completa con EnCurso (Sheets).
+  function fin(ocupadas) {
+    var now = Date.now();
+    for (var i = 0; i < VIVO.length; i++) {
+      var v = VIVO[i];
+      if (!v.finProy) continue;
+      ocupadas[(v.l.maqId || '').toUpperCase()] = { libreDesde: new Date(Math.max(v.finProy, now)), refActual: v.l.refId || '', vivo: true };
+    }
+    cb(ocupadas);
+  }
+  if (!GAS_URL) { fin({}); return; }
   fetch(GAS_URL + '?action=leer_estado')
     .then(function(r) { return r.json(); })
     .then(function(d) {
@@ -470,9 +490,96 @@ function cargarEstadoReal(cb) {
           ocupadas[(e.MaqID||'').toUpperCase()] = { libreDesde: finHoy, refActual: e.RefID || e.Referencia || '' };
         }
       }
-      cb(ocupadas);
+      fin(ocupadas);
     })
-    .catch(function() { cb({}); });
+    .catch(function() { fin({}); });
+}
+
+// ============================================================
+// EN CURSO AHORA: lotes abiertos con paros y contador en vivo
+// (los reporta index.html > pestana "En vivo" dentro del doc del lote).
+// ============================================================
+var VIVO = [];   // [{l, ...vivoInfo}]
+function pEsc(t) { return String(t === null || t === undefined ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function pHm(ms) { var d = new Date(ms); return ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2); }
+function pDur(min) { min = Math.max(0, Math.round(min)); var h = Math.floor(min/60), m = min % 60; return h > 0 ? (h + 'h ' + ('0'+m).slice(-2) + 'm') : (m + 'm'); }
+function pFechaHora(ms) { var d = new Date(ms); return d.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit'}) + ' ' + pHm(ms); }
+function vivoInfo(l, now) {
+  var start = NaN;
+  if (l.fecha && l.hi) {
+    var d = String(l.fecha).split('-'), t = String(l.hi).split(':');
+    if (d.length === 3 && t.length >= 2) start = new Date(+d[0], +d[1]-1, +d[2], +t[0], +t[1], 0, 0).getTime();
+  }
+  if (isNaN(start) || start > now + 3600000) start = l.ts || now;
+  var ref = refByCode(l.refId), pm = l.parosMin || 0, pd = l.parado || null;
+  var paroOpen = pd ? Math.max(0, (now - pd.ini) / 60000) : 0;
+  var elapsed = Math.max(0, (now - start) / 60000);
+  var c = l.ctrAct || null, lotSize = l.lotSize || 0;
+  var stdLote = (ref && lotSize) ? lotSize / (parseInt(ref[4]) || 12) * (parseFloat(ref[5]) || 0) : null;
+  var o = { l: l, start: start, elapsed: elapsed, pm: pm, paroOpen: paroOpen, parado: pd, ref: ref, lotSize: lotSize,
+    tubos: c ? c.tubos : null, eff: c ? c.eff : null, pct: null, finProy: null, finPlan: null, atraso: null, fuente: null,
+    disp: elapsed > 1 ? Math.round(Math.max(0, elapsed - pm - paroOpen) / elapsed * 100) : null };
+  if (c && lotSize) o.pct = Math.max(0, Math.min(100, Math.round(c.tubos / lotSize * 100)));
+  if (c && c.rate > 0 && lotSize) {
+    var falta = Math.max(0, lotSize - c.tubos);
+    var extra = Math.max(0, (pm + paroOpen) - (c.pm || 0));
+    o.finProy = c.t + (falta / c.rate + extra) * 60000; o.fuente = 'contador';
+  } else if (stdLote) {
+    var ef = (parseFloat((document.getElementById('p-eff') || {}).value) || 80) / 100;
+    o.finProy = start + (stdLote / ef + pm + paroOpen) * 60000; o.fuente = 'estimado';
+  }
+  if (stdLote) o.finPlan = start + (stdLote / 0.80) * 60000;
+  if (o.finProy && o.finPlan) o.atraso = Math.round((o.finProy - o.finPlan) / 60000);
+  return o;
+}
+function recalcVivo(docs) {
+  var now = Date.now(), out = [];
+  for (var i = 0; i < docs.length; i++) {
+    var l = docs[i];
+    if (!l || l._del || l.status !== 'abierto') continue;
+    out.push(vivoInfo(l, now));
+  }
+  out.sort(function(a, b) { return (a.l.maqId || '') < (b.l.maqId || '') ? -1 : 1; });
+  return out;
+}
+var _vivoDocs = [];
+function iniciarVivo() {
+  var db = initFichasFirebase();
+  if (!db) { setTimeout(iniciarVivo, 4000); return; }
+  db.collection('fichas').where('tipo', '==', 'lote').onSnapshot(function(snap) {
+    var arr = []; snap.forEach(function(doc) { arr.push(doc.data() || {}); });
+    _vivoDocs = arr; VIVO = recalcVivo(arr); renderVivo();
+  }, function(e) { console.warn('lotes en vivo', e); });
+  setInterval(function() { if (!document.hidden && _vivoDocs.length) { VIVO = recalcVivo(_vivoDocs); renderVivo(); } }, 30000);
+}
+function usarEffReal(v) { document.getElementById('p-eff').value = v; if (document.getElementById('plan-input').value.trim()) calcularProyeccion(); else renderVivo(); }
+function renderVivo() {
+  var h = document.getElementById('vivo-holder'); if (!h) return;
+  if (!VIVO.length) { h.innerHTML = '<div class="card"><h2>En curso ahora</h2><div class="sub">No hay lotes abiertos reportados en este momento. Cuando un operario abra un lote en index.html aparece aqui con su avance, paros y eficiencia en vivo.</div></div>'; return; }
+  var now = Date.now(), sumE = 0, cntE = 0, paradas = 0, atras = 0;
+  var rows = '';
+  for (var i = 0; i < VIVO.length; i++) {
+    var v = VIVO[i], l = v.l;
+    if (v.eff !== null && v.eff !== undefined && v.eff > 0 && v.eff <= 200) { sumE += v.eff; cntE++; }
+    var est, cls;
+    if (v.parado) { paradas++; est = 'PARADA ' + pDur(v.paroOpen) + ' - ' + pEsc(v.parado.mot); cls = 'vv-stop'; }
+    else if (v.atraso === null) { est = 'Sin lectura'; cls = 'vv-warn'; }
+    else if (v.atraso > 30) { atras++; est = 'Atrasado ' + pDur(v.atraso); cls = 'vv-late'; }
+    else if (v.atraso < -30) { est = 'Adelantado ' + pDur(-v.atraso); cls = 'vv-ok'; }
+    else { est = 'En plan'; cls = 'vv-ok'; }
+    rows += '<tr><td><b>' + pEsc(l.maqId) + '</b></td><td>' + pEsc(l.refId) + '</td>';
+    rows += '<td><div class="vv-bar"><div class="vv-fill" style="width:' + (v.pct || 0) + '%"></div></div><span style="font-size:.7rem;color:#94a3b8">' + (v.tubos !== null ? v.tubos + ' / ' : '') + (v.lotSize || '--') + (v.pct !== null ? ' (' + v.pct + '%)' : '') + '</span></td>';
+    rows += '<td>' + (v.eff !== null && v.eff !== undefined ? '<b style="color:' + (v.eff >= 80 ? '#34d399' : (v.eff >= 65 ? '#fbbf24' : '#f87171')) + '">' + v.eff + '%</b>' : '--') + '</td>';
+    rows += '<td>' + (v.disp !== null ? v.disp + '%' : '--') + '</td>';
+    rows += '<td><span class="vv-pill ' + cls + '">' + est + '</span></td>';
+    rows += '<td>' + (v.finProy ? pFechaHora(Math.max(v.finProy, now)) + (v.fuente === 'estimado' ? ' <span style="color:#64748b;font-size:.68rem">(est.)</span>' : '') : '--') + '</td>';
+    rows += '<td>' + (v.finPlan ? pFechaHora(v.finPlan) : '--') + '</td></tr>';
+  }
+  var real = cntE ? Math.round(sumE / cntE) : null;
+  var cur = parseFloat(document.getElementById('p-eff').value) || 80;
+  var sug = '';
+  if (real !== null) sug = '<div style="margin-top:.7rem;font-size:.8rem;color:#cbd5e1">Eficiencia real medida en los lotes abiertos: <b>' + real + '%</b> (la proyeccion usa ' + cur + '%). ' + (real !== cur ? '<button class="btn" style="padding:.3rem .6rem;font-size:.72rem" onclick="usarEffReal(' + real + ')">Usar ' + real + '% en la proyeccion</button>' : '') + '</div>';
+  h.innerHTML = '<div class="card"><h2>En curso ahora</h2><div class="sub">' + VIVO.length + ' lote(s) abierto(s) - ' + paradas + ' parada(s) - ' + atras + ' atrasada(s). Se actualiza solo desde los celulares de planta. "Fin plan" = inicio + tiempo estandar al 80%.</div><div class="gantt-wrap"><table class="resumen"><thead><tr><th>Maq.</th><th>Ref.</th><th>Avance</th><th>Efic. vivo</th><th>Disp.</th><th>Estado</th><th>Fin proyectado</th><th>Fin plan</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + sug + '</div>';
 }
 
 // ============================================================
@@ -517,6 +624,7 @@ function calcularProyeccion() {
   var alistMin = parseFloat(document.getElementById('p-alist').value) || 0;
   var horizonteDias = parseInt(document.getElementById('p-horizonte').value) || 30;
 
+  VIVO = recalcVivo(_vivoDocs); renderVivo();
   cargarEstadoReal(function(ocupadas) {
     var now = new Date();
     // Disponibilidad de cada maquina fisica
@@ -570,6 +678,13 @@ function calcularProyeccion() {
       refFin[row.code] = { fin: finMax, fuente: m.fuente };
     }
 
+    // lotes en curso: barra desde ahora hasta su fin proyectado
+    for (var vi = 0; vi < VIVO.length; vi++) {
+      var vv = VIVO[vi];
+      if (!vv.finProy) continue;
+      var rest = vv.lotSize ? Math.max(0, vv.lotSize - (vv.tubos || 0)) / ((vv.ref && parseInt(vv.ref[4])) || 12) : 0;
+      jobs.push({ maqId: (vv.l.maqId || '').toUpperCase(), code: vv.l.refId || '?', nombre: vv.ref ? vv.ref[1] : '', cantidad: Math.round(rest), inicio: new Date(now), fin: new Date(Math.max(vv.finProy, now.getTime())), vivo: true, atraso: vv.atraso, parado: !!vv.parado });
+    }
     renderWarnings(warnings);
     renderResultado(jobs, refFin, dispo, now, horizonteDias);
   });
@@ -690,8 +805,9 @@ function renderResultado(jobs, refFin, dispo, now, horizonteDias) {
         var left = pctOf(j.inicio), right = pctOf(j.fin);
         var width = Math.max(0.4, right - left);
         var col = colorFor(j.code);
-        var titulo = j.code + ' - ' + j.nombre + ' | ' + j.cantidad + ' doc. | ' + j.inicio.toLocaleDateString() + ' a ' + j.fin.toLocaleDateString();
-        ganttHtml += '<div class="gbar" title="' + titulo.replace(/"/g,'&quot;') + '" style="left:' + left + '%;width:' + width + '%;background:' + col + '">' + j.code + '</div>';
+        var titulo = j.code + ' - ' + j.nombre + ' | ' + j.cantidad + (j.vivo ? ' doc. pendientes (EN CURSO' + (j.parado ? ', PARADA' : '') + (j.atraso !== null && j.atraso !== undefined ? ', ' + (j.atraso > 0 ? 'atrasado ' : 'adelantado ') + pDur(Math.abs(j.atraso)) : '') + ')' : ' doc.') + ' | ' + j.inicio.toLocaleDateString() + ' a ' + j.fin.toLocaleDateString();
+        if (j.vivo) col = j.parado ? '#ef4444' : (j.atraso > 30 ? '#f97316' : '#10b981');
+        ganttHtml += '<div class="gbar' + (j.vivo ? ' vivo' : '') + '" title="' + titulo.replace(/"/g,'&quot;') + '" style="left:' + left + '%;width:' + width + '%;background:' + col + '">' + j.code + '</div>';
       }
       ganttHtml += '<div class="gnow" style="left:0%"></div>';
       ganttHtml += '</div></div></div>';
