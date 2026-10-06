@@ -1303,7 +1303,7 @@ function saveEntrega() {
   var hora = document.getElementById('re-hora').value || nowTime();
   if (!eqId) { toast('Seleccione equipo'); return; }
   if (!opIn || !turnoIn) { toast('Seleccione operario y turno que recibe'); return; }
-  var all = sg_lotes(), created = [], n = 0, closed = [];
+  var all = sg_lotes(), created = [], n = 0, closed = [], pregunta = [];
   var len = all.length;
   for (var i=0;i<len;i++) {
     var l = all[i];
@@ -1319,6 +1319,7 @@ function saveEntrega() {
     all[i] = Object.assign({}, l, v);
     closed.push(all[i]);
     if (!comp) created.push(carryParo(makeContinuation(l, ce, opIn, turnoIn, hora), l, hora));
+    else pregunta.push({ prev: all[i], op: opIn, turno: turnoIn, hora: hora });
     n++;
   }
   if (!n) { toast('Ingrese al menos un contador'); return; }
@@ -1327,6 +1328,7 @@ function saveEntrega() {
   for (var i=0;i<closed.length;i++) syncLote(closed[i]);
   toast('Entrega registrada: ' + n + ' maquinas, ' + created.length + ' lotes continuan');
   loadEntrega();
+  if (pregunta.length) queueSiguiente(pregunta);   // lotes completos: que sigue en esas maquinas?
 }
 
 function initReg() {
@@ -1810,32 +1812,48 @@ function saveCerrar() {
 }
 
 // Despues de cerrar un lote completo: la maquina sigue con la misma referencia, cambia, o se detiene
-var _sigPrev = null;
-function openSiguiente(prev) {
-  _sigPrev = prev;
-  var ref = refOf(prev.refId);
-  document.getElementById('sig-title').textContent = 'Lote cerrado en ' + prev.maqId;
+var _sigQ = [], _sigCur = null, _sigCambios = [];
+// items: {prev: lote cerrado, op: operario que sigue, turno: turno que sigue, hora: hora de inicio del nuevo}
+function openSiguiente(prev, op, turno, hora) { queueSiguiente([{ prev: prev, op: op || prev.opId, turno: turno || autoTurno(), hora: hora || prev.hf || nowTime() }]); }
+function queueSiguiente(items) {
+  _sigQ = _sigQ.concat(items);
+  if (!document.getElementById('ov-sig').classList.contains('on')) sigNext();
+}
+function sigNext() {
+  _sigCur = _sigQ.shift() || null;
+  if (!_sigCur) {
+    closeOv('ov-sig');
+    if (_sigCambios.length) {   // los cambios de referencia se abren al final, uno por uno en el formulario
+      var first = _sigCambios.shift(), rest = _sigCambios.map(function(x) { return x.prev.maqId; });
+      _sigCambios = [];
+      abrirSiguiente(Object.assign({}, first.prev, { opId: first.op }), true);
+      if (rest.length) toast('Cambio de referencia en ' + first.prev.maqId + '. Tambien falta abrir: ' + rest.join(', '));
+    }
+    return;
+  }
+  var prev = _sigCur.prev, ref = refOf(prev.refId);
+  document.getElementById('sig-title').textContent = 'Lote cerrado en ' + prev.maqId + (_sigQ.length ? ' (faltan ' + _sigQ.length + ' mas)' : '');
   document.getElementById('sig-ref').textContent = (ref ? ref[0] + ' - ' + ref[1] : (prev.refId || 'esta referencia')) + (prev.lotSize ? ' (lote de ' + prev.lotSize + ')' : '');
   openOv('ov-sig');
 }
 // Misma referencia: abre el siguiente lote al instante, contador en 0, y la maquina sigue "corriendo"
 function sigMisma() {
-  var prev = _sigPrev; closeOv('ov-sig'); if (!prev) return;
-  var hora = prev.hf || nowTime();
+  var it = _sigCur; if (!it) { closeOv('ov-sig'); return; }
+  var prev = it.prev;
   var lote = {
     id: (Date.now() + Math.floor(Math.random()*1000)).toString(), ts: Date.now(),
-    fecha: localDate(), maqId: prev.maqId, opId: prev.opId, turno: autoTurno(),
+    fecha: localDate(), maqId: prev.maqId, opId: it.op, turno: it.turno,
     refId: prev.refId, lotSize: prev.lotSize, ctrStart: 0, ctrEnd: null, tubos: null,
-    hi: hora, hf: null, dur: null, paros: [], parosMin: 0, std: null, eff: null, obs: '', status: 'abierto'
+    hi: it.hora, hf: null, dur: null, paros: [], parosMin: 0, std: null, eff: null, obs: '', status: 'abierto'
   };
   var all = sg_lotes(); all.push(lote); ss('lotes', all);
   syncEstadoActual(lote.maqId, lote.refId, lote.fecha, lote.hi, 'CORRIENDO');
-  _sigPrev = null;
   toast(prev.maqId + ' sigue corriendo ' + (prev.refId || '') + ' - nuevo lote con contador en 0');
-  updateRegStatus(); loadCerrarLotes();
+  updateRegStatus(); try { loadCerrarLotes(); } catch (e) {} try { loadEntrega(); } catch (e) {}
+  sigNext();
 }
-function sigCambio() { var prev = _sigPrev; closeOv('ov-sig'); _sigPrev = null; if (prev) abrirSiguiente(prev, true); }
-function sigParar() { closeOv('ov-sig'); _sigPrev = null; toast('Maquina libre. Abra un lote cuando vuelva a arrancar.'); }
+function sigCambio() { if (_sigCur) _sigCambios.push(_sigCur); sigNext(); }
+function sigParar() { if (_sigCur) toast(_sigCur.prev.maqId + ' queda libre. Abra un lote cuando vuelva a arrancar.'); sigNext(); }
 
 // After closing a complete lot: jump to Abrir with same machine (ref only if not a change), counter 0
 function abrirSiguiente(prev, cambioRef) {
