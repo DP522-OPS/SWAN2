@@ -1049,7 +1049,7 @@ function renderDash() {
     pk.innerHTML = ph;
   }
   var stopEl = document.getElementById('d-stops');
-  if (stopEl) stopEl.innerHTML = stopbarHtml(abiertos, mmap, nowMs);
+  if (stopEl) stopEl.innerHTML = dupbarHtml(abiertos) + stopbarHtml(abiertos, mmap, nowMs);
 
   var html = '';
   for (var ei=0; ei<EQS.length; ei++) {
@@ -1543,7 +1543,11 @@ function saveAbrir() {
   if (csv === '') { toast('Ingrese el contador inicio'); return; }
   var cs = parseFloat(csv);
   var prevOpen = sg_lotes().filter(function(l){ return l.maqId===maqId && isOpen(l); });
-  if (prevOpen.length && !confirm(maqId + ' ya tiene ' + prevOpen.length + ' lote(s) abierto(s). Normalmente se cierra antes de abrir otro. Abrir de todos modos?')) return;
+  if (prevOpen.length) {   // una maquina solo puede tener UN lote abierto: evita duplicados por error
+    var po = prevOpen[0];
+    toast(maqId + ' ya tiene un lote abierto (' + (po.refId || 'sin ref.') + ', desde ' + (po.hi || '--') + '). Cierrelo primero en "Cerrar Lote".');
+    return;
+  }
 
   var lote = {
     id: Date.now().toString(), ts: Date.now(),
@@ -1840,6 +1844,7 @@ function sigNext() {
 function sigMisma() {
   var it = _sigCur; if (!it) { closeOv('ov-sig'); return; }
   var prev = it.prev;
+  if (sg_lotes().some(function(x) { return x.maqId === prev.maqId && isOpen(x); })) { toast(prev.maqId + ' ya tiene un lote abierto'); sigNext(); return; }
   var lote = {
     id: (Date.now() + Math.floor(Math.random()*1000)).toString(), ts: Date.now(),
     fecha: localDate(), maqId: prev.maqId, opId: it.op, turno: it.turno,
@@ -3000,7 +3005,12 @@ function renderLive() {
   var maqId = _fichaMaq, now = Date.now(), ml = sg('maqs', []), m = null, l = null, ls = sg_lotes();
   for (var i = 0; i < ml.length; i++) if (ml[i].id === maqId) { m = ml[i]; break; }
   for (var j = 0; j < ls.length; j++) if (ls[j].maqId === maqId && isOpen(ls[j])) { l = ls[j]; break; }
-  var h = '';
+  var h = '', dups = ls.filter(function(x) { return x.maqId === maqId && isOpen(x); });
+  if (dups.length > 1) {
+    h += '<div class="al al-warn" style="margin-bottom:.7rem"><strong>Esta maquina tiene ' + dups.length + ' lotes abiertos.</strong> Solo debe haber uno. Elimine el que se abrio por error:';
+    for (var di = 0; di < dups.length; di++) h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-top:.45rem;font-size:.8rem"><span>' + lvEsc(dups[di].refId || 'sin ref.') + ' - ' + lvEsc(dups[di].hi || '--') + ' - ctr ' + (dups[di].ctrStart === null || dups[di].ctrStart === undefined ? '--' : dups[di].ctrStart) + '</span><button class="btn btn-red btn-sm" onclick="borrarLoteError(\'' + dups[di].id + '\')">Eliminar</button></div>';
+    h += '</div>';
+  }
   if (l) h += liveCardHtml(l, m, now);
   else h += '<div class="lv-hd"><div class="lv-maq">' + lvEsc(maqId) + (m ? ' <span style="font-weight:500;font-size:.78rem;color:var(--steel)">' + lvEsc(m.model) + (m.diam ? ' ' + lvEsc(m.diam) : '') + '</span>' : '') + '</div></div><div class="lv-note" style="margin:.6rem 0">Esta maquina no tiene lote abierto.</div><div class="lv-act"><button class="btn btn-amber" onclick="abrirLoteDe(\'' + lvEsc(maqId) + '\')">Abrir lote</button></div>';
   try { var det = showMotivo(maqId, true); if (det) h += '<div class="lv-sec" style="margin-top:1rem">Hoy en esta maquina</div>' + det; } catch (e) {}
@@ -3022,6 +3032,27 @@ function liveTick() {
     if (_fichaMaq && document.querySelectorAll('.ov.on').length === 1) renderLive();
     if (viewOn('view-dash')) renderDash();
   }
+}
+// Aviso de maquinas con mas de un lote abierto (error de registro)
+function dupbarHtml(abiertos) {
+  var by = {}, i, dup = [];
+  for (i = 0; i < abiertos.length; i++) { (by[abiertos[i].maqId] = by[abiertos[i].maqId] || []).push(abiertos[i]); }
+  for (var k in by) if (by[k].length > 1) dup.push(k);
+  if (!dup.length) return '';
+  dup.sort();
+  var h = '<div class="stopbar" style="background:#fff7ed;border-color:#fdba74"><div class="stopbar-t" style="color:#c2410c">&#9888; ' + dup.length + ' maquina(s) con lotes abiertos repetidos</div>';
+  for (i = 0; i < dup.length; i++) h += '<div class="stop-row" onclick="openFicha(\'' + dup[i] + '\')"><strong>' + dup[i] + '</strong><span style="font-weight:700">' + by[dup[i]].length + ' lotes abiertos</span><span style="font-size:.72rem;color:#c2410c;font-weight:700">Toque para corregir</span></div>';
+  return h + '</div>';
+}
+function borrarLoteError(id) {
+  var all = sg_lotes(), idx = -1, i;
+  for (i = 0; i < all.length; i++) if (all[i].id === id) { idx = i; break; }
+  if (idx < 0) return;
+  var l = all[idx];
+  if (!window.confirm('Eliminar el lote ' + (l.refId || '') + ' de ' + l.maqId + ' (abierto a las ' + (l.hi || '--') + ')?\n\nUse esto solo si se abrio por error.')) return;
+  all.splice(idx, 1); ss('lotes', all);
+  toast('Lote eliminado');
+  renderLive(); refreshDashIfOn(); try { updateRegStatus(); } catch (e) {}
 }
 // Barra de maquinas paradas (Dashboard)
 function stopbarHtml(abiertos, mm, now) {
