@@ -77,6 +77,15 @@ tr:last-child td{border-bottom:none}
 .rec-act{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.9rem}
 .rec-aviso{font-size:.78rem;color:#fbbf24;margin:.4rem 0}
 .rec-ok{color:#10b981}
+
+#rec-cam-ov{display:none;position:fixed;inset:0;z-index:50;background:rgba(2,6,23,.92);align-items:center;justify-content:center;padding:1rem}
+.cam-box{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:1rem;width:100%;max-width:880px;display:flex;flex-direction:column;gap:.7rem}
+.cam-box video{width:100%;max-height:68vh;background:#000;border-radius:10px;object-fit:contain}
+.cam-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.cam-row select{background:#0f172a;border:1.5px solid #334155;color:#e2e8f0;border-radius:8px;padding:.45rem .6rem;font-size:.8rem;max-width:260px}
+.btn-cap{background:var(--green);color:#fff;border:none;border-radius:10px;padding:.8rem 1.6rem;font-size:1rem;font-weight:800;cursor:pointer}
+.btn-cap:hover{background:#0d9d6f}
+.cam-st{font-size:.8rem;color:#94a3b8;min-height:1.2rem}
 </style>
 </head>
 <body>
@@ -179,9 +188,11 @@ tr:last-child td{border-bottom:none}
       <div class="card-t">Recibo de hilo: foto del rotulo a la planilla F10-P-PRH-004</div>
       <div class="card-d">Tome una foto de cada rotulo (una caja por foto, de frente y con buena luz). La app lee los datos, busca el item por lote y torsion (con el catalogo de las fichas de precosteo) y arma la fila de la planilla. Lo que no se pueda leer o no cuadre queda en <span class="falta-ej">amarillo</span> para completarlo a mano antes de pasarlo a IBM.</div>
       <div class="form-row">
-        <button class="btn-calc" onclick="document.getElementById('rec-cam').click()">&#128247; Foto de rotulo</button>
+        <button class="btn-calc" onclick="recAbrirCamara()">&#128247; Camara en vivo</button>
         <button class="refres" onclick="document.getElementById('rec-gal').click()">Elegir de galeria (varias)</button>
+        <button class="refres" id="rec-btn-nat" style="display:none" onclick="document.getElementById('rec-cam').click()">Camara del celular (app)</button>
         <button class="refres" onclick="recAddManual()">+ Fila manual</button>
+        <button class="refres" onclick="recProbarQwen()">Probar conexion con Qwen</button>
         <input type="file" id="rec-cam" accept="image/*" capture="environment" style="display:none" onchange="recFiles(this)">
         <input type="file" id="rec-gal" accept="image/*" multiple style="display:none" onchange="recFiles(this)">
       </div>
@@ -211,6 +222,20 @@ tr:last-child td{border-bottom:none}
     <div class="status-line" id="fichas-status">Cargando desde Fichas...</div>
   </div>
 
+</div>
+
+<div id="rec-cam-ov">
+  <div class="cam-box">
+    <div class="card-t" style="margin:0">Camara en vivo: encuadre el rotulo y pulse Capturar</div>
+    <video id="rec-video" playsinline autoplay muted></video>
+    <div class="cam-row">
+      <button class="btn-cap" onclick="recCapturar()">&#128248; Capturar (barra espaciadora)</button>
+      <select id="rec-cam-sel" onchange="recIniciarCamara(this.value)" style="display:none"></select>
+      <button class="refres" onclick="recCerrarCamara()">Cerrar</button>
+      <span class="sub" id="rec-cam-n"></span>
+    </div>
+    <div class="cam-st" id="rec-cam-st"></div>
+  </div>
 </div>
 
 <script>
@@ -887,6 +912,8 @@ function recStatus(msg, bad) {
   if (!el) return;
   el.textContent = msg;
   el.style.color = bad ? '#f59e0b' : '#64748b';
+  var c2 = document.getElementById('rec-cam-st');
+  if (c2) { c2.textContent = msg; c2.style.color = bad ? '#fbbf24' : '#94a3b8'; }
 }
 function recGuardar(r) {
   RECIBO.rows[r.id] = r;
@@ -1112,7 +1139,7 @@ function leerRotuloIA(dataUrl, cb) {
         cb(new Error('El servidor no reconoce la lectura de rotulos. Actualice el Apps Script (guia_google_sheets.html) y redespliegue como Nueva version.'));
         return;
       }
-      if (resp.error) { cb(new Error(resp.error)); return; }
+      if (resp.error) { cb(new Error(resp.error + recHintError(resp.error))); return; }
       cb(null, resp.datos || {});
     })
     .catch(function (e) { cb(new Error('Sin respuesta del servidor: ' + e.message)); });
@@ -1152,6 +1179,114 @@ function recProcesar() {
     });
   });
 }
+
+
+function recHintError(m) {
+  m = String(m || '');
+  if (m.indexOf('QWEN_API_KEY') >= 0) return ' -> Guarde la clave en Apps Script: Configuracion del proyecto > Propiedades del script.';
+  if (m.indexOf(' 401') >= 0 || m.indexOf('InvalidApiKey') >= 0 || m.indexOf('invalid_api_key') >= 0) return ' -> La clave no es valida para esa region. Revise QWEN_API_KEY y QWEN_BASE_URL (Singapur/internacional vs China).';
+  if (m.indexOf(' 404') >= 0 || m.toLowerCase().indexOf('model') >= 0) return ' -> El modelo o la URL base no corresponden a su cuenta. Ajuste QWEN_MODEL / QWEN_BASE_URL en las propiedades del script.';
+  if (m.indexOf(' 429') >= 0 || m.toLowerCase().indexOf('quota') >= 0) return ' -> Se agoto el cupo/credito de Qwen o hay demasiadas llamadas seguidas.';
+  if (m.indexOf('Limite diario') >= 0) return ' -> Suba MAX_FOTOS_DIA en las propiedades del script si necesita mas.';
+  return '';
+}
+function recProbarQwen() {
+  var c = document.createElement('canvas');
+  c.width = 900; c.height = 420;
+  var g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#000'; g.font = 'bold 44px Arial';
+  g.fillText('LOT NO: DFE401219SS-C', 40, 110);
+  g.fillText('BOBBIN: 6', 40, 200);
+  g.fillText('N.W.: 27.780 KG', 40, 290);
+  g.fillText('G.W.: 30.550 KG', 40, 380);
+  recStatus('Probando conexion con Qwen (usa 1 foto del cupo diario)...');
+  leerRotuloIA(c.toDataURL('image/jpeg', 0.9), function (err, d) {
+    if (err) { recStatus('Prueba fallida: ' + err.message, true); return; }
+    var ok = String(d.lote || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === 'DFE401219SSC' && toNumRec(d.peso_neto) === 27.78;
+    recStatus((ok ? 'Conexion OK. ' : 'Qwen responde, pero leyo distinto a lo esperado. ') + 'Leyo: lote ' + (d.lote || '-') + ', unidades ' + (d.unidades === undefined || d.unidades === null ? '-' : d.unidades) + ', neto ' + (d.peso_neto === undefined || d.peso_neto === null ? '-' : d.peso_neto) + ' (esperado DFE401219SS-C, 6, 27.78).', !ok);
+  });
+}
+
+// ---------- Camara en vivo ----------
+var _camStream = null, _camCount = 0;
+function recAbrirCamara() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    recStatus('Este navegador no permite usar la camara en esta pagina. Use "Elegir de galeria".', true);
+    return;
+  }
+  _camCount = 0;
+  document.getElementById('rec-cam-n').textContent = '';
+  document.getElementById('rec-cam-st').textContent = 'Iniciando camara...';
+  document.getElementById('rec-cam-ov').style.display = 'flex';
+  recIniciarCamara(null);
+}
+function recDetenerCamara() {
+  if (_camStream) {
+    var t = _camStream.getTracks();
+    for (var i = 0; i < t.length; i++) t[i].stop();
+    _camStream = null;
+  }
+}
+function recIniciarCamara(deviceId) {
+  recDetenerCamara();
+  var v = { width: { ideal: 2560 }, height: { ideal: 1440 } };
+  if (deviceId) v.deviceId = { exact: deviceId }; else v.facingMode = { ideal: 'environment' };
+  navigator.mediaDevices.getUserMedia({ video: v, audio: false }).then(function (stream) {
+    _camStream = stream;
+    var el = document.getElementById('rec-video');
+    el.srcObject = stream;
+    var pr = el.play(); if (pr && pr.catch) pr.catch(function () {});
+    document.getElementById('rec-cam-st').textContent = 'Camara lista. Acerque el rotulo hasta que se lea bien y pulse Capturar.';
+    if (navigator.mediaDevices.enumerateDevices) {
+      navigator.mediaDevices.enumerateDevices().then(function (list) {
+        var cams = list.filter(function (d) { return d.kind === 'videoinput'; });
+        var sel = document.getElementById('rec-cam-sel');
+        if (cams.length < 2) { sel.style.display = 'none'; return; }
+        var cur = stream.getVideoTracks()[0] && stream.getVideoTracks()[0].getSettings ? stream.getVideoTracks()[0].getSettings().deviceId : '';
+        var o = '';
+        for (var i = 0; i < cams.length; i++) o += '<option value="' + recEsc(cams[i].deviceId) + '"' + (cams[i].deviceId === cur ? ' selected' : '') + '>' + recEsc(cams[i].label || ('Camara ' + (i + 1))) + '</option>';
+        sel.innerHTML = o;
+        sel.style.display = '';
+      });
+    }
+  }).catch(function (e) {
+    var m = (e && e.name) || '';
+    var msg = m === 'NotAllowedError' ? 'La camara esta bloqueada. Pulse el candado junto a la direccion de la pagina, permita la Camara y vuelva a abrir.' :
+      m === 'NotFoundError' ? 'No se encontro ninguna camara en este equipo.' :
+      m === 'NotReadableError' ? 'La camara esta en uso por otra aplicacion. Cierrela e intente de nuevo.' :
+      'No se pudo abrir la camara (' + (e && e.message ? e.message : m) + ').';
+    document.getElementById('rec-cam-st').textContent = msg;
+    document.getElementById('rec-cam-st').style.color = '#fbbf24';
+  });
+}
+function recCerrarCamara() {
+  recDetenerCamara();
+  document.getElementById('rec-cam-ov').style.display = 'none';
+}
+function recCapturar() {
+  var v = document.getElementById('rec-video');
+  if (!_camStream || !v.videoWidth) { document.getElementById('rec-cam-st').textContent = 'La camara todavia no esta lista.'; return; }
+  var c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+  c.toBlob(function (b) {
+    if (!b) return;
+    var f;
+    try { f = new File([b], 'rotulo.jpg', { type: 'image/jpeg' }); } catch (e) { f = b; }
+    _camCount++;
+    document.getElementById('rec-cam-n').textContent = 'Capturadas: ' + _camCount;
+    RECQ.push(f);
+    recTotal++;
+    recProcesar();
+  }, 'image/jpeg', 0.92);
+}
+document.addEventListener('keydown', function (ev) {
+  var ov = document.getElementById('rec-cam-ov');
+  if (!ov || ov.style.display !== 'flex') return;
+  if (ev.key === 'Escape') { recCerrarCamara(); }
+  else if (ev.key === ' ' || ev.code === 'Space') { ev.preventDefault(); recCapturar(); }
+});
 
 // ---------- Cabecera de la planilla ----------
 function recHdrGet() {
@@ -1268,6 +1403,9 @@ function recImprimir() {
 // ---------- Inicio del modulo ----------
 function recInit() {
   RECIBO.fecha = recFechaLocal();
+  if (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    var nb = document.getElementById('rec-btn-nat'); if (nb) nb.style.display = '';
+  }
   var fe = document.getElementById('rec-fecha');
   if (fe) fe.value = RECIBO.fecha;
   recHdrLoad();
