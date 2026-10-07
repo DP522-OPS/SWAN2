@@ -63,6 +63,20 @@ tr:last-child td{border-bottom:none}
 .refres:hover{border-color:var(--amber);color:var(--amber)}
 .maq-mini{display:inline-block;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:.2rem .5rem;font-size:.7rem;margin:.15rem;color:#94a3b8}
 .maq-mini b{color:#fff}
+.rec-t{min-width:880px}
+.rec-t th{white-space:nowrap}
+.rec-t td{padding:.3rem .35rem;vertical-align:middle}
+.rec-t input[type=text],.rec-t select{width:100%;background:#0f172a;border:1.5px solid #334155;border-radius:6px;color:#e2e8f0;padding:.35rem .45rem;font-size:.8rem;min-width:62px}
+.rec-t input:focus,.rec-t select:focus{outline:none;border-color:var(--amber)}
+.rec-t td.falta input,.rec-t td.falta select{background:#5a3a07;border-color:#f59e0b;color:#fff}
+.rec-t td.falta::after{content:'';}
+.falta-ej{background:#5a3a07;border:1.5px solid #f59e0b;color:#fff;padding:0 .35rem;border-radius:5px}
+.rec-btn-x{background:none;border:none;color:#ef4444;cursor:pointer;font-size:1rem;padding:.2rem .4rem}
+.rec-ph{background:none;border:none;cursor:pointer;font-size:1rem;padding:.2rem .3rem}
+.rec-hdr .f-group input{min-width:120px}
+.rec-act{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.9rem}
+.rec-aviso{font-size:.78rem;color:#fbbf24;margin:.4rem 0}
+.rec-ok{color:#10b981}
 </style>
 </head>
 <body>
@@ -88,6 +102,7 @@ tr:last-child td{border-bottom:none}
     <button class="tab-btn on" id="tab-corriendo" onclick="showTab('corriendo')">Lo que esta corriendo</button>
     <button class="tab-btn" id="tab-consumo" onclick="showTab('consumo')">Consumo de hoy (cerrados)</button>
     <button class="tab-btn" id="tab-pedido" onclick="showTab('pedido')">Calculadora de pedido</button>
+    <button class="tab-btn" id="tab-recibo" onclick="showTab('recibo')">&#128247; Recibo de hilo (rotulos)</button>
   </div>
 
   <div class="panel on" id="panel-corriendo">
@@ -156,6 +171,38 @@ tr:last-child td{border-bottom:none}
       </div>
       <div id="ped-ref-info" class="sub" style="margin-bottom:.6rem"></div>
       <div id="pedido-body"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-recibo">
+    <div class="card">
+      <div class="card-t">Recibo de hilo: foto del rotulo a la planilla F10-P-PRH-004</div>
+      <div class="card-d">Tome una foto de cada rotulo (una caja por foto, de frente y con buena luz). La app lee los datos, busca el item por lote y torsion (con el catalogo de las fichas de precosteo) y arma la fila de la planilla. Lo que no se pueda leer o no cuadre queda en <span class="falta-ej">amarillo</span> para completarlo a mano antes de pasarlo a IBM.</div>
+      <div class="form-row">
+        <button class="btn-calc" onclick="document.getElementById('rec-cam').click()">&#128247; Foto de rotulo</button>
+        <button class="refres" onclick="document.getElementById('rec-gal').click()">Elegir de galeria (varias)</button>
+        <button class="refres" onclick="recAddManual()">+ Fila manual</button>
+        <input type="file" id="rec-cam" accept="image/*" capture="environment" style="display:none" onchange="recFiles(this)">
+        <input type="file" id="rec-gal" accept="image/*" multiple style="display:none" onchange="recFiles(this)">
+      </div>
+      <div class="status-line" id="rec-status"></div>
+      <div class="form-row rec-hdr">
+        <div class="f-group"><label>Fecha de recibo</label><input type="date" id="rec-fecha" onchange="recCambiarFecha(this.value)"></div>
+        <div class="f-group"><label>Tipo de movimiento</label><input type="text" id="rec-h-mov" placeholder="Ej: Entrada" onchange="recHdrSave()"></div>
+        <div class="f-group"><label>Origen</label><input type="text" id="rec-h-ori" onchange="recHdrSave()"></div>
+        <div class="f-group"><label>Destino</label><input type="text" id="rec-h-des" onchange="recHdrSave()"></div>
+        <div class="f-group"><label>Numero</label><input type="text" id="rec-h-num" onchange="recHdrSave()"></div>
+      </div>
+      <datalist id="cat-items"></datalist>
+      <div id="rec-aviso" class="rec-aviso"></div>
+      <div id="rec-body"></div>
+      <div id="rec-resumen" style="margin-top:1rem"></div>
+      <div class="rec-act">
+        <button class="btn-calc" onclick="recDescargarExcel()">Descargar Excel</button>
+        <button class="refres" onclick="recCopiar()">Copiar filas (para pegar)</button>
+        <button class="refres" onclick="recImprimir()">Imprimir planilla</button>
+        <button class="refres" onclick="recMarcarTodas()">Marcar todas como pasadas a IBM</button>
+      </div>
     </div>
   </div>
 
@@ -360,7 +407,7 @@ function loadMaterialesCache() {
 // Tabs
 // ============================================================
 function showTab(name) {
-  var tabs = ['corriendo', 'consumo', 'pedido'];
+  var tabs = ['corriendo', 'consumo', 'pedido', 'recibo'];
   for (var i = 0; i < tabs.length; i++) {
     document.getElementById('tab-' + tabs[i]).classList.toggle('on', tabs[i] === name);
     document.getElementById('panel-' + tabs[i]).classList.toggle('on', tabs[i] === name);
@@ -605,11 +652,656 @@ function calcularPedido() {
 }
 
 // ============================================================
+// RECIBO DE HILO: foto del rotulo -> fila de la planilla F10-P-PRH-004
+// - Catalogo (lote -> item S/Z): el mismo de las fichas de precosteo
+//   (HILOS_DB) + las fibras de las fichas cargadas desde Firestore.
+// - Lectura de la foto: Apps Script (doPost, accion leer_rotulo) -> Qwen-VL.
+// - Las filas se guardan por dia en Firestore (doc RECIBO-AAAA-MM-DD en
+//   la coleccion fichas), asi el enconador las toma en el celular y la
+//   secretaria las exporta desde el computador.
+// ============================================================
+var CAT_BASE = [
+  ['Nylon Tex','Nylon TEX 70/68','DJC706830','9451','9452'],
+  ['Nylon Tex','Nylon TEX 40/34','DFE403439','9453','9454'],
+  ['Nylon Tex','Nylon 100/96','DFE1009636','9445','9446'],
+  ['Nylon Tex','Nylon 40/34 - 50/72','04-224','7091','7092'],
+  ['Nylon Tex','Nylon 22/7 TX','DFE20718','9457','9458'],
+  ['Nylon Tex','Nylon 44/12 TX','DFE401219','9449','9450'],
+  ['Nylon Tex','Nylon 70/68/2','04-215','9451','9452'],
+  ['Nylon Tex','Nylon 70/68/2','5565','9451','9452'],
+  ['Nylon Tex','Nylon Body Fresh 40/40','BF40001','BF001',''],
+  ['Nylon Rig','Nylon Rigido 70/68','FJB706806','2215',''],
+  ['Nylon Rig','Nylon Rigido 40/34','FJE403405','9784',''],
+  ['Nylon Rig','Nylon Rig Tilobal 70/48B','FJC704820','9748',''],
+  ['Nylon Rig','Nylon 20/7 Rigido','FJE20728','2125',''],
+  ['Lycra','Lycra 22-22-7','OS-958','6085','6086'],
+  ['Lycra','Lycra 22-22-7','OS-973','2377','2378'],
+  ['Lycra','Lycra 22-22-7','OS-974','2379','2380'],
+  ['Lycra','Lycra 22-40-34','OS-981','6056','6057'],
+  ['Lycra','Lycra 22-40-34','OS-978','2414','2415'],
+  ['Lycra','Lycra 22-70-68','OS-969','9545','9546'],
+  ['Lycra','Lycra 78-22-7','OS-972','5899','6532'],
+  ['Lycra','Lycra 40-22-7','OS-934','1114','1115'],
+  ['Lycra','Lycra 140-70-68','OS-980','9564','9565'],
+  ['Lycra','Spandex 140','09609','2142',''],
+  ['Lycra','Lycra 17-8-5','OS-954','5243','5244'],
+  ['Lycra','Lycra 17-8-5','OS-961','5243','5244'],
+  ['Lycra','Lycra 20-8-5','OS-963','4590','4591'],
+  ['Lycra','Spandex 15','C2167G','2138',''],
+  ['Poliester','Poliester 50/72','YD77001','9515',''],
+  ['Poliester','Poliester 75D/72','7572Q559','9516',''],
+  ['Modal','Nm 40/1','1861472','9264','9264']
+];
+
+var RECIBO = { fecha: '', rows: {}, unsub: null };
+var RECQ = [], recBusy = false, recTotal = 0, recHechas = 0, recErrs = 0;
+var RECFOTOS = {};
+var _recPend = false, _recRendering = false;
+
+function recFechaLocal(d) {
+  d = d || new Date();
+  var m = d.getMonth() + 1, dd = d.getDate();
+  return d.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (dd < 10 ? '0' + dd : dd);
+}
+function recEsc(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function toNumRec(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return isNaN(v) ? null : v;
+  var s = String(v).replace(',', '.').replace(/[^0-9.\-]/g, '');
+  if (!s || s === '.' || s === '-') return null;
+  var n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function round2(n) { return Math.round(n * 100) / 100; }
+function limpiaTxt(v) { return v == null ? '' : String(v).trim(); }
+
+// ---------- Catalogo ----------
+function normLoteOS(s) {
+  s = String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  // En los rotulos a mano la "O" y el "0" de OS-954 / 05-954 se confunden: se tratan igual
+  return s.replace(/^(05|0S|O5)/, 'OS');
+}
+function getCatalogo() {
+  var out = [], seen = {};
+  function add(tipo, titulo, lote, iS, iZ) {
+    iS = limpiaTxt(iS); iZ = limpiaTxt(iZ);
+    if (!iS && !iZ) return;
+    var k = normLoteOS(lote) + '|' + iS + '|' + iZ + '|' + limpiaTxt(titulo);
+    if (seen[k]) return;
+    seen[k] = 1;
+    out.push({ tipo: tipo || '', titulo: titulo || '', lote: lote || '', itemS: iS, itemZ: iZ });
+  }
+  for (var i = 0; i < CAT_BASE.length; i++) {
+    var b = CAT_BASE[i];
+    add(b[0], b[1], b[2], b[3], b[4]);
+  }
+  var codes = Object.keys(MATERIALES);
+  for (var j = 0; j < codes.length; j++) {
+    var fib = MATERIALES[codes[j]].fibras || [];
+    for (var k = 0; k < fib.length; k++) {
+      var f = fib[k];
+      add(f.nombre, f.titulo, f.lote, f.itemS, f.itemZ);
+    }
+  }
+  return out;
+}
+function itemPara(c, t) {
+  if (!c) return '';
+  if (!c.itemZ || c.itemZ === c.itemS) return c.itemS;
+  if (t === 'S') return c.itemS;
+  if (t === 'Z') return c.itemZ;
+  return '';
+}
+function uniqPares(lista) {
+  var seen = {}, out = [];
+  for (var i = 0; i < lista.length; i++) {
+    var k = lista[i].itemS + '|' + lista[i].itemZ;
+    if (!seen[k]) { seen[k] = 1; out.push(lista[i]); }
+  }
+  return out;
+}
+// Busca en el catalogo por lote. Lotes cortos: solo coincidencia exacta.
+// Lotes largos (7+ caracteres): el rotulo del proveedor puede traer sufijos
+// (DFE401219SS-C -> DFE401219), asi que se acepta que empiece igual.
+function buscarCatalogo(loteRaw) {
+  var L = normLoteOS(loteRaw);
+  if (!L) return [];
+  var cat = getCatalogo(), exact = [], pref = [];
+  for (var i = 0; i < cat.length; i++) {
+    var cl = normLoteOS(cat[i].lote);
+    if (!cl) continue;
+    if (cl === L) exact.push(cat[i]);
+    else if (cl.length >= 7 && L.indexOf(cl) === 0) pref.push(cat[i]);
+  }
+  return exact.length ? exact : pref;
+}
+function recBuscarPorTitulo(titulo) {
+  var g = String(titulo || '').match(/\d+/g);
+  if (!g || g.length < 2) return null;
+  var key = g.join('-');
+  var cat = getCatalogo(), hit = [];
+  for (var i = 0; i < cat.length; i++) {
+    if (cat[i].tipo !== 'Lycra') continue;
+    var cg = String(cat[i].titulo).match(/\d+/g);
+    if (cg && cg.join('-') === key) hit.push(cat[i]);
+  }
+  hit = uniqPares(hit);
+  return hit.length === 1 ? hit[0] : null;
+}
+function catPorItem(item) {
+  item = limpiaTxt(item);
+  if (!item) return null;
+  var cat = getCatalogo();
+  for (var i = 0; i < cat.length; i++) {
+    var c = cat[i];
+    if (c.itemS === item || c.itemZ === item) {
+      var t = '';
+      if (c.itemZ && c.itemZ !== c.itemS) t = (c.itemS === item) ? 'S' : 'Z';
+      return { c: c, t: t };
+    }
+  }
+  return null;
+}
+function recResolverItem(r) {
+  var m = uniqPares(buscarCatalogo(r.lote));
+  if (m.length === 1) {
+    r.desc = m[0].titulo;
+    r.item = itemPara(m[0], r.torsion);
+    r.itemAuto = true;
+  } else if (!r.itemAuto) {
+    r.item = r.item || '';
+  } else {
+    r.item = '';
+  }
+}
+
+// ---------- Filas ----------
+function recNuevoId() { return 'r' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36); }
+function recFilaVacia(fuente) {
+  return { id: recNuevoId(), ts: Date.now(), item: '', desc: '', caja: '', lote: '', unidades: null, neto: null, bruto: null, tara: null, torsion: '', ibm: false, fuente: fuente || 'manual', itemAuto: false, dudas: [] };
+}
+function recFilaDeLectura(d) {
+  d = d || {};
+  var r = recFilaVacia('foto');
+  var du = {}, dd = d.dudas || [];
+  var mapa = { peso_neto: 'neto', peso_bruto: 'bruto', tara: 'tara' };
+  for (var i = 0; i < dd.length; i++) du[mapa[dd[i]] || dd[i]] = 1;
+  r.lote = limpiaTxt(d.lote);
+  r.unidades = toNumRec(d.unidades);
+  r.neto = toNumRec(d.peso_neto);
+  r.bruto = toNumRec(d.peso_bruto);
+  r.tara = toNumRec(d.tara);
+  var t = limpiaTxt(d.torsion).toUpperCase();
+  r.torsion = (t === 'S' || t === 'Z') ? t : '';
+  r.caja = limpiaTxt(d.caja).replace(/\s+/g, '');
+  if (r.neto !== null) r.neto = round2(r.neto);
+  if (r.neto === null && r.bruto !== null && r.tara !== null) r.neto = round2(r.bruto - r.tara);
+  // Control cruzado: neto = bruto - tara (rotulos a mano)
+  if (r.neto !== null && r.bruto !== null && r.tara !== null && Math.abs(r.bruto - r.tara - r.neto) > 0.06) du.neto = 1;
+  recResolverItem(r);
+  if (!r.item) {
+    var c = recBuscarPorTitulo(d.titulo);
+    if (c) {
+      r.item = itemPara(c, r.torsion);
+      r.desc = c.titulo;
+      r.itemAuto = true;
+      du.lote = 1; // el item salio por titulo y no por lote: confirmar
+    }
+  }
+  if (!r.desc) r.desc = limpiaTxt(d.titulo) || limpiaTxt(d.especificacion);
+  r.dudas = Object.keys(du);
+  return r;
+}
+function recTorsionRequerida(r) {
+  if (!r.item) return true;
+  var h = catPorItem(r.item);
+  if (!h) return false;
+  return !!(h.c.itemZ && h.c.itemZ !== h.c.itemS && !h.t);
+}
+function recFlags(r) {
+  var f = {}, du = r.dudas || [];
+  if (!r.item) f.item = 1;
+  if (!r.caja) f.caja = 1;
+  if (!r.lote) f.lote = 1;
+  if (r.unidades === null || r.unidades === undefined) f.unidades = 1;
+  if (r.neto === null || r.neto === undefined) f.neto = 1;
+  if (!r.torsion && recTorsionRequerida(r)) f.torsion = 1;
+  for (var i = 0; i < du.length; i++) f[du[i]] = 1;
+  return f;
+}
+function recFlagCount(r) { return Object.keys(recFlags(r)).length; }
+
+// ---------- Persistencia ----------
+function recDocId() { return 'RECIBO-' + RECIBO.fecha; }
+function recLocalKey() { return 'hilos_recibo_' + RECIBO.fecha; }
+function recLocalSave() {
+  try { localStorage.setItem(recLocalKey(), JSON.stringify(RECIBO.rows)); } catch (e) {}
+}
+function recLocalLoad() {
+  try { var raw = localStorage.getItem(recLocalKey()); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; }
+}
+function recStatus(msg, bad) {
+  var el = document.getElementById('rec-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = bad ? '#f59e0b' : '#64748b';
+}
+function recGuardar(r) {
+  RECIBO.rows[r.id] = r;
+  recLocalSave();
+  var db = initFichasFirebase();
+  if (!db) return;
+  var rows = {};
+  rows[r.id] = JSON.parse(JSON.stringify(r));
+  db.collection('fichas').doc(recDocId()).set({ tipo: 'recibo_hilo', fecha: RECIBO.fecha, updatedAt: Date.now(), rows: rows }, { merge: true })
+    .catch(function (e) { recStatus('No se pudo guardar en la nube (' + e.message + '). Queda guardado en este dispositivo.', true); });
+}
+function recDel(id) {
+  if (!RECIBO.rows[id]) return;
+  if (!confirm('Eliminar esta caja de la planilla?')) return;
+  delete RECIBO.rows[id];
+  delete RECFOTOS[id];
+  recLocalSave();
+  var db = initFichasFirebase();
+  if (db) {
+    db.collection('fichas').doc(recDocId()).update('rows.' + id, firebase.firestore.FieldValue.delete())
+      .catch(function (e) { console.warn('No se pudo borrar en la nube', e); });
+  }
+  renderRecibo();
+}
+function recEscuchar() {
+  if (RECIBO.unsub) { try { RECIBO.unsub(); } catch (e) {} RECIBO.unsub = null; }
+  RECIBO.rows = recLocalLoad();
+  renderRecibo();
+  var db = initFichasFirebase();
+  if (!db) { recStatus('Sin conexion a la nube: las filas se guardan solo en este dispositivo.', true); return; }
+  var fechaEscucha = RECIBO.fecha;
+  RECIBO.unsub = db.collection('fichas').doc(recDocId()).onSnapshot(function (doc) {
+    if (fechaEscucha !== RECIBO.fecha) return;
+    var d = doc.exists ? (doc.data() || {}) : {};
+    var remoto = d.rows || {};
+    if (doc.exists || !Object.keys(RECIBO.rows).length) RECIBO.rows = remoto;
+    recLocalSave();
+    if (recEnEdicion()) { _recPend = true; } else { renderRecibo(); }
+  }, function (err) {
+    console.warn('Recibo: error escuchando', err);
+    recStatus('No se pudo leer de la nube (' + err.message + '). Se usa lo guardado en este dispositivo.', true);
+  });
+}
+function recEnEdicion() {
+  var a = document.activeElement;
+  var body = document.getElementById('rec-body');
+  return !!(a && body && body.contains(a) && (a.tagName === 'INPUT' || a.tagName === 'SELECT'));
+}
+function recCambiarFecha(v) {
+  if (!v) return;
+  RECIBO.fecha = v;
+  recEscuchar();
+}
+
+// ---------- Edicion ----------
+function recSet(id, campo, val) {
+  var r = RECIBO.rows[id];
+  if (!r) return;
+  var num = (campo === 'unidades' || campo === 'neto' || campo === 'bruto' || campo === 'tara');
+  if (campo === 'ibm') r.ibm = !!val;
+  else if (num) { r[campo] = toNumRec(val); if (campo === 'neto' && r.neto !== null) r.neto = round2(r.neto); }
+  else if (campo === 'torsion') r.torsion = limpiaTxt(val).toUpperCase();
+  else r[campo] = limpiaTxt(val);
+  if (campo === 'caja') r.caja = r.caja.replace(/\s+/g, '');
+  r.dudas = (r.dudas || []).filter(function (x) { return x !== campo; });
+  if (campo === 'item') {
+    r.itemAuto = false;
+    var h = catPorItem(r.item);
+    if (h) { r.desc = h.c.titulo; if (h.t) r.torsion = h.t; }
+  } else if ((campo === 'lote' || campo === 'torsion') && (r.itemAuto || !r.item)) {
+    recResolverItem(r);
+  }
+  recGuardar(r);
+  renderRecibo();
+}
+function recAddManual() {
+  var r = recFilaVacia('manual');
+  recGuardar(r);
+  renderRecibo();
+}
+function recMarcarTodas() {
+  var ids = Object.keys(RECIBO.rows);
+  if (!ids.length) return;
+  if (!confirm('Marcar las ' + ids.length + ' cajas de esta fecha como ya pasadas a IBM?')) return;
+  for (var i = 0; i < ids.length; i++) { RECIBO.rows[ids[i]].ibm = true; recGuardar(RECIBO.rows[ids[i]]); }
+  renderRecibo();
+}
+function recVerFoto(id) {
+  var b = RECFOTOS[id];
+  if (!b) { recStatus('La foto solo se conserva en el celular que la tomo, mientras la pagina siga abierta.', true); return; }
+  window.open(URL.createObjectURL(b), '_blank');
+}
+
+// ---------- Pantalla ----------
+function recCelda(r, campo, fl, valor, extra) {
+  return '<td' + (fl[campo] ? ' class="falta"' : '') + '><input type="text" data-id="' + r.id + '" data-f="' + campo + '" value="' + recEsc(valor) + '"' + (extra || '') + '></td>';
+}
+function renderRecibo() {
+  var body = document.getElementById('rec-body');
+  if (!body) return;
+  _recPend = false;
+  _recRendering = true;
+  try { renderReciboInner(body); } finally { _recRendering = false; }
+}
+function renderReciboInner(body) {
+  var dl = document.getElementById('cat-items');
+  var catN = getCatalogo();
+  if (dl && dl.getAttribute('data-n') !== String(catN.length)) {
+    var cat = catN, seen = {}, o = '';
+    for (var q = 0; q < cat.length; q++) {
+      var c = cat[q];
+      var pares = [[c.itemS, c.itemZ && c.itemZ !== c.itemS ? ' S' : ''], [c.itemZ && c.itemZ !== c.itemS ? c.itemZ : '', ' Z']];
+      for (var w = 0; w < pares.length; w++) {
+        if (!pares[w][0]) continue;
+        var kk = pares[w][0] + '|' + c.titulo;
+        if (seen[kk]) continue;
+        seen[kk] = 1;
+        o += '<option value="' + recEsc(pares[w][0]) + '">' + recEsc(c.titulo + pares[w][1]) + '</option>';
+      }
+    }
+    dl.innerHTML = o;
+    dl.setAttribute('data-n', String(catN.length));
+  }
+  var ids = Object.keys(RECIBO.rows).sort(function (a, b) { return (RECIBO.rows[a].ts || 0) - (RECIBO.rows[b].ts || 0); });
+  var faltan = 0;
+  if (!ids.length) {
+    body.innerHTML = '<div class="empty">Sin cajas registradas para esta fecha. Tome la foto de un rotulo para empezar.</div>';
+    document.getElementById('rec-aviso').textContent = '';
+    recResumen();
+    return;
+  }
+  var html = '<div style="overflow-x:auto"><table class="rec-t"><thead><tr><th>#</th><th>Item</th><th>Descripcion</th><th>Caja #</th><th>Lote</th><th>Unid.</th><th>Peso neto</th><th>Torsion</th><th title="Ya pasada a IBM">IBM</th><th></th></tr></thead><tbody>';
+  for (var i = 0; i < ids.length; i++) {
+    var r = RECIBO.rows[ids[i]];
+    var fl = recFlags(r);
+    if (Object.keys(fl).length) faltan++;
+    html += '<tr>';
+    html += '<td class="sub">' + (i + 1) + '</td>';
+    html += recCelda(r, 'item', fl, r.item, ' list="cat-items" inputmode="numeric"');
+    html += recCelda(r, 'desc', {}, r.desc);
+    html += recCelda(r, 'caja', fl, r.caja, ' inputmode="numeric"');
+    html += recCelda(r, 'lote', fl, r.lote);
+    html += recCelda(r, 'unidades', fl, r.unidades === null || r.unidades === undefined ? '' : r.unidades, ' inputmode="numeric"');
+    html += recCelda(r, 'neto', fl, r.neto === null || r.neto === undefined ? '' : r.neto, ' inputmode="decimal"');
+    html += '<td' + (fl.torsion ? ' class="falta"' : '') + '><select data-id="' + r.id + '" data-f="torsion">' +
+      '<option value=""' + (!r.torsion ? ' selected' : '') + '></option>' +
+      '<option value="S"' + (r.torsion === 'S' ? ' selected' : '') + '>S</option>' +
+      '<option value="Z"' + (r.torsion === 'Z' ? ' selected' : '') + '>Z</option></select></td>';
+    html += '<td style="text-align:center"><input type="checkbox" data-id="' + r.id + '" data-f="ibm"' + (r.ibm ? ' checked' : '') + '></td>';
+    html += '<td style="white-space:nowrap">' +
+      (RECFOTOS[r.id] ? '<button class="rec-ph" data-act="foto" data-id="' + r.id + '" title="Ver la foto">&#128247;</button>' : '') +
+      '<button class="rec-btn-x" data-act="del" data-id="' + r.id + '" title="Eliminar">&#10005;</button></td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+  body.innerHTML = html;
+  var av = document.getElementById('rec-aviso');
+  av.textContent = faltan ? (faltan + ' de ' + ids.length + ' filas tienen datos por completar o confirmar (celdas amarillas).') : 'Todas las filas estan completas.';
+  av.style.color = faltan ? '#fbbf24' : '#10b981';
+  recResumen();
+}
+function recOrdenadas() {
+  var arr = [];
+  for (var k in RECIBO.rows) if (RECIBO.rows.hasOwnProperty(k)) arr.push(RECIBO.rows[k]);
+  arr.sort(function (a, b) {
+    var ia = a.item || '~', ib = b.item || '~';
+    var na = parseInt(ia, 10), nb = parseInt(ib, 10);
+    if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+    if (ia !== ib) return ia < ib ? -1 : 1;
+    var ca = a.caja || '', cb = b.caja || '';
+    if (ca !== cb) return ca < cb ? -1 : 1;
+    return (a.ts || 0) - (b.ts || 0);
+  });
+  return arr;
+}
+function recResumen() {
+  var el = document.getElementById('rec-resumen');
+  if (!el) return;
+  var arr = recOrdenadas();
+  if (!arr.length) { el.innerHTML = ''; return; }
+  var por = {}, orden = [], totC = 0, totU = 0, totK = 0, pend = 0;
+  for (var i = 0; i < arr.length; i++) {
+    var r = arr[i], k = r.item || '(sin item)';
+    if (!por[k]) { por[k] = { item: k, desc: r.desc || '', cajas: 0, unid: 0, kg: 0 }; orden.push(k); }
+    por[k].cajas++; por[k].unid += r.unidades || 0; por[k].kg += r.neto || 0;
+    if (!por[k].desc && r.desc) por[k].desc = r.desc;
+    totC++; totU += r.unidades || 0; totK += r.neto || 0;
+    if (!r.ibm) pend++;
+  }
+  var h = '<div class="card-t" style="font-size:.78rem">Resumen por item (para cuadrar con la requisicion)</div><table><thead><tr><th>Item</th><th>Descripcion</th><th style="text-align:right">Cajas</th><th style="text-align:right">Unidades</th><th style="text-align:right">Kg neto</th></tr></thead><tbody>';
+  for (var j = 0; j < orden.length; j++) {
+    var p = por[orden[j]];
+    h += '<tr><td class="tit">' + recEsc(p.item) + '</td><td class="sub">' + recEsc(p.desc) + '</td><td class="kg">' + p.cajas + '</td><td class="kg">' + p.unid + '</td><td class="kg">' + p.kg.toFixed(2) + '</td></tr>';
+  }
+  h += '<tr class="total-row"><td colspan="2">Total (' + pend + ' cajas pendientes de pasar a IBM)</td><td class="kg">' + totC + '</td><td class="kg">' + totU + '</td><td class="kg">' + totK.toFixed(2) + '</td></tr></tbody></table>';
+  el.innerHTML = h;
+}
+
+// ---------- Foto -> IA ----------
+function recRedimensionar(file, cb) {
+  var url = URL.createObjectURL(file);
+  var img = new Image();
+  img.onload = function () {
+    var max = 1800, w = img.naturalWidth, h = img.naturalHeight;
+    var k = Math.min(1, max / Math.max(w, h));
+    var c = document.createElement('canvas');
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    var dataUrl = c.toDataURL('image/jpeg', 0.85);
+    c.toBlob(function (b) { cb(null, { dataUrl: dataUrl, blob: b }); }, 'image/jpeg', 0.85);
+  };
+  img.onerror = function () { URL.revokeObjectURL(url); cb(new Error('No se pudo abrir la imagen')); };
+  img.src = url;
+}
+function leerRotuloIA(dataUrl, cb) {
+  if (!GAS_URL) { cb(new Error('Falta conectar con el servidor (icono Conexion de arriba).')); return; }
+  fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'leer_rotulo', imagen: dataUrl }) })
+    .then(function (r) { return r.text(); })
+    .then(function (txt) {
+      var resp;
+      try { resp = JSON.parse(txt); } catch (e) {
+        cb(new Error('El servidor no reconoce la lectura de rotulos. Actualice el Apps Script (guia_google_sheets.html) y redespliegue como Nueva version.'));
+        return;
+      }
+      if (resp.error) { cb(new Error(resp.error)); return; }
+      cb(null, resp.datos || {});
+    })
+    .catch(function (e) { cb(new Error('Sin respuesta del servidor: ' + e.message)); });
+}
+function recFiles(input) {
+  var files = Array.prototype.slice.call(input.files || []);
+  input.value = '';
+  if (!files.length) return;
+  for (var i = 0; i < files.length; i++) RECQ.push(files[i]);
+  recTotal += files.length;
+  recProcesar();
+}
+function recProcesar() {
+  if (recBusy) return;
+  var f = RECQ.shift();
+  if (!f) {
+    var msg = recHechas + ' foto(s) leidas' + (recErrs ? ', ' + recErrs + ' con error (quedaron como fila en blanco para llenar a mano)' : '') + '. Revise las celdas amarillas.';
+    recStatus(msg, recErrs > 0);
+    recTotal = 0; recHechas = 0; recErrs = 0;
+    return;
+  }
+  recBusy = true;
+  recStatus('Leyendo foto ' + (recHechas + 1) + ' de ' + recTotal + '...');
+  recRedimensionar(f, function (err, res) {
+    function fin(row, blob) {
+      if (blob) RECFOTOS[row.id] = blob;
+      recGuardar(row);
+      renderRecibo();
+      recHechas++;
+      recBusy = false;
+      recProcesar();
+    }
+    if (err) { recErrs++; recStatus(err.message, true); fin(recFilaVacia('foto'), null); return; }
+    leerRotuloIA(res.dataUrl, function (e2, datos) {
+      if (e2) { recErrs++; recStatus(e2.message, true); fin(recFilaVacia('foto'), res.blob); return; }
+      fin(recFilaDeLectura(datos), res.blob);
+    });
+  });
+}
+
+// ---------- Cabecera de la planilla ----------
+function recHdrGet() {
+  return {
+    mov: document.getElementById('rec-h-mov').value,
+    ori: document.getElementById('rec-h-ori').value,
+    des: document.getElementById('rec-h-des').value,
+    num: document.getElementById('rec-h-num').value
+  };
+}
+function recHdrSave() {
+  try { localStorage.setItem('hilos_rec_hdr', JSON.stringify(recHdrGet())); } catch (e) {}
+}
+function recHdrLoad() {
+  try {
+    var h = JSON.parse(localStorage.getItem('hilos_rec_hdr') || '{}');
+    document.getElementById('rec-h-mov').value = h.mov || '';
+    document.getElementById('rec-h-ori').value = h.ori || '';
+    document.getElementById('rec-h-des').value = h.des || '';
+    document.getElementById('rec-h-num').value = h.num || '';
+  } catch (e) {}
+}
+
+// ---------- Exportar ----------
+function recConfirmarFaltantes() {
+  var arr = recOrdenadas(), n = 0;
+  for (var i = 0; i < arr.length; i++) if (recFlagCount(arr[i])) n++;
+  if (!n) return true;
+  return confirm('Hay ' + n + ' filas con datos por completar (celdas amarillas). Exportar de todos modos?');
+}
+function recVacia(r) {
+  return !r.item && !r.caja && !r.lote && (r.unidades === null || r.unidades === undefined) && (r.neto === null || r.neto === undefined);
+}
+function recFilasExport() {
+  var arr = recOrdenadas(), out = [];
+  for (var i = 0; i < arr.length; i++) {
+    var r = arr[i];
+    if (recVacia(r)) continue;
+    out.push([r.item || '', r.desc || '', r.caja || '', r.lote || '',
+      r.unidades === null || r.unidades === undefined ? '' : r.unidades,
+      r.neto === null || r.neto === undefined ? '' : r.neto, r.torsion || '']);
+  }
+  return out;
+}
+function recDescargarCsv() {
+  var h = recHdrGet(), rows = recFilasExport();
+  var lines = [['F10-P-PRH-004 ENTRADA Y SALIDA DE MATERIALES'], ['Fecha', RECIBO.fecha, 'Movimiento', h.mov, 'Origen', h.ori, 'Destino', h.des, 'Numero', h.num], [],
+    ['ITEM', 'DESCRIPCION', 'CAJA #', 'LOTE', 'UNIDADES', 'PESO NETO', 'TORSION']].concat(rows);
+  var csv = '﻿' + lines.map(function (l) {
+    return l.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(';');
+  }).join('\r\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'recibo_hilo_' + RECIBO.fecha + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+function recDescargarExcel() {
+  if (!Object.keys(RECIBO.rows).length) { recStatus('No hay filas para exportar.', true); return; }
+  if (!recConfirmarFaltantes()) return;
+  function generar() {
+    var h = recHdrGet(), rows = recFilasExport();
+    var aoa = [['F10-P-PRH-004 ENTRADA Y SALIDA DE MATERIALES'], ['Fecha', RECIBO.fecha, 'Movimiento', h.mov, 'Origen', h.ori, 'Destino', h.des, 'Numero', h.num], [],
+      ['ITEM', 'DESCRIPCION', 'CAJA #', 'LOTE', 'UNIDADES', 'PESO NETO', 'TORSION']].concat(rows);
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch: 10 }, { wch: 26 }, { wch: 12 }, { wch: 16 }, { wch: 10 }, { wch: 11 }, { wch: 9 }];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Planilla');
+    XLSX.writeFile(wb, 'recibo_hilo_' + RECIBO.fecha + '.xlsx');
+  }
+  if (window.XLSX) { generar(); return; }
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = generar;
+  s.onerror = function () { recStatus('No se pudo cargar el generador de Excel; se descarga en CSV (abre en Excel).', true); recDescargarCsv(); };
+  document.head.appendChild(s);
+}
+function recCopiar() {
+  var rows = recFilasExport();
+  if (!rows.length) { recStatus('No hay filas para copiar.', true); return; }
+  if (!recConfirmarFaltantes()) return;
+  var tsv = rows.map(function (r) { return r.join('\t'); }).join('\n');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(tsv).then(function () { recStatus(rows.length + ' filas copiadas. Pegue en Excel o donde las necesite.'); })
+      .catch(function () { recStatus('El navegador no permitio copiar. Use Descargar Excel.', true); });
+  } else { recStatus('El navegador no permite copiar. Use Descargar Excel.', true); }
+}
+function recImprimir() {
+  var arr = recOrdenadas();
+  if (!arr.length) { recStatus('No hay filas para imprimir.', true); return; }
+  var h = recHdrGet();
+  var rows = '', prev = null;
+  for (var i = 0; i < arr.length; i++) {
+    var r = arr[i];
+    if (recVacia(r)) continue;
+    var nuevo = (r.item || '') !== prev;
+    prev = r.item || '';
+    rows += '<tr' + (nuevo ? ' class="g"' : '') + '><td>' + (nuevo ? recEsc(r.item) : '') + '</td><td>' + (nuevo ? recEsc(r.desc) : '') + '</td><td>' + recEsc(r.caja) + '</td><td>' + recEsc(r.lote) + '</td><td class="n">' + recEsc(r.unidades === null || r.unidades === undefined ? '' : r.unidades) + '</td><td class="n">' + recEsc(r.neto === null || r.neto === undefined ? '' : r.neto) + '</td><td class="c">' + recEsc(r.torsion) + '</td></tr>';
+  }
+  var w = window.open('', '_blank');
+  if (!w) { recStatus('El navegador bloqueo la ventana de impresion. Permita ventanas emergentes.', true); return; }
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>F10-P-PRH-004 ' + recEsc(RECIBO.fecha) + '</title><style>' +
+    'body{font-family:Arial,sans-serif;font-size:12px;margin:18px}h1{font-size:15px;text-align:center;margin:0 0 8px}' +
+    '.hd{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px}.hd span{border-bottom:1px solid #000;min-width:110px;display:inline-block;padding:0 4px}' +
+    'table{border-collapse:collapse;width:100%}th,td{border:1px solid #000;padding:3px 5px}th{background:#eee;font-size:11px}' +
+    'td.n{text-align:right}td.c{text-align:center}tr.g td{border-top:2px solid #000}' +
+    '</style></head><body><h1>F10-P-PRH-004 &mdash; ENTRADA Y SALIDA DE MATERIALES</h1><div class="hd">' +
+    '<div>Fecha: <span>' + recEsc(RECIBO.fecha) + '</span></div><div>Movimiento: <span>' + recEsc(h.mov) + '</span></div><div>Origen: <span>' + recEsc(h.ori) + '</span></div><div>Destino: <span>' + recEsc(h.des) + '</span></div><div>Numero: <span>' + recEsc(h.num) + '</span></div></div>' +
+    '<table><thead><tr><th>ITEM</th><th>DESCRIPCION</th><th>CAJA #</th><th>LOTE</th><th>UNIDADES</th><th>PESO NETO</th><th>TORSION</th></tr></thead><tbody>' + rows + '</tbody></table></body></html>');
+  w.document.close();
+  w.focus();
+  setTimeout(function () { w.print(); }, 300);
+}
+
+// ---------- Inicio del modulo ----------
+function recInit() {
+  RECIBO.fecha = recFechaLocal();
+  var fe = document.getElementById('rec-fecha');
+  if (fe) fe.value = RECIBO.fecha;
+  recHdrLoad();
+  var body = document.getElementById('rec-body');
+  body.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (_recRendering) return;
+    var id = t.getAttribute && t.getAttribute('data-id');
+    var f = t.getAttribute && t.getAttribute('data-f');
+    if (!id || !f) return;
+    recSet(id, f, f === 'ibm' ? t.checked : t.value);
+  });
+  body.addEventListener('click', function (ev) {
+    var t = ev.target;
+    var a = t.getAttribute && t.getAttribute('data-act');
+    if (!a) return;
+    var id = t.getAttribute('data-id');
+    if (a === 'del') recDel(id);
+    else if (a === 'foto') recVerFoto(id);
+  });
+  body.addEventListener('focusout', function () {
+    setTimeout(function () { if (_recPend && !recEnEdicion()) renderRecibo(); }, 80);
+  });
+  recEscuchar();
+}
+
+// ============================================================
 // INICIO
 // ============================================================
 var cachedMats = loadMaterialesCache();
 if (cachedMats) { MATERIALES = cachedMats; fillPedidoDatalist(); }
+recInit();
 syncMateriales(function() {
+  renderRecibo();
   if (GAS_URL) { cargarCorriendo(); cargarConsumoHoy(); }
 });
 </script>

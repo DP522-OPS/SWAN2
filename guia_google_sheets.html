@@ -204,6 +204,111 @@ function leerFilas(fechaFiltro) {
   }
   return { filas: filas, total: filas.length };
 }
+
+// ============================================================
+// Lectura de rotulos de cajas de hilo con Qwen-VL (pestana
+// "Recibo de hilo" de hilos.html). La clave NUNCA va en la pagina:
+// se guarda aqui, en Configuracion del proyecto > Propiedades del script:
+//   QWEN_API_KEY   (obligatoria)  clave de Alibaba Cloud Model Studio
+//   QWEN_BASE_URL  (opcional)     por defecto https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+//   QWEN_MODEL     (opcional)     por defecto qwen-vl-max
+//   MAX_FOTOS_DIA  (opcional)     tope de fotos por dia, por defecto 300
+// ============================================================
+var PROMPT_ROTULO = [
+  'You read photos of yarn box labels from a textile plant in Colombia.',
+  'Two kinds of label exist: (A) printed supplier labels (often Chinese/English, or Hyosung/Creora), and',
+  '(B) handwritten Swantex labels "F-PRH-005 IDENTIFICACION DE MATERIALES" with the fields Liberacion, Item, Nro. (top right),',
+  'Fecha, Maquina, Material, Proveedor, Titulo, Torsion, Lote, Unidades, Peso bruto, Tara, Peso neto.',
+  'Return ONLY one JSON object, no other text, with exactly these keys:',
+  '{"tipo_rotulo":"proveedor|swantex|desconocido","lote":string|null,"especificacion":string|null,"titulo":string|null,',
+  '"unidades":number|null,"peso_neto":number|null,"peso_bruto":number|null,"tara":number|null,',
+  '"torsion":"S"|"Z"|null,"caja":string|null,"dudas":[string]}.',
+  'Meaning: lote = LOT NO / Lot Number / Lote, copied exactly as printed or written (do not add or remove characters; Swantex lots look like OS-954).',
+  'especificacion = SPEC / Denier (e.g. 40D/12F). titulo = the Titulo field of a Swantex label (e.g. 17-8-5).',
+  'unidades = number of cones/bobbins (BOBBIN, Units, Unidades). peso_neto = N.W. / Net Wt / Peso neto in kg.',
+  'peso_bruto = G.W. / Gross Wt / Peso bruto in kg. tara = Tara in kg.',
+  'torsion = S or Z only if written on the label. caja = the number written under Nro. on Swantex labels (null on supplier labels).',
+  'Rules: NEVER guess. If a value is blurry, covered by a stamp, cut off or ambiguous, use null and add its key name to dudas.',
+  'Numbers use a dot as decimal separator and no units. Ignore green or purple ink stamps and dates stamped by the plant.'
+].join(' ');
+
+function doPost(e) {
+  var salida;
+  try {
+    var body = JSON.parse((e.postData ? e.postData.contents : '') || '{}');
+    if (body.action === 'leer_rotulo') {
+      salida = leerRotulo(body.imagen);
+    } else {
+      salida = { error: 'Accion desconocida' };
+    }
+  } catch (err) {
+    salida = { error: err.message };
+  }
+  return ContentService.createTextOutput(JSON.stringify(salida)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function leerRotulo(imagen) {
+  var props = PropertiesService.getScriptProperties();
+  var key = props.getProperty('QWEN_API_KEY');
+  if (!key) return { error: 'Falta QWEN_API_KEY en las propiedades del script.' };
+  if (!imagen || String(imagen).indexOf('data:image/') !== 0) return { error: 'Imagen invalida.' };
+  if (imagen.length > 7000000) return { error: 'Imagen demasiado grande.' };
+
+  // Tope diario para que nadie gaste credito por error
+  var max = parseInt(props.getProperty('MAX_FOTOS_DIA') || '300', 10);
+  var hoy = Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd');
+  var cont = (props.getProperty('FOTOS_CONTADOR') || '').split('|');
+  var n = (cont[0] === hoy) ? parseInt(cont[1] || '0', 10) : 0;
+  if (n >= max) return { error: 'Limite diario de fotos alcanzado (' + max + ').' };
+  props.setProperty('FOTOS_CONTADOR', hoy + '|' + (n + 1));
+
+  var base = (props.getProperty('QWEN_BASE_URL') || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/+$/, '');
+  var modelo = props.getProperty('QWEN_MODEL') || 'qwen-vl-max';
+  var resp = UrlFetchApp.fetch(base + '/chat/completions', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + key },
+    muteHttpExceptions: true,
+    payload: JSON.stringify({
+      model: modelo,
+      temperature: 0,
+      messages: [{ role: 'user', content: [
+        { type: 'image_url', image_url: { url: imagen } },
+        { type: 'text', text: PROMPT_ROTULO }
+      ] }]
+    })
+  });
+  var code = resp.getResponseCode();
+  var txt = resp.getContentText();
+  if (code !== 200) return { error: 'Qwen respondio ' + code + ': ' + txt.substring(0, 300) };
+  var j = JSON.parse(txt);
+  var out = j.choices[0].message.content;
+  if (Array.isArray(out)) {
+    out = out.map(function (p) { return p.text || ''; }).join('');
+  }
+  var a = out.indexOf('{');
+  var z = out.lastIndexOf('}');
+  if (a === -1 || z === -1) return { error: 'Qwen no devolvio datos legibles: ' + out.substring(0, 200) };
+  return { ok: true, datos: JSON.parse(out.substring(a, z + 1)), modelo: modelo };
+}
+
+// Ejecutela UNA vez desde el editor (boton Ejecutar): pide los permisos
+// de conexion externa y comprueba que la clave, la URL y el modelo funcionan.
+function probarQwen() {
+  var props = PropertiesService.getScriptProperties();
+  var base = (props.getProperty('QWEN_BASE_URL') || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/+$/, '');
+  var resp = UrlFetchApp.fetch(base + '/chat/completions', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + props.getProperty('QWEN_API_KEY') },
+    muteHttpExceptions: true,
+    payload: JSON.stringify({
+      model: props.getProperty('QWEN_MODEL') || 'qwen-vl-max',
+      messages: [{ role: 'user', content: 'Responde solo: OK' }]
+    })
+  });
+  Logger.log(resp.getResponseCode() + ' ' + resp.getContentText().substring(0, 300));
+}
 </pre>
       <button class="copy-btn" onclick="copyGas()">Copiar</button>
     </div>
@@ -266,6 +371,18 @@ function leerFilas(fechaFiltro) {
     <h3>Materia prima (hilos) en tiempo real</h3>
     <p>Abra <strong>hilos.html</strong> y pegue ahi la misma URL del servidor (paso 5).</p>
     <p>Con el codigo actualizado (paso 3), cada vez que un operario abre o cierra un lote la app avisa al servidor que referencia esta corriendo en cada maquina. La pestana <strong>"Lo que esta corriendo"</strong> de Hilos usa eso para calcular cuanto hilo se necesita hoy, sin esperar a que se cierren los lotes.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-n">9</div>
+  <div class="step-body">
+    <h3>Lectura de rotulos de cajas (pestana "Recibo de hilo")</h3>
+    <p>Con el codigo del paso 3 ya actualizado (incluye <strong>doPost</strong>), falta guardar la clave de Qwen en el servidor:</p>
+    <p>1) En Apps Script, engranaje <strong>Configuracion del proyecto</strong> &rarr; <strong>Propiedades del script</strong> &rarr; <em>Agregar propiedad</em>: <span class="url">QWEN_API_KEY</span> = su clave de Alibaba Cloud Model Studio. Opcionales: <span class="url">QWEN_BASE_URL</span> (copiela tal cual la muestra la consola de Qwen para su region) y <span class="url">QWEN_MODEL</span> (por defecto qwen-vl-max).</p>
+    <p>2) En el editor elija la funcion <strong>probarQwen</strong> y pulse <strong>Ejecutar</strong>. Acepte los permisos. En <em>Registro de ejecucion</em> debe aparecer "200 ...".</p>
+    <p>3) <strong>Implementar &rarr; Administrar implementaciones &rarr; lapiz &rarr; Version: Nueva version &rarr; Implementar</strong> (la URL no cambia).</p>
+    <div class="alert">La clave se guarda solo en el servidor, nunca en la pagina de GitHub (que es publica). El servidor corta a 300 fotos por dia por si alguien lo llama por error (cambie <span class="url">MAX_FOTOS_DIA</span> si necesita mas).</div>
   </div>
 </div>
 
