@@ -394,8 +394,24 @@ function extractDiam(s) {
 
 var OVERRIDES = {};
 try { OVERRIDES = JSON.parse(localStorage.getItem('swx_plan_overrides') || '{}'); } catch(e) {}
-function saveOverrides() { try { localStorage.setItem('swx_plan_overrides', JSON.stringify(OVERRIDES)); } catch(e) {} }
+function saveOverrides() {
+  try { localStorage.setItem('swx_plan_overrides', JSON.stringify(OVERRIDES)); localStorage.setItem('swx_plan_ov_ts', String(Date.now())); } catch(e) {}
+  try { var db = initFichasFirebase(); if (db) db.collection('fichas').doc('SWAN2-OPS-CONFIG').set({ planOverrides: OVERRIDES, planOvTs: Date.now() }, { merge: true }).catch(function(e){ console.warn('overrides nube', e); }); } catch(e) {}
+}
+// Al abrir: si la nube tiene ajustes mas recientes se usan; si los locales son mas nuevos se suben.
+function cargarOverridesNube() {
+  try {
+    var db = initFichasFirebase(); if (!db) return;
+    db.collection('fichas').doc('SWAN2-OPS-CONFIG').get().then(function(doc) {
+      var d = doc.exists ? (doc.data() || {}) : {}, lts = parseInt(localStorage.getItem('swx_plan_ov_ts') || '0', 10) || 0;
+      if (d.planOverrides && (d.planOvTs || 0) > lts) {
+        OVERRIDES = d.planOverrides; localStorage.setItem('swx_plan_overrides', JSON.stringify(OVERRIDES)); localStorage.setItem('swx_plan_ov_ts', String(d.planOvTs));
+      } else if (Object.keys(OVERRIDES).length && lts > (d.planOvTs || 0)) saveOverrides();
+    }).catch(function(){});
+  } catch(e) {}
+}
 
+cargarOverridesNube();
 function grupoKey(tipo, modelo, diam) { return tipo + '|' + modelo + '|' + diam; }
 
 function matchGrupos(ref) {

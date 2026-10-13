@@ -884,6 +884,7 @@ function ss(k, v) {
   MEM[k] = v;
   if (LS_OK) { try { localStorage.setItem('swx_' + k, JSON.stringify(v)); } catch(e) {} }
   if (k === 'lotes') scheduleLotesPush();
+  if (k === 'maqs' || k === 'ops') { try { localStorage.setItem('swx_cfgts_' + k, String(Date.now())); } catch(e) {} if (typeof scheduleCfgPush === 'function') scheduleCfgPush(); }
 }
 // Guarda sin marcar cambios ni disparar subida (lo usa la mezcla con la nube)
 function ssRaw(k, v) {
@@ -1075,8 +1076,8 @@ function startRefsCloudSync() {
 
 // ============ INIT ============
 function init() {
-  if (!sg('maqs', null)) ss('maqs', MAQS_DEF.map(function(m) { return {id:m[0],type:m[1],model:m[2],diam:m[3],teamId:m[4],nfc:'',active:true}; }));
-  if (!sg('ops', null)) ss('ops', [
+  if (!sg('maqs', null)) ssRaw('maqs', MAQS_DEF.map(function(m) { return {id:m[0],type:m[1],model:m[2],diam:m[3],teamId:m[4],nfc:'',active:true}; }));
+  if (!sg('ops', null)) ssRaw('ops', [
     {id:'OP02',name:'Operario E2',teamId:'E2',nfc:''},
     {id:'OP03',name:'Operario E3',teamId:'E3',nfc:''},
     {id:'OP05',name:'Operario E5',teamId:'E5',nfc:''},
@@ -2782,35 +2783,61 @@ function initRefsFromCache() {
 // "fichas" que ya usan las referencias, en un documento reservado que
 // fichaToRefRow ya ignora (no tiene header.referencia).
 var OPS_CLOUD_DOC = 'SWAN2-OPS-CONFIG';
-function syncOpsToCloud(list) {
+// Documento unico de configuracion compartida: operarios, maquinas (con NFC),
+// y ajustes de planeacion. Cada campo lleva su propia marca de tiempo; gana el
+// mas reciente, y NUNCA se pierde el NFC ya asignado.
+var _cfgTimer = null;
+function cfgTs(k) { try { return parseInt(localStorage.getItem('swx_cfgts_' + k) || '0', 10) || 0; } catch(e) { return 0; } }
+function scheduleCfgPush() { clearTimeout(_cfgTimer); _cfgTimer = setTimeout(pushCfgToCloud, 700); }
+function pushCfgToCloud() {
   var db = initFichasFirebase();
   if (!db) return;
-  db.collection('fichas').doc(OPS_CLOUD_DOC).set({ ops: list, updatedAt: Date.now() }).catch(function(e) {
-    console.warn('Error sincronizando operarios', e);
+  var p = { updatedAt: Date.now() };
+  var ops = sg('ops', null), maqs = sg('maqs', null);
+  if (ops) { p.ops = ops; p.opsTs = cfgTs('ops') || Date.now(); }
+  if (maqs) { p.maqs = maqs; p.maqsTs = cfgTs('maqs') || Date.now(); }
+  db.collection('fichas').doc(OPS_CLOUD_DOC).set(p, { merge: true }).catch(function(e) {
+    console.warn('Error sincronizando configuracion', e);
   });
+}
+function syncOpsToCloud() { scheduleCfgPush(); }
+function mezclarLista(local, cloud) {
+  var byId = {}, out = [], i;
+  for (i = 0; i < local.length; i++) byId[local[i].id] = local[i];
+  for (i = 0; i < cloud.length; i++) {
+    var c = Object.assign({}, cloud[i]), l = byId[c.id];
+    if (l && !c.nfc && l.nfc) c.nfc = l.nfc;   // no perder tarjeta NFC asignada
+    byId[c.id] = c;
+  }
+  for (var k in byId) out.push(byId[k]);
+  return out;
 }
 function loadOpsFromCloud(cb) {
   var db = initFichasFirebase();
   if (!db) { if (cb) cb(); return; }
   db.collection('fichas').doc(OPS_CLOUD_DOC).get().then(function(doc) {
-    if (doc.exists) {
-      var cloudOps = (doc.data() || {}).ops || [];
-      var local = sg('ops', []);
-      var byId = {};
-      for (var i=0; i<local.length; i++) byId[local[i].id] = local[i];
-      for (var i=0; i<cloudOps.length; i++) byId[cloudOps[i].id] = cloudOps[i]; // la nube gana si hay conflicto
-      var merged = [];
-      for (var k in byId) merged.push(byId[k]);
-      ss('ops', merged);
+    var d = doc.exists ? (doc.data() || {}) : {}, push = false, ch = false;
+    ['ops', 'maqs'].forEach(function(k) {
+      var local = sg(k, null), cl = d[k], clTs = d[k + 'Ts'] || 0, lTs = cfgTs(k);
+      if (Array.isArray(cl) && cl.length) {
+        if (!local || !local.length) { ssRaw(k, cl); ch = true; }
+        else if (clTs > lTs) { ssRaw(k, k === 'ops' ? cl : mezclarLista(local, cl)); ch = true; try { localStorage.setItem('swx_cfgts_' + k, String(clTs)); } catch(e) {} }
+        else if (lTs > clTs) push = true;
+        else if (!clTs) { ssRaw(k, mezclarLista(local, cl)); push = true; ch = true; }
+      } else if (local && local.length) push = true;
+    });
+    if (push) pushCfgToCloud();
+    if (ch) {
       if (document.getElementById('cfg-op-body')) renderCfgOps();
-      var opSel = document.getElementById('r-op');
+      if (document.getElementById('cfg-maq-body') && typeof renderCfgMaqs === 'function') renderCfgMaqs();
+      var ops = sg('ops', []), opSel = document.getElementById('r-op');
       if (opSel) {
         opSel.innerHTML = '<option value="">Seleccionar operario...</option>';
-        for (var i=0; i<merged.length; i++) opSel.innerHTML += '<option value="' + merged[i].id + '">' + merged[i].name + '</option>';
+        for (var i = 0; i < ops.length; i++) opSel.innerHTML += '<option value="' + ops[i].id + '">' + ops[i].name + '</option>';
       }
     }
     if (cb) cb();
-  }).catch(function(e) { console.warn('Error cargando operarios de la nube', e); if (cb) cb(); });
+  }).catch(function(e) { console.warn('Error cargando configuracion de la nube', e); if (cb) cb(); });
 }
 
 // ============ PAROS Y EFICIENCIA EN VIVO ============
