@@ -795,7 +795,8 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
         <button class="btn btn-out btn-sm" onclick="syncRefsFromFichas(true)">&#8635; Actualizar desde Fichas</button>
       </div>
     </div>
-    <div id="refs-sync-status" style="font-size:.72rem;color:var(--steel);margin-bottom:.65rem">Aun no se ha sincronizado con Fichas en esta sesion.</div>
+    <div id="refs-sync-status" style="font-size:.72rem;color:var(--steel);margin-bottom:.25rem">Aun no se ha sincronizado con Fichas en esta sesion.</div>
+    <div id="refs-cloud-status" style="font-size:.72rem;color:var(--steel);margin-bottom:.65rem">Conectando manuales/eliminadas con la nube...</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.65rem">
       <input type="text" class="inp" id="cr-q" style="width:280px" placeholder="Buscar codigo o nombre..." oninput="renderCfgRefs()">
       <select class="inp" id="cr-type" style="width:auto" onchange="renderCfgRefs()"><option value="">Todos</option><option value="santoni">Santoni</option><option value="lonati">Lonati</option></select>
@@ -896,6 +897,15 @@ function sg_lotes() { return sg('lotes', []); }
 // borran de Fichas/Precosteo (la nube), solo se ocultan de este catalogo -
 // asi que si Fichas se sincroniza de nuevo, se filtran otra vez con esta lista.
 var REFS_HIDDEN = sg('refs_hidden_codes', []);
+// Copia del catalogo estatico, para poder reconstruir REFS cuando otro equipo
+// des-oculta una referencia (filterHiddenRefs la saca de REFS con splice).
+var REFS_ORIG = REFS.slice();
+// Marca de tiempo del ultimo cambio por codigo ({m:{CODIGO:ms}, h:{CODIGO:ms}}):
+// sirve para mezclar con la nube sin que un equipo pise los cambios de otro.
+var REFS_TS = sg('refs_ts', {m:{}, h:{}});
+if (!REFS_TS.m) REFS_TS.m = {};
+if (!REFS_TS.h) REFS_TS.h = {};
+function refsTouch(kind, code) { REFS_TS[kind][code] = Date.now(); ss('refs_ts', REFS_TS); }
 function filterHiddenRefs() {
   if (!REFS_HIDDEN.length) return;
   for (var i = REFS.length - 1; i >= 0; i--) {
@@ -905,8 +915,10 @@ function filterHiddenRefs() {
 function deleteRef(code, nombre) {
   if (!window.confirm('Eliminar "' + (nombre||code) + '" (' + code + ') del catalogo?\n\nSolo se oculta de este listado - no borra la ficha de Precosteo en la nube.')) return;
   if (REFS_HIDDEN.indexOf(code) < 0) { REFS_HIDDEN.push(code); ss('refs_hidden_codes', REFS_HIDDEN); }
+  refsTouch('h', code);
   filterHiddenRefs();
   renderCfgRefs();
+  pushRefsConfig();
   toast('Referencia eliminada del catalogo: ' + code);
 }
 function deleteRefGroup(codes, nombre) {
@@ -914,10 +926,12 @@ function deleteRefGroup(codes, nombre) {
   var changed = false;
   for (var i = 0; i < codes.length; i++) {
     if (REFS_HIDDEN.indexOf(codes[i]) < 0) { REFS_HIDDEN.push(codes[i]); changed = true; }
+    refsTouch('h', codes[i]);
   }
   if (changed) ss('refs_hidden_codes', REFS_HIDDEN);
   filterHiddenRefs();
   renderCfgRefs();
+  pushRefsConfig();
   toast('Referencia eliminada del catalogo: ' + nombre);
 }
 filterHiddenRefs();
@@ -939,12 +953,125 @@ function saveRefManual(row) {
   for (var i = 0; i < REFS_MANUAL.length; i++) { if (REFS_MANUAL[i][0] === code) { idx = i; break; } }
   if (idx >= 0) REFS_MANUAL[idx] = row; else REFS_MANUAL.push(row);
   ss('refs_manual', REFS_MANUAL);
+  refsTouch('m', code);
   // Si estaba oculta, reingresarla la saca de ocultas
   var hIdx = REFS_HIDDEN.indexOf(code);
-  if (hIdx >= 0) { REFS_HIDDEN.splice(hIdx, 1); ss('refs_hidden_codes', REFS_HIDDEN); }
+  if (hIdx >= 0) { REFS_HIDDEN.splice(hIdx, 1); ss('refs_hidden_codes', REFS_HIDDEN); refsTouch('h', code); }
   applyManualRefs();
+  pushRefsConfig();
 }
 applyManualRefs();
+
+// ============ REFERENCIAS MANUALES / OCULTAS EN LA NUBE ============
+// Antes las referencias manuales y las eliminadas vivian SOLO en el
+// localStorage de cada celular/PC: lo que se ingresaba en un equipo nunca
+// llegaba a los demas, por eso cada dispositivo mostraba un total distinto
+// (1020, 1047, 1057...) aunque "Sincronizado con Fichas" dijera la misma
+// hora (eso solo trae las fichas, no lo manual). Ahora se guardan en un
+// documento reservado de Firestore (mismo patron que los operarios; el
+// parser de fichas lo ignora porque no trae header.referencia) y se mezclan
+// por codigo: gana el cambio mas reciente. Se escucha en vivo, asi que lo que
+// se ingrese en un equipo aparece en los demas en segundos.
+var REFS_CLOUD_DOC = 'SWAN2-REFS-CONFIG';
+var _refsCloudState = { ok: false, err: '', ts: 0 };
+var _refsPushTimer = null, _refsCloudUnsub = null;
+
+function rebuildRefs() {
+  // Reconstruye REFS desde cero: catalogo estatico + Fichas (cache) + manuales - ocultas
+  REFS.length = 0;
+  for (var i = 0; i < REFS_ORIG.length; i++) REFS.push(REFS_ORIG[i]);
+  var cached = sg('refs_fichas_cache', null);
+  if (cached && cached.length) applyLiveRefs(cached);
+  applyManualRefs();
+}
+function refsCloudPayload() {
+  var manual = [], hidden = [], i;
+  for (i = 0; i < REFS_MANUAL.length; i++) manual.push({ code: REFS_MANUAL[i][0], row: REFS_MANUAL[i], ts: REFS_TS.m[REFS_MANUAL[i][0]] || 1 });
+  // Ocultas: se incluyen tambien las que ya fueron des-ocultadas (on:false) para que ese cambio se propague
+  var seen = {};
+  for (i = 0; i < REFS_HIDDEN.length; i++) { hidden.push({ code: REFS_HIDDEN[i], on: true, ts: REFS_TS.h[REFS_HIDDEN[i]] || 1 }); seen[REFS_HIDDEN[i]] = 1; }
+  for (var k in REFS_TS.h) { if (!seen[k]) hidden.push({ code: k, on: false, ts: REFS_TS.h[k] }); }
+  return { manual: manual, hidden: hidden };
+}
+// Mezcla lo de la nube con lo local (gana el ts mas reciente por codigo).
+// Devuelve true si el estado LOCAL cambio.
+function mergeRefsConfig(cloud) {
+  var changed = false, i, c;
+  var cm = (cloud && cloud.manual) || [], ch = (cloud && cloud.hidden) || [];
+  for (i = 0; i < cm.length; i++) {
+    c = cm[i]; if (!c || !c.code || !c.row) continue;
+    var lts = REFS_TS.m[c.code] || 0, idx = -1;
+    for (var j = 0; j < REFS_MANUAL.length; j++) { if (REFS_MANUAL[j][0] === c.code) { idx = j; break; } }
+    if (idx < 0 || (c.ts || 0) > lts) {
+      if (idx < 0) REFS_MANUAL.push(c.row); else if ((c.ts || 0) > lts) REFS_MANUAL[idx] = c.row; else continue;
+      REFS_TS.m[c.code] = c.ts || 1; changed = true;
+    }
+  }
+  for (i = 0; i < ch.length; i++) {
+    c = ch[i]; if (!c || !c.code) continue;
+    var lh = REFS_TS.h[c.code] || 0, pos = REFS_HIDDEN.indexOf(c.code);
+    if ((c.ts || 0) > lh || (pos < 0 && c.on && lh === 0)) {
+      if (c.on && pos < 0) { REFS_HIDDEN.push(c.code); changed = true; }
+      else if (!c.on && pos >= 0) { REFS_HIDDEN.splice(pos, 1); changed = true; }
+      if ((c.ts || 0) > lh) { REFS_TS.h[c.code] = c.ts || 1; changed = true; }
+    }
+  }
+  if (changed) {
+    ssRaw('refs_manual', REFS_MANUAL); ssRaw('refs_hidden_codes', REFS_HIDDEN); ssRaw('refs_ts', REFS_TS);
+    rebuildRefs();
+    if (document.getElementById('cfg-ref-body')) renderCfgRefs();
+  }
+  return changed;
+}
+// Sube lo local a la nube (mezclando primero con lo que ya haya alli, en una
+// transaccion para que dos equipos guardando a la vez no se pisen).
+function pushRefsConfig() {
+  clearTimeout(_refsPushTimer);
+  _refsPushTimer = setTimeout(doPushRefsConfig, 600);
+}
+function doPushRefsConfig() {
+  var db = initFichasFirebase();
+  if (!db) { refsCloudStatus(false, 'sin conexion con la nube'); return Promise.resolve(); }
+  var ref = db.collection('fichas').doc(REFS_CLOUD_DOC);
+  return db.runTransaction(function(tx) {
+    return tx.get(ref).then(function(doc) {
+      if (doc.exists) mergeRefsConfig(doc.data() || {});
+      var p = refsCloudPayload(); p.updatedAt = Date.now();
+      tx.set(ref, p);
+    });
+  }).then(function() {
+    refsCloudStatus(true, '');
+  }).catch(function(e) {
+    console.warn('Error subiendo referencias manuales', e);
+    refsCloudStatus(false, (e && e.code === 'permission-denied') ? 'la nube rechazo guardar (revisar reglas de Firestore)' : ((e && e.message) || 'error'));
+  });
+}
+function refsCloudStatus(ok, err) {
+  _refsCloudState = { ok: ok, err: err, ts: Date.now() };
+  var el = document.getElementById('refs-cloud-status');
+  if (!el) return;
+  if (ok) { el.style.color = 'var(--steel)'; el.textContent = 'Manuales/eliminadas compartidas en la nube (' + REFS_MANUAL.length + ' manuales, ' + REFS_HIDDEN.length + ' ocultas) - ' + new Date().toLocaleTimeString(); }
+  else { el.style.color = 'var(--red)'; el.textContent = 'Manuales/eliminadas SIN sincronizar: ' + err + ' (se reintenta solo)'; }
+}
+// Arranque: escucha en vivo el documento y, la primera vez, sube lo local
+function startRefsCloudSync() {
+  var db = initFichasFirebase();
+  if (!db) { setTimeout(startRefsCloudSync, 3000); return; }
+  if (_refsCloudUnsub) return;
+  var first = true;
+  _refsCloudUnsub = db.collection('fichas').doc(REFS_CLOUD_DOC).onSnapshot(function(doc) {
+    var changed = false;
+    if (doc.exists) changed = mergeRefsConfig(doc.data() || {});
+    if (first) { first = false; doPushRefsConfig(); }      // sube lo que este equipo tenia y la nube no
+    else if (changed) refsCloudStatus(true, '');
+    else refsCloudStatus(true, '');
+  }, function(err) {
+    console.warn('Error escuchando referencias en la nube', err);
+    _refsCloudUnsub = null;
+    refsCloudStatus(false, (err && err.code === 'permission-denied') ? 'la nube rechazo leer (revisar reglas de Firestore)' : ((err && err.message) || 'error'));
+    setTimeout(startRefsCloudSync, 15000);
+  });
+}
 
 // ============ INIT ============
 function init() {
@@ -3297,6 +3424,20 @@ init();
 ss('lotes', sg_lotes()); // sella lotes viejos (de antes de la nube) para que se suban una vez
 initRefsFromCache();
 syncRefsFromFichas(false);
+startRefsCloudSync();
+// Fichas se consultaba solo al abrir la app: un celular que quedaba abierto
+// horas nunca veia fichas nuevas. Ahora se vuelve a consultar cada 5 min y al
+// volver a la app, y se reintenta la subida de manuales si habia fallado.
+setInterval(function() { if (!document.hidden) syncRefsFromFichas(false); }, 300000);
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) return;
+  syncRefsFromFichas(false);
+  if (!_refsCloudState.ok) {
+    if (_refsCloudUnsub) { try { _refsCloudUnsub(); } catch(e) {} }
+    _refsCloudUnsub = null; startRefsCloudSync();
+  }
+});
+window.addEventListener('online', function() { syncRefsFromFichas(false); pushRefsConfig(); });
 loadOpsFromCloud();
 loadGasUrlFromCloud();
 setInterval(liveTick, 1000);
