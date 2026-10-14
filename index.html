@@ -2752,13 +2752,19 @@ function syncRefsFromFichas(notify) {
       var row = fichaToRefRow(doc.id, doc.data() || {});
       if (row) rows.push(row);
     });
+    // Las referencias que ya se conocian NUNCA se pierden porque una ficha cambie o se
+    // quite de la nube: se conservan (solo se ocultan si alguien las elimina a proposito).
+    var prev = sg('refs_fichas_cache', []), nuevos = {}, faltan = [];
+    for (var pi = 0; pi < rows.length; pi++) nuevos[rows[pi][0]] = 1;
+    for (pi = 0; pi < prev.length; pi++) if (!nuevos[prev[pi][0]]) { rows.push(prev[pi]); faltan.push(prev[pi][0]); }
+    ssRaw('refs_fichas_missing', faltan);
     var res = applyLiveRefs(rows);
     applyManualRefs();
     ss('refs_fichas_cache', rows);
     ss('refs_fichas_ts', Date.now());
     if (document.getElementById('cfg-ref-body')) renderCfgRefs();
     var el = document.getElementById('refs-sync-status');
-    if (el) el.textContent = 'Sincronizado con Fichas: ' + rows.length + ' referencias (' + res.added + ' nuevas, ' + res.updated + ' actualizadas) - ' + new Date().toLocaleTimeString();
+    if (el) el.textContent = (faltan.length ? faltan.length + ' referencias ya no estan en la nube de Fichas y se conservaron (' + faltan.slice(0,8).join(', ') + (faltan.length>8?'...':'') + '). ' : '') + 'Sincronizado con Fichas: ' + rows.length + ' referencias (' + res.added + ' nuevas, ' + res.updated + ' actualizadas) - ' + new Date().toLocaleTimeString();
     if (notify) toast('Referencias actualizadas desde Fichas (' + rows.length + ')');
   }).catch(function(err) {
     console.error(err);
