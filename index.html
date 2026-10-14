@@ -798,6 +798,7 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
     </div>
     <div id="refs-sync-status" style="font-size:.72rem;color:var(--steel);margin-bottom:.25rem">Aun no se ha sincronizado con Fichas en esta sesion.</div>
     <div id="refs-cloud-status" style="font-size:.72rem;color:var(--steel);margin-bottom:.65rem">Conectando manuales/eliminadas con la nube...</div>
+    <div style="margin-bottom:.4rem"><a href="#" onclick="cambiarClaveAdmin();return false" style="font-size:.72rem;color:var(--steel)">&#128274; Cambiar clave de administrador</a></div>
     <div id="refs-diag" style="display:none;background:#fff;border:1px solid var(--bdr,#ccd);border-radius:8px;padding:.7rem;margin-bottom:.65rem;font-size:.78rem;line-height:1.5"></div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.65rem">
       <input type="text" class="inp" id="cr-q" style="width:280px" placeholder="Buscar codigo o nombre..." oninput="renderCfgRefs()">
@@ -2824,7 +2825,7 @@ function diagRefs() {
     for (i = 0; i < REFS_HIDDEN.length; i++) {
       var cd = REFS_HIDDEN[i];
       h += '<div style="display:flex;justify-content:space-between;gap:.5rem;padding:.2rem .5rem;border-bottom:1px solid #eef"><span><code>' + cd + '</code> ' + lvEsc(_nombreRef(cd)) + (manByCode[cd] ? ' <b style="color:var(--red)">(tambien manual)</b>' : '') +
-        '</span><button class="btn btn-out btn-sm" data-c="' + lvEsc(cd) + '" onclick="restaurarOculta(this.getAttribute(\'data-c\'));rebuildRefs();renderCfgRefs();pushRefsConfig();diagRefs()">Restaurar</button></div>';
+        '</span><button class="btn btn-out btn-sm" data-c="' + lvEsc(cd) + '" onclick="restaurarOcultas([this.getAttribute(\'data-c\')])">Restaurar</button></div>';
     }
     h += '</div>';
   }
@@ -3529,12 +3530,90 @@ window.addEventListener('online', function() { pushLotes(); });
 window.addEventListener('offline', function() { lotesCloudState('offline'); });
 document.addEventListener('visibilitychange', function() { if (!document.hidden) { pushLotes(); renderCloudPill(); } });
 
-// START
-init();
-ss('lotes', sg_lotes()); // sella lotes viejos (de antes de la nube) para que se suban una vez
-initRefsFromCache();
-syncRefsFromFichas(false);
-startRefsCloudSync();
+
+// ============ CLAVE DE ADMINISTRADOR ============
+// Protege Config: agregar/quitar referencias, operarios, maquinas, stickers NFC y la
+// direccion de Sheets. La clave se guarda en la nube (solo su huella, nunca la clave)
+// y se pide una vez cada 30 minutos en cada equipo. Ver es libre; cambiar pide clave.
+// Nota: frena a quien use la app normalmente; no sustituye las reglas de seguridad de Firebase.
+var ADMIN_DOC = 'SWAN2-ADMIN', _adminUntil = 0;
+function _huella(txt) {
+  var salt = 'swx|', data = salt + txt;
+  try {
+    if (window.crypto && crypto.subtle && window.TextEncoder) {
+      return crypto.subtle.digest('SHA-256', new TextEncoder().encode(data)).then(function(b) {
+        var a = new Uint8Array(b), o = ''; for (var i = 0; i < a.length; i++) o += ('0' + a[i].toString(16)).slice(-2); return o;
+      });
+    }
+  } catch(e) {}
+  var h = 5381; for (var i = 0; i < data.length; i++) h = ((h << 5) + h + data.charCodeAt(i)) | 0;
+  return Promise.resolve('f' + (h >>> 0).toString(16));
+}
+function _leerClave() {
+  var local = null; try { local = localStorage.getItem('swx_admin_hash'); } catch(e) {}
+  var db = initFichasFirebase();
+  if (!db) return Promise.resolve({ h: local, nube: false });
+  return db.collection('fichas').doc(ADMIN_DOC).get().then(function(d) {
+    var h = d.exists ? (d.data() || {}).h : null;
+    if (h) { try { localStorage.setItem('swx_admin_hash', h); } catch(e) {} }
+    return { h: h || null, nube: true };
+  }).catch(function() { return { h: local, nube: false }; });
+}
+function _guardarClave(h) {
+  try { localStorage.setItem('swx_admin_hash', h); } catch(e) {}
+  var db = initFichasFirebase();
+  if (!db) return Promise.reject(new Error('sin nube'));
+  return db.collection('fichas').doc(ADMIN_DOC).set({ tipo: 'admin', h: h, updatedAt: Date.now() });
+}
+function pedirClave(cb) {
+  if (Date.now() < _adminUntil) return cb();
+  _leerClave().then(function(r) {
+    if (!r.h) {
+      if (!r.nube) { toast('Sin conexion: no se puede verificar la clave'); return; }
+      var n1 = window.prompt('Aun no hay clave de administrador.\nCrea una (minimo 4 caracteres). Guardala bien: sin ella nadie podra cambiar Config.');
+      if (n1 === null) return;
+      if (n1.length < 4) { toast('La clave debe tener minimo 4 caracteres'); return; }
+      var n2 = window.prompt('Escribe la clave otra vez para confirmar:');
+      if (n2 !== n1) { toast('No coinciden. No se creo la clave.'); return; }
+      _huella(n1).then(_guardarClave).then(function() { _adminUntil = Date.now() + 1800000; toast('Clave creada'); cb(); })
+        .catch(function() { toast('No se pudo guardar la clave en la nube'); });
+      return;
+    }
+    var k = window.prompt('Clave de administrador:');
+    if (k === null) return;
+    _huella(k).then(function(h) {
+      if (h === r.h) { _adminUntil = Date.now() + 1800000; cb(); }
+      else toast('Clave incorrecta');
+    });
+  });
+}
+function cambiarClaveAdmin() {
+  pedirClave(function() {
+    var n1 = window.prompt('Nueva clave de administrador (minimo 4 caracteres):');
+    if (n1 === null) return;
+    if (n1.length < 4) { toast('Minimo 4 caracteres'); return; }
+    var n2 = window.prompt('Escribela otra vez para confirmar:');
+    if (n2 !== n1) { toast('No coinciden. No se cambio.'); return; }
+    _huella(n1).then(_guardarClave).then(function() { toast('Clave cambiada'); }).catch(function() { toast('No se pudo guardar en la nube'); });
+  });
+}
+(function() {
+  // Acciones que cambian Config: todas pasan por la clave
+  ['openCfgForm', 'saveCfgItem', 'delOp', 'deleteRef', 'deleteRefGroup', 'restaurarOcultas', 'restaurarOculta',
+   'showNfc', 'saveGasUrl', 'clearGasUrl'].forEach(function(n) {
+    var f = window[n]; if (typeof f !== 'function') return;
+    window[n] = function() { var a = arguments, me = this; pedirClave(function() { f.apply(me, a); }); };
+  });
+})();
+
+// START (cada paso aislado: si uno falla, el tablero igual carga)
+function _paso(f) { try { f(); } catch (e) { console.error('Arranque:', e); } }
+_paso(init);
+_paso(function() { ss('lotes', sg_lotes()); }); // sella lotes viejos (de antes de la nube) para que se suban una vez
+_paso(renderDash);
+_paso(initRefsFromCache);
+_paso(function() { syncRefsFromFichas(false); });
+_paso(startRefsCloudSync);
 // Fichas se consultaba solo al abrir la app: un celular que quedaba abierto
 // horas nunca veia fichas nuevas. Ahora se vuelve a consultar cada 5 min y al
 // volver a la app, y se reintenta la subida de manuales si habia fallado.
@@ -3548,12 +3627,12 @@ document.addEventListener('visibilitychange', function() {
   }
 });
 window.addEventListener('online', function() { syncRefsFromFichas(false); pushRefsConfig(); });
-loadOpsFromCloud();
-loadGasUrlFromCloud();
+_paso(loadOpsFromCloud);
+_paso(loadGasUrlFromCloud);
 setInterval(liveTick, 1000);
-renderDash();
-renderCloudPill();
-startLotesSync();
+_paso(renderDash);
+_paso(renderCloudPill);
+_paso(startLotesSync);
 </script>
 </body>
 </html>
