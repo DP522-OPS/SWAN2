@@ -269,12 +269,41 @@ function iniciarCountdown() {
   }, 1000);
 }
 
+var _gasRetry = false;
+function leerJsonGas(r) {
+  return r.text().then(function(t) {
+    try { return JSON.parse(t); }
+    catch (e) {
+      var hint = /accounts\.google|signin|ServiceLogin/i.test(t) ? 'Google pide iniciar sesion: la implementacion del script debe estar en "Cualquier persona".'
+        : /no se puede abrir|unable to open|not found|404/i.test(t) ? 'Google no encontro el script: la URL esta vieja o la implementacion se borro/cambio.'
+        : 'El servidor respondio una pagina web en vez de datos.';
+      throw new Error(hint);
+    }
+  });
+}
+// Si la URL guardada en este equipo falla, prueba la que haya guardado la nube (por si cambio)
+function reintentarConUrlDeLaNube(msg) {
+  var db = initFichasFirebase();
+  if (_gasRetry || !db) return Promise.reject(new Error(msg));
+  _gasRetry = true;
+  return db.collection('fichas').doc('SWAN2-GAS-URL').get().then(function(doc) {
+    var url = doc.exists ? limpiarGasUrl((doc.data() || {}).url || '') : '';
+    if (!url || url === GAS_URL) throw new Error(msg);
+    return fetch(url + '?action=leer').then(leerJsonGas).then(function(data) {
+      GAS_URL = url; try { localStorage.setItem('swx_gas_url', url); } catch(e) {}
+      document.getElementById('url-input').value = url;
+      return data;
+    });
+  }).catch(function() { throw new Error(msg); });
+}
 function cargarDatos() {
   if (!GAS_URL) return;
   document.getElementById('loading').style.display = 'none';
   fetch(GAS_URL + '?action=leer')
-    .then(function(r) { return r.json(); })
+    .then(leerJsonGas)
+    .catch(function(e) { return reintentarConUrlDeLaNube(e.message); })
     .then(function(data) {
+      _gasRetry = false;
       document.getElementById('error-div').style.display = 'none';
       document.getElementById('dashboard-content').style.display = 'block';
       renderDashboard(data.filas || []);
