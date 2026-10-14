@@ -793,10 +793,12 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
       <div style="display:flex;gap:.4rem">
         <button class="btn btn-navy btn-sm" onclick="openCfgForm('ref')">+ Agregar referencia manual</button>
         <button class="btn btn-out btn-sm" onclick="syncRefsFromFichas(true)">&#8635; Actualizar desde Fichas</button>
+        <button class="btn btn-out btn-sm" onclick="diagRefs()">&#128269; Diagnostico</button>
       </div>
     </div>
     <div id="refs-sync-status" style="font-size:.72rem;color:var(--steel);margin-bottom:.25rem">Aun no se ha sincronizado con Fichas en esta sesion.</div>
     <div id="refs-cloud-status" style="font-size:.72rem;color:var(--steel);margin-bottom:.65rem">Conectando manuales/eliminadas con la nube...</div>
+    <div id="refs-diag" style="display:none;background:#fff;border:1px solid var(--bdr,#ccd);border-radius:8px;padding:.7rem;margin-bottom:.65rem;font-size:.78rem;line-height:1.5"></div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.65rem">
       <input type="text" class="inp" id="cr-q" style="width:280px" placeholder="Buscar codigo o nombre..." oninput="renderCfgRefs()">
       <select class="inp" id="cr-type" style="width:auto" onchange="renderCfgRefs()"><option value="">Todos</option><option value="santoni">Santoni</option><option value="lonati">Lonati</option></select>
@@ -1016,6 +1018,12 @@ function mergeRefsConfig(cloud) {
       else if (!c.on && pos >= 0) { REFS_HIDDEN.splice(pos, 1); changed = true; }
       if ((c.ts || 0) > lh) { REFS_TS.h[c.code] = c.ts || 1; changed = true; }
     }
+  }
+  // Una referencia manual NO debe quedar oculta por un 'oculta' mas viejo o de igual fecha
+  // (en caso de duda se prefiere mostrarla: ocultar de mas hace perder referencias).
+  for (i = REFS_HIDDEN.length - 1; i >= 0; i--) {
+    var hc = REFS_HIDDEN[i];
+    if (REFS_TS.m[hc] && REFS_TS.m[hc] >= (REFS_TS.h[hc] || 1)) { REFS_HIDDEN.splice(i, 1); REFS_TS.h[hc] = Date.now(); changed = true; }
   }
   if (changed) {
     ssRaw('refs_manual', REFS_MANUAL); ssRaw('refs_hidden_codes', REFS_HIDDEN); ssRaw('refs_ts', REFS_TS);
@@ -2777,6 +2785,75 @@ function initRefsFromCache() {
   var cached = sg('refs_fichas_cache', null);
   if (cached && cached.length) applyLiveRefs(cached);
   applyManualRefs();
+}
+
+
+// ============ DIAGNOSTICO DE REFERENCIAS ============
+function _nombreRef(code) {
+  var i, c = sg('refs_fichas_cache', []), m = REFS_MANUAL;
+  for (i = 0; i < REFS_ORIG.length; i++) if (REFS_ORIG[i][0] === code) return REFS_ORIG[i][1];
+  for (i = 0; i < c.length; i++) if (c[i][0] === code) return c[i][1];
+  for (i = 0; i < m.length; i++) if (m[i][0] === code) return m[i][1];
+  return '';
+}
+function restaurarOculta(code) {
+  var pos = REFS_HIDDEN.indexOf(code);
+  if (pos >= 0) REFS_HIDDEN.splice(pos, 1);
+  ss('refs_hidden_codes', REFS_HIDDEN); refsTouch('h', code);
+}
+function restaurarOcultas(codes) {
+  if (!codes) codes = REFS_HIDDEN.slice();
+  if (!codes.length) return;
+  if (!window.confirm('Restaurar ' + codes.length + ' referencia(s) oculta(s) en TODOS los equipos?')) return;
+  for (var i = 0; i < codes.length; i++) restaurarOculta(codes[i]);
+  rebuildRefs(); renderCfgRefs(); pushRefsConfig(); diagRefs();
+  toast('Restauradas: ' + codes.length);
+}
+function diagRefs() {
+  var el = document.getElementById('refs-diag'); if (!el) return;
+  el.style.display = 'block';
+  var fich = sg('refs_fichas_cache', []), falt = sg('refs_fichas_missing', []), i;
+  var manByCode = {}; for (i = 0; i < REFS_MANUAL.length; i++) manByCode[REFS_MANUAL[i][0]] = 1;
+  var h = '<b>Referencias en este equipo: ' + REFS.length + '</b><br>' +
+    'Catalogo base: ' + REFS_ORIG.length + ' &middot; De Fichas: ' + fich.length + ' &middot; Manuales: ' + REFS_MANUAL.length +
+    ' &middot; <b style="color:' + (REFS_HIDDEN.length ? 'var(--red)' : 'inherit') + '">Ocultas/eliminadas: ' + REFS_HIDDEN.length + '</b>';
+  if (falt.length) h += '<br>Ya no estan en Fichas pero se conservan: ' + falt.length + ' (' + falt.slice(0, 10).join(', ') + (falt.length > 10 ? '...' : '') + ')';
+  if (REFS_HIDDEN.length) {
+    h += '<div style="margin-top:.4rem"><b>Ocultas</b> <button class="btn btn-navy btn-sm" onclick="restaurarOcultas()">Restaurar TODAS (' + REFS_HIDDEN.length + ')</button></div>' +
+      '<div style="max-height:180px;overflow:auto;border:1px solid #dde;border-radius:6px;margin-top:.3rem">';
+    for (i = 0; i < REFS_HIDDEN.length; i++) {
+      var cd = REFS_HIDDEN[i];
+      h += '<div style="display:flex;justify-content:space-between;gap:.5rem;padding:.2rem .5rem;border-bottom:1px solid #eef"><span><code>' + cd + '</code> ' + lvEsc(_nombreRef(cd)) + (manByCode[cd] ? ' <b style="color:var(--red)">(tambien manual)</b>' : '') +
+        '</span><button class="btn btn-out btn-sm" data-c="' + lvEsc(cd) + '" onclick="restaurarOculta(this.getAttribute(\'data-c\'));rebuildRefs();renderCfgRefs();pushRefsConfig();diagRefs()">Restaurar</button></div>';
+    }
+    h += '</div>';
+  }
+  h += '<div id="refs-diag-nube" style="margin-top:.4rem;color:var(--steel)">Consultando la nube...</div>';
+  el.innerHTML = h;
+  var db = initFichasFirebase();
+  if (!db) { document.getElementById('refs-diag-nube').textContent = 'Sin conexion con la nube.'; return; }
+  db.collection('fichas').get().then(function(snap) {
+    var n = { sw: 0, swRef: 0, swSinTiempo: 0, ft: 0, enh: 0, pap: 0, proy: 0, lote: 0, otros: 0 }, sinT = [];
+    snap.forEach(function(doc) {
+      var id = doc.id, d = doc.data() || {};
+      if (/^SW-|^STRUCT-/.test(id) || d.fibras) {
+        n.sw++;
+        var code = ((d.header || {}).referencia || '').toString().trim().toUpperCase();
+        if (code) { n.swRef++; if (!fichaToRefRow(id, d)) { n.swSinTiempo++; sinT.push(code); } }
+      }
+      else if (/^FT004-/.test(id)) n.ft++;
+      else if (/^ENH-/.test(id)) n.enh++;
+      else if (/^PAPELERA-/.test(id)) n.pap++;
+      else if (/^PROYECTO-/.test(id)) n.proy++;
+      else if (d.tipo === 'lote') n.lote++;
+      else n.otros++;
+    });
+    var x = document.getElementById('refs-diag-nube'); if (!x) return;
+    x.innerHTML = '<b>En la nube (Fichas):</b> ' + n.sw + ' precosteos (' + n.swRef + ' con referencia; <b>' + n.swSinTiempo + ' sin tiempo de ciclo, no entran al catalogo</b>' +
+      (sinT.length ? ': ' + sinT.slice(0, 12).join(', ') + (sinT.length > 12 ? '...' : '') : '') + ') &middot; ' + n.ft + ' fichas de medidas &middot; ' + n.enh + ' enhebrados &middot; ' + n.pap + ' en papelera &middot; ' + n.proy + ' proyectos terminados &middot; ' + n.lote + ' lotes';
+  }).catch(function(e) {
+    var x = document.getElementById('refs-diag-nube'); if (x) x.textContent = 'No se pudo leer la nube: ' + ((e && e.message) || e);
+  });
 }
 
 // ============ OPERARIOS EN LA NUBE ============
