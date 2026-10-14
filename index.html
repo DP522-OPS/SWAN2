@@ -879,8 +879,12 @@ try { localStorage.setItem('_t','1'); localStorage.removeItem('_t'); LS_OK = tru
 
 function sg(k, def) {
   if (def === undefined) def = [];
-  if (LS_OK) { try { var v = localStorage.getItem('swx_' + k); if (v !== null) return JSON.parse(v); } catch(e) {} }
-  return MEM.hasOwnProperty(k) ? MEM[k] : def;
+  var r;
+  if (LS_OK) { try { var v = localStorage.getItem('swx_' + k); if (v !== null) r = JSON.parse(v); } catch(e) {} }
+  if (r === undefined) r = MEM.hasOwnProperty(k) ? MEM[k] : def;
+  // maquinas/operarios: nunca devolver entradas vacias o sin id (rompian los formularios)
+  if ((k === 'ops' || k === 'maqs') && r && r.filter) r = r.filter(function(x) { return x && x.id; });
+  return r;
 }
 function ss(k, v) {
   if (k === 'lotes') v = stampLotes(v); // marca cambios para subirlos a la nube compartida
@@ -1117,7 +1121,7 @@ function goTo(v) {
     document.getElementById('tab-'+n).classList.toggle('on', n===v);
   });
   if (v==='dash') renderDash();
-  if (v==='reg') initReg();
+  if (v==='reg') { try { initReg(); } catch (e) { console.error('initReg', e); try { nfcUi(); } catch (e2) {} } }
   if (v==='hist') renderHist();
   if (v==='cfg') renderCfg();
 }
@@ -1472,7 +1476,22 @@ function saveEntrega() {
   if (pregunta.length) queueSiguiente(pregunta);   // lotes completos: que sigue en esas maquinas?
 }
 
+// Botones "Scan NFC" y aviso: se prepara aparte y PRIMERO, para que un fallo en otra parte
+// del formulario nunca los deje escondidos.
+function nfcUi() {
+  var nfcOk = 'NDEFReader' in window;
+  document.getElementById('reg-nfc-alert').innerHTML = nfcOk
+    ? '<div class="al al-ok" style="margin-bottom:.75rem">NFC activo. Use los botones <strong>Scan NFC</strong> para escanear stickers.</div>'
+    : '<div class="al al-info" style="margin-bottom:.75rem">NFC disponible solo en <strong>https://dp522-ops.github.io/SWAN2/</strong> con Chrome Android.</div>';
+  var nfcBtns = ['btn-nfc-maq','btn-nfc-op','btn-nfc-ref','btn-nfc-maq-c'];
+  var pb=document.getElementById('btn-nfc-paro'); if(pb) pb.style.display = nfcOk ? 'block' : 'none';
+  for (var i=0; i<nfcBtns.length; i++) {
+    var el = document.getElementById(nfcBtns[i]); if(el) el.style.display = nfcOk ? '' : 'none';
+  }
+
+}
 function initReg() {
+  try { nfcUi(); } catch (e) { console.error('NFC UI', e); }
   rParos = []; rLot = 0; rRefId = ''; rCerrarLoteId = null; rCerrarParos = [];
   document.getElementById('r-fecha').value = localDate();
   document.getElementById('r-turno').value = autoTurno();
@@ -1501,15 +1520,7 @@ function initReg() {
 
   renderSyncAlert();
 
-  var nfcOk = 'NDEFReader' in window;
-  document.getElementById('reg-nfc-alert').innerHTML = nfcOk
-    ? '<div class="al al-ok" style="margin-bottom:.75rem">NFC activo. Use los botones <strong>Scan NFC</strong> para escanear stickers.</div>'
-    : '<div class="al al-info" style="margin-bottom:.75rem">NFC disponible solo en <strong>https://dp522-ops.github.io/SWAN2/</strong> con Chrome Android.</div>';
-  var nfcBtns = ['btn-nfc-maq','btn-nfc-op','btn-nfc-ref','btn-nfc-maq-c'];
-  var pb=document.getElementById('btn-nfc-paro'); if(pb) pb.style.display = nfcOk ? 'block' : 'none';
-  for (var i=0; i<nfcBtns.length; i++) {
-    var el = document.getElementById(nfcBtns[i]); if(el) el.style.display = nfcOk ? '' : 'none';
-  }
+  nfcUi();
 
   setRegMode('abrir');
 }
