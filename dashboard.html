@@ -345,7 +345,7 @@ function renderDashboard(filas) {
     total_lotes++;
     total_t += parseInt(f.Tubos)||0;
     maq_set[f.MaqID] = 1;
-    if (f.Eficiencia !== '' && f.Eficiencia !== null) { eff_sum += parseFloat(f.Eficiencia)||0; eff_cnt++; }
+    var _e = effNum(f.Eficiencia); if (_e !== null) { eff_sum += _e; eff_cnt++; }
   }
   var avg_eff = eff_cnt ? Math.round(eff_sum/eff_cnt) : null;
   var maq_cnt = Object.keys(maq_set).length;
@@ -374,9 +374,10 @@ function renderDashboard(filas) {
       var f=eq_filas[i];
       eq_t += parseInt(f.Tubos)||0;
       eq_maqs[f.MaqID] = (eq_maqs[f.MaqID]||0) + (parseInt(f.Tubos)||0);
-      if (f.Eficiencia !== '' && f.Eficiencia !== null) {
-        eq_es += parseFloat(f.Eficiencia)||0; eq_ec++;
-        eq_maq_es[f.MaqID] = (eq_maq_es[f.MaqID]||0) + (parseFloat(f.Eficiencia)||0);
+      var _eq = effNum(f.Eficiencia);
+      if (_eq !== null) {
+        eq_es += _eq; eq_ec++;
+        eq_maq_es[f.MaqID] = (eq_maq_es[f.MaqID]||0) + _eq;
         eq_maq_ec[f.MaqID] = (eq_maq_ec[f.MaqID]||0) + 1;
       }
       if (!window._mdMaqData[f.MaqID]) window._mdMaqData[f.MaqID] = {lotes:0, tubos:0, parosMin:0, paros:{}};
@@ -506,7 +507,13 @@ function parseFecha(v) {
 
 function effColor(v) { return (!v && v!==0) ? '#64748b' : v>=90 ? '#10b981' : v>=70 ? '#f59e0b' : '#ef4444'; }
 function effCls(v) { return v>=90 ? 'eff-hi' : v>=70 ? 'eff-md' : 'eff-lo'; }
-function hoy() { return new Date().toISOString().split('T')[0]; }
+// Fecha de HOY en hora de Colombia (no UTC: a las 7 pm UTC ya es "manana" y el tablero se vaciaba)
+function hoy() {
+  try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+  catch (e) { var n = new Date(Date.now() - 5 * 3600000); return n.toISOString().split('T')[0]; }
+}
+// Eficiencia utilizable (numero entre 0 y 200); vacio, '--' o absurdo NO entra al promedio
+function effNum(v) { if (v === '' || v === null || v === undefined) return null; var e = parseFloat(v); return (isNaN(e) || e < 0 || e > 200) ? null : e; }
 function ahora() {
   var d = new Date();
   return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');

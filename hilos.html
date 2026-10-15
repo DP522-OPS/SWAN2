@@ -307,7 +307,10 @@ function conectar() {
     });
 }
 
-function hoy() { return new Date().toISOString().split('T')[0]; }
+function hoy() {
+  try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+  catch (e) { var n = new Date(Date.now() - 5 * 3600000); return n.toISOString().split('T')[0]; }
+}
 function parseFecha(v) {
   if (!v) return '';
   if (typeof v === 'string' && v.indexOf('T') >= 0) return v.split('T')[0];
