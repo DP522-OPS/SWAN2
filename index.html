@@ -2717,6 +2717,7 @@ function initFichasFirebase() {
     var app = firebase.apps && firebase.apps.some(function(a){return a.name==='fichas';})
       ? firebase.app('fichas') : firebase.initializeApp(FICHAS_FB_CFG, 'fichas');
     _fichasDb = app.firestore();
+    try { _fichasDb.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch(e) {}
     return _fichasDb;
   } catch(e) { console.error('Firebase fichas error', e); return null; }
 }
@@ -3449,8 +3450,18 @@ function pushLotes() {
     if (_lotesPushing[key]) return;
     _lotesPushing[key] = 1;
     var upd = l._upd, id = l.id;
-    col.doc(LOTES_DOC_PREFIX + id).set(cleanLote(l)).then(function() {
-      markLotePushed(id, upd); lotesCloudState('ok', '');
+    var ref = col.doc(LOTES_DOC_PREFIX + id), copia = cleanLote(JSON.parse(JSON.stringify(l)));
+    db.runTransaction(function(tx) {
+      return tx.get(ref).then(function(doc) {
+        var c = doc.exists ? (doc.data() || {}) : null;
+        // La nube ya lo tiene CERRADO y esta copia sigue abierta: no se pisa, se adopta el cierre
+        if (c && !c._del && c.status === 'cerrado' && copia.status !== 'cerrado') return { skip: c };
+        tx.set(ref, copia); return { ok: 1 };
+      });
+    }).then(function(res) {
+      if (res && res.skip) { if (mergeRemoteLote(res.skip)) onLotesRemoteChange(); }
+      else markLotePushed(id, upd);
+      lotesCloudState('ok', '');
     }).catch(function(e) {
       lotesCloudError(e);
     }).then(function() { delete _lotesPushing[key]; });
@@ -3505,7 +3516,10 @@ function mergeRemoteLote(r) {
     if (needPush) scheduleLotesPush();
     return true;
   }
-  if (!take) return false;
+  if (!take) {
+    if (l._h !== n._h && !(lc !== rc)) { l._p = 0; ssRaw('lotes', all); scheduleLotesPush(); }  // la nube quedo con una version mas vieja: se corrige
+    return false;
+  }
   all[idx] = n; ssRaw('lotes', all); return true;
 }
 function onLotesRemoteChange() {
@@ -3515,31 +3529,52 @@ function onLotesRemoteChange() {
   if (_fichaMaq) renderLive();
   if (on('view-reg')) { try { updateRegStatus(); } catch(e) {} }
 }
+var _lotesUnsub = null;
+function aplicarSnapLotes(snap) {
+  var changed = false;
+  snap.docChanges().forEach(function(ch) {
+    if (ch.type === 'removed') return;   // las bajas se manejan con lapidas, no con 'removed'
+    if (mergeRemoteLote(ch.doc.data())) changed = true;
+  });
+  if (changed) onLotesRemoteChange();
+}
 function startLotesSync() {
   if (_lotesStarted) return;
   var db = initFichasFirebase();
   if (!db) { lotesCloudState('offline'); setTimeout(startLotesSync, 5000); return; }
   _lotesStarted = true;
   var col = db.collection('fichas');
-  function applySnap(snap) {
-    var changed = false;
-    snap.docChanges().forEach(function(ch) {
-      if (ch.type === 'removed') return;   // las bajas se manejan con lapidas, no con 'removed'
-      if (mergeRemoteLote(ch.doc.data())) changed = true;
-    });
-    if (changed) onLotesRemoteChange();
-  }
-  // Un solo filtro por igualdad (tipo=='lote'): no necesita indice compuesto,
-  // a diferencia de combinarlo con un rango de fecha o con otro campo.
-  col.where('tipo', '==', LOTES_TIPO).onSnapshot(function(snap) {
-    applySnap(snap);
-    lotesCloudState('ok', '');
-  }, function(err) { lotesCloudError(err); });
+  // Un solo filtro por igualdad (tipo=='lote'): no necesita indice compuesto.
+  _lotesUnsub = col.where('tipo', '==', LOTES_TIPO).onSnapshot(function(snap) {
+    aplicarSnapLotes(snap);
+    if (snap.metadata && snap.metadata.fromCache) lotesCloudState('offline');
+    else lotesCloudState('ok', '');
+  }, function(err) {
+    // El listener murio (cuota, red, permisos): se cierra y se vuelve a abrir solo
+    lotesCloudError(err);
+    try { if (_lotesUnsub) _lotesUnsub(); } catch(e) {}
+    _lotesUnsub = null; _lotesStarted = false;
+    setTimeout(startLotesSync, 10000);
+  });
   pushLotes();
 }
-window.addEventListener('online', function() { pushLotes(); });
+// Al volver a la app o recuperar la red: reabre el listener si estaba caido, trae los cambios
+// que se pudieron perder y sube lo pendiente.
+var _lotesUltRefresco = 0;
+function refrescarLotes() {
+  if (!_lotesStarted) startLotesSync();
+  var db = initFichasFirebase(); if (!db || Date.now() - _lotesUltRefresco < 15000) { pushLotes(); return; }
+  _lotesUltRefresco = Date.now();
+  db.collection('fichas').where('tipo', '==', LOTES_TIPO).get().then(function(snap) {
+    aplicarSnapLotes(snap); lotesCloudState('ok', '');
+  }).catch(function(e) { lotesCloudError(e); });
+  pushLotes();
+}
+// Reintento periodico de lo pendiente (un celular que se queda abierto en la maquina)
+setInterval(function() { if (!document.hidden && lotesPending()) pushLotes(); }, 30000);
+window.addEventListener('online', function() { refrescarLotes(); });
 window.addEventListener('offline', function() { lotesCloudState('offline'); });
-document.addEventListener('visibilitychange', function() { if (!document.hidden) { pushLotes(); renderCloudPill(); } });
+document.addEventListener('visibilitychange', function() { if (!document.hidden) { refrescarLotes(); renderCloudPill(); try { renderDash(); } catch(e) {} } });
 
 
 // ============ CLAVE DE ADMINISTRADOR ============
