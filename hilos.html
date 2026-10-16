@@ -413,8 +413,18 @@ function fichaToMaterial(id, d) {
 }
 
 function syncMateriales(cb) {
-  var db = initFichasFirebase();
   var st = document.getElementById('fichas-status');
+  // AHORRO DE CUOTA: leer toda la coleccion solo si el guardado tiene mas de 60 min (o con ?fresh=1)
+  try {
+    var _c = JSON.parse(localStorage.getItem('hilos_fichas_full') || 'null');
+    if (_c && _c.mats && _c.est && Date.now() - _c.ts < 3600000 && !/[?&]fresh=1/.test(location.search)) {
+      MATERIALES = _c.mats; FICHAS_ESTADO = _c.est;
+      if (st) st.textContent = Object.keys(_c.mats).length + ' referencias con composicion de hilo (guardado hace ' + Math.round((Date.now() - _c.ts) / 60000) + ' min; recarga con ?fresh=1 para forzar)';
+      fillPedidoDatalist(); renderCobertura(); if (cb) cb();
+      return;
+    }
+  } catch (e) {}
+  var db = initFichasFirebase();
   if (!db) {
     var cached = loadMaterialesCache();
     if (cached) { MATERIALES = cached; if (st) st.textContent = 'Sin conexion a Fichas. Usando la ultima version guardada (' + Object.keys(MATERIALES).length + ' referencias).'; }
@@ -438,6 +448,7 @@ function syncMateriales(cb) {
     FICHAS_ESTADO = estado;
     MATERIALES = mats;
     try { localStorage.setItem('hilos_materiales_cache', JSON.stringify(mats)); } catch(e){}
+    try { localStorage.setItem('hilos_fichas_full', JSON.stringify({ ts: Date.now(), mats: mats, est: estado })); } catch(e){}
     if (st) st.textContent = Object.keys(mats).length + ' referencias con composicion de hilo (' + new Date().toLocaleTimeString() + ')';
     fillPedidoDatalist();
     renderCobertura();

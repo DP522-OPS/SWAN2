@@ -343,6 +343,17 @@ function cargarFichasMaquina(cb) {
   var st = document.getElementById('fichas-status');
   var db = initFichasFirebase();
   if (!db) { st.textContent = 'No se pudo conectar con Fichas; se usa solo el catalogo automatico.'; st.className='status err'; if(cb) cb(); return; }
+  // AHORRO DE CUOTA: leer toda la coleccion solo si el guardado tiene mas de 60 min (o con ?fresh=1)
+  try {
+    var _c = JSON.parse(localStorage.getItem('plan_ficha_maq') || 'null');
+    if (_c && _c.map && Date.now() - _c.ts < 3600000 && !/[?&]fresh=1/.test(location.search)) {
+      FICHA_MAQ = _c.map;
+      st.textContent = _c.n + ' ficha(s) con maquina/diametro definido (guardado hace ' + Math.round((Date.now() - _c.ts) / 60000) + ' min; ?fresh=1 para forzar).';
+      st.className = 'status ok';
+      if (cb) cb();
+      return;
+    }
+  } catch (e) {}
   st.textContent = 'Cargando maquina/diametro desde Fichas...'; st.className='status';
   db.collection('fichas').get().then(function(snap) {
     var map = {}, completas = 0;
@@ -369,6 +380,7 @@ function cargarFichasMaquina(cb) {
       completas++;
     });
     FICHA_MAQ = map;
+    try { localStorage.setItem('plan_ficha_maq', JSON.stringify({ ts: Date.now(), map: map, n: completas })); } catch(e) {}
     st.textContent = completas + ' ficha(s) con maquina/diametro definido manualmente (' + new Date().toLocaleTimeString() + ').';
     st.className = 'status ok';
     if (cb) cb();
