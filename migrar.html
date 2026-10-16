@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Swantex - Migrar datos</title>
+<style>
+body{font-family:system-ui,Arial,sans-serif;max-width:720px;margin:1.5rem auto;padding:0 1rem;color:#1a2b4a}
+h1{font-size:1.3rem}button{padding:.7rem 1rem;font-size:1rem;border:0;border-radius:8px;background:#1a2b4a;color:#fff;cursor:pointer;margin:.3rem .3rem .3rem 0}
+button.g{background:#16a34a}button.o{background:#fff;color:#1a2b4a;border:1px solid #1a2b4a}button:disabled{opacity:.5}
+pre{background:#f1f5f9;padding:.8rem;border-radius:8px;white-space:pre-wrap;font-size:.85rem;max-height:340px;overflow:auto}
+.box{border:1px solid #cbd5e1;border-radius:10px;padding:.8rem;margin:.8rem 0}
+</style></head><body>
+<h1>Pasar datos al proyecto nuevo (swantex-produccion)</h1>
+<div class="box">Copia TODO lo que hay en el proyecto viejo (<b>swantex-fichas-5ca6b</b>) al nuevo (<b>swantex-produccion</b>).
+No borra nada del viejo y <b>no pisa</b> lo que ya exista en el nuevo (a menos que marques la casilla).</div>
+<label><input type="checkbox" id="sob"> Sobrescribir lo que ya exista en el nuevo</label><br>
+<button onclick="descargar()" class="o">1. Descargar copia (JSON) del proyecto viejo</button>
+<button onclick="migrar()" class="g">2. Copiar al proyecto nuevo</button>
+<pre id="log">Listo. Si sale "Quota exceeded" o "resource-exhausted", el proyecto viejo aun no renueva su cuota diaria: reintenta despues de las 2:00 a. m.</pre>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+var OLD={apiKey:'AIzaSyCQqlJRxiyJPNkgiBNnF5kquWpBxKuMiQ8',authDomain:'swantex-fichas-5ca6b.firebaseapp.com',projectId:'swantex-fichas-5ca6b',storageBucket:'swantex-fichas-5ca6b.firebasestorage.app',messagingSenderId:'60295471678',appId:'1:60295471678:web:67a732cfbd97cdf20aa76f'};
+var NEW={apiKey:'AIzaSyAZkeIEa2xhXeyV6Ndy18FFJ3a6msCEyWQ',authDomain:'swantex-produccion.firebaseapp.com',projectId:'swantex-produccion',storageBucket:'swantex-produccion.firebasestorage.app',messagingSenderId:'952859382279',appId:'1:952859382279:web:c7d7190cc6a5c5eafa90a2'};
+var dbO=firebase.initializeApp(OLD,'old').firestore(), dbN=firebase.initializeApp(NEW,'new').firestore();
+try{dbO.settings({experimentalAutoDetectLongPolling:true,merge:true});dbN.settings({experimentalAutoDetectLongPolling:true,merge:true});}catch(e){}
+function log(t){var l=document.getElementById('log');l.textContent+='\n'+t;l.scrollTop=l.scrollHeight;}
+var CACHE=null;
+function leerViejo(){
+  if(CACHE) return Promise.resolve(CACHE);
+  log('Leyendo el proyecto viejo...');
+  return dbO.collection('fichas').get().then(function(s){var out=[];s.forEach(function(d){out.push({id:d.id,data:d.data()});});CACHE=out;log('Documentos en el viejo: '+out.length);return out;});
+}
+function descargar(){
+  leerViejo().then(function(docs){
+    var blob=new Blob([JSON.stringify(docs)],{type:'application/json'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='copia_swantex_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+    log('Copia descargada ('+docs.length+' documentos).');
+  }).catch(function(e){log('ERROR: '+e.message);});
+}
+function tipo(id){return /^SW-|^STRUCT-/.test(id)?'precosteos':/^FT004-/.test(id)?'fichas de medidas':/^ENH-/.test(id)?'enhebrados':/^LOTE-/.test(id)?'lotes':/^PAPELERA-/.test(id)?'papelera':/^PROYECTO-/.test(id)?'proyectos':/^SWAN2-/.test(id)?'configuracion':/^RECIBO-|^DEV-|^IMG-/.test(id)?'recibos/desarrollo':'otros';}
+function migrar(){
+  var sob=document.getElementById('sob').checked;
+  leerViejo().then(function(docs){
+    log('Revisando que hay ya en el nuevo...');
+    return dbN.collection('fichas').get().then(function(s){
+      var ya={};s.forEach(function(d){ya[d.id]=1;});
+      var por=docs.filter(function(d){return sob||!ya[d.id];});
+      log('Ya existen en el nuevo: '+Object.keys(ya).length+'. Por copiar: '+por.length);
+      var cnt={},i=0,hechos=0;
+      function lote(){
+        if(i>=por.length){log('LISTO. Copiados '+hechos+' documentos:');Object.keys(cnt).forEach(function(k){log('  - '+k+': '+cnt[k]);});return;}
+        var b=dbN.batch(),n=0;
+        while(i<por.length&&n<300){var d=por[i++];b.set(dbN.collection('fichas').doc(d.id),d.data);cnt[tipo(d.id)]=(cnt[tipo(d.id)]||0)+1;n++;}
+        return b.commit().then(function(){hechos+=n;log('  copiados '+hechos+' / '+por.length);return lote();});
+      }
+      return lote();
+    });
+  }).catch(function(e){log('ERROR: '+e.message+(/quota|exhaust/i.test(e.message+e.code)?'\n-> La cuota diaria se agoto. Reintenta despues de las 2:00 a. m. (hora Colombia).':''));});
+}
+</script></body></html>
