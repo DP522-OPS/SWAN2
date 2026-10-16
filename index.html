@@ -2765,6 +2765,8 @@ function applyLiveRefs(rows) {
   return { added: added, updated: updated };
 }
 function syncRefsFromFichas(notify) {
+  // AHORRO DE CUOTA: esto lee TODA la coleccion. Solo a mano (boton) o si pasaron 60 min.
+  if (!notify) { var _t = sg('refs_fichas_ts', 0); if (_t && Date.now() - _t < 3600000) return; }
   var db = initFichasFirebase();
   if (!db) { if (notify) toast('No se pudo conectar con Fichas'); return; }
   db.collection('fichas').get().then(function(snap) {
@@ -3563,7 +3565,7 @@ function startLotesSync() {
 var _lotesUltRefresco = 0;
 function refrescarLotes() {
   if (!_lotesStarted) startLotesSync();
-  var db = initFichasFirebase(); if (!db || Date.now() - _lotesUltRefresco < 15000) { pushLotes(); return; }
+  var db = initFichasFirebase(); if (!db || Date.now() - _lotesUltRefresco < 120000) { pushLotes(); return; }
   _lotesUltRefresco = Date.now();
   db.collection('fichas').where('tipo', '==', LOTES_TIPO).get().then(function(snap) {
     aplicarSnapLotes(snap); lotesCloudState('ok', '');
