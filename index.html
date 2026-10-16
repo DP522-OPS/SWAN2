@@ -780,7 +780,7 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
   <div class="cpanel" id="cp-ops">
     <div class="hdr" style="margin-bottom:.65rem">
       <div style="font-size:.8rem;color:var(--steel)">Colaboradores</div>
-      <button class="btn btn-navy btn-sm" onclick="openCfgForm('op')">+ Operario</button>
+      <div style="display:flex;gap:.4rem"><button class="btn btn-out btn-sm" onclick="restaurarCopiaCfg('ops')">&#8617; Restaurar copia</button><button class="btn btn-navy btn-sm" onclick="openCfgForm('op')">+ Operario</button></div>
     </div>
     <div class="card" style="margin-bottom:0"><div class="tw"><table>
       <thead><tr><th>ID</th><th>Nombre</th><th>Equipo</th><th>NFC</th><th></th></tr></thead>
@@ -887,6 +887,7 @@ function sg(k, def) {
   return r;
 }
 function ss(k, v) {
+  if (k === 'ops' || k === 'maqs') { try { histCfg(k); } catch(e) {} }  // copia de seguridad antes de cambiar
   if (k === 'lotes') v = stampLotes(v); // marca cambios para subirlos a la nube compartida
   MEM[k] = v;
   if (LS_OK) { try { localStorage.setItem('swx_' + k, JSON.stringify(v)); } catch(e) {} }
@@ -1949,9 +1950,9 @@ function saveCerrar() {
   // no, la maquina queda libre hasta que se abra un lote nuevo.
   if (cont) {
     syncEstadoActual(cont.maqId, cont.refId, cont.fecha, cont.hi, 'CORRIENDO');
-  } else {
-    syncEstadoActual(closedLote.maqId, closedLote.refId, closedLote.fecha, closedLote.hf, 'LIBRE');
   }
+  // Si fue lote completo, el estado en vivo (LIBRE / CORRIENDO) lo manda lo que se elija en la ventana "Que sigue":
+  // asi no se cruzan dos avisos seguidos al servidor.
 
   rCerrarLoteId = null;
   rCerrarParos = [];
@@ -1996,21 +1997,42 @@ function sigNext() {
 function sigMisma() {
   var it = _sigCur; if (!it) { closeOv('ov-sig'); return; }
   var prev = it.prev;
-  if (sg_lotes().some(function(x) { return x.maqId === prev.maqId && isOpen(x); })) { toast(prev.maqId + ' ya tiene un lote abierto'); sigNext(); return; }
-  var lote = {
-    id: (Date.now() + Math.floor(Math.random()*1000)).toString(), ts: Date.now(),
-    fecha: localDate(), maqId: prev.maqId, opId: it.op, turno: it.turno,
-    refId: prev.refId, lotSize: prev.lotSize, ctrStart: 0, ctrEnd: null, tubos: null,
-    hi: it.hora, hf: null, dur: null, paros: [], parosMin: 0, std: null, eff: null, obs: '', status: 'abierto'
-  };
-  var all = sg_lotes(); all.push(lote); ss('lotes', all);
-  syncEstadoActual(lote.maqId, lote.refId, lote.fecha, lote.hi, 'CORRIENDO');
-  toast(prev.maqId + ' sigue corriendo ' + (prev.refId || '') + ' - nuevo lote con contador en 0');
-  updateRegStatus(); try { loadCerrarLotes(); } catch (e) {} try { loadEntrega(); } catch (e) {}
+  try {
+    var abiertoYa = sg_lotes().filter(function(x) { return x.maqId === prev.maqId && isOpen(x); })[0];
+    if (abiertoYa) {
+      toast(prev.maqId + ' ya tiene un lote abierto (desde ' + (abiertoYa.hi || '--') + '). Cierrelo primero en Cerrar Lote.');
+    } else {
+      var lote = {
+        id: (Date.now() + Math.floor(Math.random()*1000)).toString(), ts: Date.now(),
+        fecha: localDate(), maqId: prev.maqId, opId: it.op, turno: it.turno,
+        refId: prev.refId, lotSize: prev.lotSize, ctrStart: 0, ctrEnd: null, tubos: null,
+        hi: it.hora, hf: null, dur: null, paros: [], parosMin: 0, std: null, eff: null, obs: '', status: 'abierto'
+      };
+      var all = sg_lotes(); all.push(lote); ss('lotes', all);
+      toast(prev.maqId + ' sigue corriendo ' + (prev.refId || '') + ' - nuevo lote con contador en 0');
+      try { syncEstadoActual(lote.maqId, lote.refId, lote.fecha, lote.hi, 'CORRIENDO'); } catch (e) {}
+      try { updateRegStatus(); } catch (e) {}
+      try { loadCerrarLotes(); } catch (e) {}
+      try { loadEntrega(); } catch (e) {}
+      try { renderDash(); } catch (e) {}
+    }
+  } catch (e) { console.error('sigMisma', e); toast('No se pudo abrir el lote siguiente: ' + e.message); }
+  sigNext();   // siempre pasa a la siguiente maquina / cierra la ventana
+}
+function sigCambio() {
+  if (_sigCur) {
+    try { syncEstadoActual(_sigCur.prev.maqId, '', _sigCur.prev.fecha, _sigCur.prev.hf, 'LIBRE'); } catch (e) {}
+    _sigCambios.push(_sigCur);
+  }
   sigNext();
 }
-function sigCambio() { if (_sigCur) _sigCambios.push(_sigCur); sigNext(); }
-function sigParar() { if (_sigCur) toast(_sigCur.prev.maqId + ' queda libre. Abra un lote cuando vuelva a arrancar.'); sigNext(); }
+function sigParar() {
+  if (_sigCur) {
+    try { syncEstadoActual(_sigCur.prev.maqId, '', _sigCur.prev.fecha, _sigCur.prev.hf, 'LIBRE'); } catch (e) {}
+    toast(_sigCur.prev.maqId + ' queda libre. Abra un lote cuando vuelva a arrancar.');
+  }
+  sigNext();
+}
 
 // After closing a complete lot: jump to Abrir with same machine (ref only if not a change), counter 0
 function abrirSiguiente(prev, cambioRef) {
@@ -2887,15 +2909,55 @@ var OPS_CLOUD_DOC = 'SWAN2-OPS-CONFIG';
 var _cfgTimer = null;
 function cfgTs(k) { try { return parseInt(localStorage.getItem('swx_cfgts_' + k) || '0', 10) || 0; } catch(e) { return 0; } }
 function scheduleCfgPush() { clearTimeout(_cfgTimer); _cfgTimer = setTimeout(pushCfgToCloud, 700); }
+// Copias de seguridad en este aparato (ultimas 6 versiones de operarios / maquinas)
+function esOpsDefault(list, k) {
+  if (!list || !list.length) return true;
+  for (var i = 0; i < list.length; i++) {
+    if (k === 'maqs') { if (list[i].nfc || list[i].active === false) return false; }   // maquinas de fabrica: sin NFC y todas activas
+    else if (!/^Operario E\d+$/.test(list[i].name || '')) return false;
+  }
+  return true;
+}
+function histCfg(k) {
+  var cur = JSON.parse(localStorage.getItem('swx_' + k) || 'null');
+  if (!cur || !cur.length) return;
+  if (esOpsDefault(cur, k)) return;   // los de ejemplo no valen la pena
+  var h = JSON.parse(localStorage.getItem('swx_hist_' + k) || '[]'), t = JSON.stringify(cur);
+  if (h.length && JSON.stringify(h[0].list) === t) return;
+  h.unshift({ ts: Date.now(), list: cur });
+  localStorage.setItem('swx_hist_' + k, JSON.stringify(h.slice(0, 6)));
+}
+// Subida: SOLO sube lo que alguien edito de verdad en este aparato (marca de tiempo > 0) y
+// NUNCA pisa algo mas nuevo que haya en la nube. La version que se reemplaza queda en <campo>Prev.
+var _cfgRetry = 30000;
 function pushCfgToCloud() {
   var db = initFichasFirebase();
   if (!db) return;
-  var p = { updatedAt: Date.now() };
-  var ops = sg('ops', null), maqs = sg('maqs', null);
-  if (ops) { p.ops = ops; p.opsTs = cfgTs('ops') || Date.now(); }
-  if (maqs) { p.maqs = maqs; p.maqsTs = cfgTs('maqs') || Date.now(); }
-  db.collection('fichas').doc(OPS_CLOUD_DOC).set(p, { merge: true }).catch(function(e) {
+  var ref = db.collection('fichas').doc(OPS_CLOUD_DOC), loc = {};
+  ['ops', 'maqs'].forEach(function(k) {
+    var v = sg(k, null), t = cfgTs(k);
+    if (v && v.length && t > 0) loc[k] = { v: v, t: t };
+  });
+  if (!Object.keys(loc).length) return;
+  var nube = false;
+  db.runTransaction(function(tx) {
+    return tx.get(ref).then(function(doc) {
+      var d = doc.exists ? (doc.data() || {}) : {}, p = { updatedAt: Date.now() }, n = 0;
+      Object.keys(loc).forEach(function(k) {
+        var clTs = d[k + 'Ts'] || 0;
+        if (clTs > loc[k].t) { nube = true; return; }          // la nube tiene algo mas nuevo
+        if (Array.isArray(d[k]) && JSON.stringify(d[k]) === JSON.stringify(loc[k].v)) return;   // ya esta igual
+        if (Array.isArray(d[k]) && d[k].length) { p[k + 'Prev'] = d[k]; p[k + 'PrevTs'] = clTs; }
+        p[k] = loc[k].v; p[k + 'Ts'] = loc[k].t; n++;
+      });
+      if (n) tx.set(ref, p, { merge: true });
+    });
+  }).then(function() {
+    _cfgRetry = 30000;
+    if (nube) loadOpsFromCloud();
+  }).catch(function(e) {
     console.warn('Error sincronizando configuracion', e);
+    setTimeout(pushCfgToCloud, _cfgRetry); _cfgRetry = Math.min(_cfgRetry * 2, 900000);
   });
 }
 function syncOpsToCloud() { scheduleCfgPush(); }
@@ -2917,12 +2979,19 @@ function loadOpsFromCloud(cb) {
     var d = doc.exists ? (doc.data() || {}) : {}, push = false, ch = false;
     ['ops', 'maqs'].forEach(function(k) {
       var local = sg(k, null), cl = d[k], clTs = d[k + 'Ts'] || 0, lTs = cfgTs(k);
+      var hayLocal = !!(local && local.length);
+      // Datos reales de una version anterior (sin marca de tiempo): cuentan como "mas viejos que cualquier cosa"
+      if (hayLocal && lTs === 0 && !esOpsDefault(local, k)) { lTs = 1; try { localStorage.setItem('swx_cfgts_' + k, '1'); } catch(e) {} }
       if (Array.isArray(cl) && cl.length) {
-        if (!local || !local.length) { ssRaw(k, cl); ch = true; }
-        else if (clTs > lTs) { ssRaw(k, k === 'ops' ? cl : mezclarLista(local, cl)); ch = true; try { localStorage.setItem('swx_cfgts_' + k, String(clTs)); } catch(e) {} }
-        else if (lTs > clTs) push = true;
-        else if (!clTs) { ssRaw(k, mezclarLista(local, cl)); push = true; ch = true; }
-      } else if (local && local.length) push = true;
+        if (!hayLocal || lTs === 0) {            // aparato nuevo o con datos de ejemplo: manda la nube
+          ssRaw(k, k === 'maqs' && hayLocal ? mezclarLista(local, cl) : cl); ch = true;
+          try { localStorage.setItem('swx_cfgts_' + k, String(clTs || 1)); } catch(e) {}
+        } else if (clTs > lTs) {
+          try { histCfg(k); } catch(e) {}        // lo local se guarda como copia antes de reemplazarlo
+          ssRaw(k, k === 'ops' ? cl : mezclarLista(local, cl)); ch = true;
+          try { localStorage.setItem('swx_cfgts_' + k, String(clTs)); } catch(e) {}
+        } else if (lTs > clTs) push = true;
+      } else if (hayLocal && lTs > 0) push = true;
     });
     if (push) pushCfgToCloud();
     if (ch) {
@@ -2936,6 +3005,32 @@ function loadOpsFromCloud(cb) {
     }
     if (cb) cb();
   }).catch(function(e) { console.warn('Error cargando configuracion de la nube', e); if (cb) cb(); });
+}
+// Restaurar una version anterior de operarios o maquinas (copias de este aparato o la de la nube)
+function restaurarCopiaCfg(k) {
+  var h = []; try { h = JSON.parse(localStorage.getItem('swx_hist_' + k) || '[]'); } catch(e) {}
+  function fin(cloudPrev) {
+    var opts = [], i;
+    for (i = 0; i < h.length; i++) opts.push({ t: 'Este aparato, ' + new Date(h[i].ts).toLocaleString(), list: h[i].list });
+    if (cloudPrev && cloudPrev.length) opts.push({ t: 'Nube (version anterior)', list: cloudPrev });
+    if (!opts.length) { toast('No hay copias anteriores'); return; }
+    var msg = 'Copias de ' + (k === 'ops' ? 'operarios' : 'maquinas') + ':\n\n';
+    opts.forEach(function(o, n) {
+      var nfc = o.list.filter(function(x) { return x.nfc; }).length;
+      msg += (n + 1) + ') ' + o.t + ' - ' + o.list.length + ' registros, ' + nfc + ' con NFC\n    ' +
+        o.list.slice(0, 4).map(function(x) { return x.name || x.id; }).join(', ') + '...\n';
+    });
+    var r = window.prompt(msg + '\nEscribe el numero de la copia a restaurar:');
+    var n = parseInt(r, 10);
+    if (!n || !opts[n - 1]) return;
+    ss(k, opts[n - 1].list);
+    if (document.getElementById('cfg-op-body')) renderCfgOps();
+    if (document.getElementById('cfg-maq-body') && typeof renderCfgMaqs === 'function') renderCfgMaqs();
+    toast('Restaurado (' + opts[n - 1].list.length + ')');
+  }
+  var db = initFichasFirebase();
+  if (!db) return fin(null);
+  db.collection('fichas').doc(OPS_CLOUD_DOC).get().then(function(doc) { fin((doc.data() || {})[k + 'Prev']); }).catch(function() { fin(null); });
 }
 
 // ============ PAROS Y EFICIENCIA EN VIVO ============
@@ -3648,7 +3743,7 @@ function cambiarClaveAdmin() {
 (function() {
   // Acciones que cambian Config: todas pasan por la clave
   ['openCfgForm', 'saveCfgItem', 'delOp', 'deleteRef', 'deleteRefGroup', 'restaurarOcultas', 'restaurarOculta',
-   'showNfc', 'saveGasUrl', 'clearGasUrl'].forEach(function(n) {
+   'showNfc', 'saveGasUrl', 'clearGasUrl', 'restaurarCopiaCfg'].forEach(function(n) {
     var f = window[n]; if (typeof f !== 'function') return;
     window[n] = function() { var a = arguments, me = this; pedirClave(function() { f.apply(me, a); }); };
   });
