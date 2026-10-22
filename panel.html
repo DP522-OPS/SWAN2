@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Swantex - Panel de Herramientas y Mantenimiento</title>
+<title>Swantex - Panel Central de Planta</title>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-panel-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-panel-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-panel-180.png">
@@ -51,6 +51,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .tag-cfg{color:#92400e;background:#fdf1de}
 .tag-plan{color:#b45309;background:#fef3e0}
 .tag-dev{color:#7e22ce;background:#f5eaff}
+.tag-maint{color:#b91c1c;background:#fee2e2}
 
 .guide-row{display:flex;align-items:center;gap:14px;padding:16px 20px;border:1px solid #e6e8eb;margin-bottom:10px;text-decoration:none;color:inherit;transition:.15s}
 .guide-row:hover{background:#f7f8f9;border-color:#d7dbe0}
@@ -96,7 +97,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .tl-tech{font-size:10px;color:#059669;font-weight:700}
 .tl-img{margin-top:4px;max-width:100px;border-radius:4px;border:1px solid #cbd5e1;cursor:pointer}
 
-/* Estilos de flujo */
+/* Flujo */
 .fc{margin-top:6px}
 .fc-fase{font-size:11px;font-weight:800;letter-spacing:1px;color:#c9a227;text-transform:uppercase;margin:26px 0 10px}
 .fc-fase:first-child{margin-top:0}
@@ -401,6 +402,8 @@ var maqEstados = {};
 var maqActualHv = null;
 
 function renderMaintGrid(filtro) {
+  var gridEl = document.getElementById('maintTeamsGrid');
+  if (!gridEl) return;
   var h = '';
   filtro = (filtro || '').toUpperCase();
   for (var i=0; i<EQS_M.length; i++) {
@@ -426,7 +429,7 @@ function renderMaintGrid(filtro) {
     }
     h += '</div></div>';
   }
-  document.getElementById('maintTeamsGrid').innerHTML = h;
+  gridEl.innerHTML = h;
 }
 
 function filtrarMaqsMaint(val) { renderMaintGrid(val); }
@@ -525,6 +528,7 @@ function guardarIntervencionHv() {
 
 function cargarHistorialHv(maqId) {
   var tl = document.getElementById('hv-timeline');
+  if (!tl) return;
   tl.innerHTML = '<div style="color:#64748b;font-size:12px">Cargando historial...</div>';
 
   if (!dbMaint) { tl.innerHTML = '<div style="color:#ef4444;font-size:12px">Sin conexión a Firebase.</div>'; return; }
@@ -595,6 +599,7 @@ function sincronizarMaintEstados() {
   var h = (location.hash || '').replace('#', '');
   var valid = ['flujo', 'produccion', 'mantenimiento', 'fichas', 'desarrollo', 'materia', 'config'];
   if (valid.indexOf(h) >= 0) showSection(h);
+  else showSection('flujo');
 })();
 </script>
 
