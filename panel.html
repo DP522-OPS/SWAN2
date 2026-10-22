@@ -51,7 +51,6 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .tag-cfg{color:#92400e;background:#fdf1de}
 .tag-plan{color:#b45309;background:#fef3e0}
 .tag-dev{color:#7e22ce;background:#f5eaff}
-.tag-maint{color:#b91c1c;background:#fee2e2}
 
 .guide-row{display:flex;align-items:center;gap:14px;padding:16px 20px;border:1px solid #e6e8eb;margin-bottom:10px;text-decoration:none;color:inherit;transition:.15s}
 .guide-row:hover{background:#f7f8f9;border-color:#d7dbe0}
@@ -59,7 +58,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .guide-t{font-size:14px;font-weight:600;color:#111111}
 .guide-d{font-size:12px;color:#818a94;margin-top:1px}
 
-/* ESTILOS ESPECÍFICOS MÓDULO MANTENIMIENTO */
+/* MÓDULO MANTENIMIENTO & HVs */
 .maint-container{display:flex;flex-direction:column;gap:1rem}
 .maint-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1rem}
 .maint-search{flex:1;min-width:220px;padding:10px 14px;border:1.5px solid #d7dbe0;border-radius:8px;font-size:14px}
@@ -74,7 +73,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .maint-tile-id{font-size:11px;font-weight:800;line-height:1}
 .maint-tile-m{font-size:9px;opacity:.8;margin-top:2px}
 
-/* MODAL DE HOJA DE VIDA */
+/* MODAL HOJA DE VIDA */
 .ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:200;padding:1rem}
 .ov.on{display:flex}
 .modal{background:#fff;border-radius:14px;padding:20px;max-width:620px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.2)}
@@ -87,6 +86,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .btn{padding:8px 14px;border-radius:6px;border:none;cursor:pointer;font-weight:700;font-size:12px}
 .btn-navy{background:#0f2942;color:#fff}
 .btn-red{background:#ef4444;color:#fff}
+.btn-green{background:#10b981;color:#fff}
 .btn-out{background:#fff;border:1px solid #cbd5e1;color:#475569}
 .timeline{margin-top:12px;border-left:2px solid #cbd5e1;padding-left:12px;display:flex;flex-direction:column;gap:10px}
 .tl-item{position:relative}
@@ -96,7 +96,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .tl-tech{font-size:10px;color:#059669;font-weight:700}
 .tl-img{margin-top:4px;max-width:100px;border-radius:4px;border:1px solid #cbd5e1;cursor:pointer}
 
-/* Flujo */
+/* Estilos de flujo */
 .fc{margin-top:6px}
 .fc-fase{font-size:11px;font-weight:800;letter-spacing:1px;color:#c9a227;text-transform:uppercase;margin:26px 0 10px}
 .fc-fase:first-child{margin-top:0}
@@ -147,6 +147,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 
 <div class="wrap">
 
+  <!-- BARRA LATERAL -->
   <div class="sidebar" id="sidebarNav">
     <div class="brand-box">
       <div class="brand-name">Swantex</div>
@@ -155,7 +156,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 
     <button class="navitem active" data-sec="flujo" onclick="showSection('flujo')">Cómo funciona</button>
     <button class="navitem" data-sec="produccion" onclick="showSection('produccion')">Producción diaria</button>
-    <button class="navitem" data-sec="mantenimiento" onclick="showSection('mantenimiento')">Mantenimiento y HVs</button>
+    <button class="navitem" data-sec="mantenimiento" onclick="showSection('mantenimiento')">🛠️ Mantenimiento y HVs</button>
     <button class="navitem" data-sec="fichas" onclick="showSection('fichas')">Fichas técnicas</button>
     <button class="navitem" data-sec="desarrollo" onclick="showSection('desarrollo')">Desarrollo de producto</button>
     <button class="navitem" data-sec="materia" onclick="showSection('materia')">Materia prima</button>
@@ -170,13 +171,13 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
     </div>
   </div>
 
+  <!-- CONTENIDO PRINCIPAL -->
   <div class="content wide" id="mainContent">
 
-    <!-- SECCIÓN: CÓMO FUNCIONA -->
+    <!-- 1. CÓMO FUNCIONA -->
     <div class="section active" id="sec-flujo">
       <div class="sec-title">Cómo funciona todo el sistema</div>
       <div class="sec-sub">El flujo completo, de principio a fin: de la ficha técnica al Gantt de planeación</div>
-      <!-- (Se mantiene el contenido del flujo original intacto) -->
       <div class="fc">
         <div class="fc-fase">Fase 1 · Ingeniería (una vez por referencia)</div>
         <div class="fc-grid">
@@ -191,22 +192,13 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
             <span class="fc-tag" style="cursor:default">Catálogo en la nube</span>
           </div></div>
         </div>
-        <div class="fc-fase">Fase 2 · Planta y Mantenimiento</div>
-        <div class="fc-grid">
-          <div class="fc-row left"><div class="fc-dot"></div><div class="fc-box">
-            <div class="fc-step">Paso 3</div><div class="fc-title">Operación y Mantenimiento por NFC o Táctil</div>
-            <div class="fc-desc">Los operarios abren lotes y los mecánicos registran reparaciones, repuestos y fotos de hoja de vida al instante.</div>
-            <a class="fc-tag" href="https://dp522-ops.github.io/SWAN2/" target="_blank" rel="noopener">Registrar / Mantenimiento</a>
-          </div></div>
-        </div>
       </div>
     </div>
 
-    <!-- SECCIÓN: PRODUCCIÓN DIARIA -->
+    <!-- 2. PRODUCCIÓN DIARIA -->
     <div class="section" id="sec-produccion">
       <div class="sec-title">Producción diaria</div>
       <div class="sec-sub">Herramientas de uso diario para operarios y supervisores</div>
-
       <a class="row" href="https://dp522-ops.github.io/SWAN2/" target="_blank" rel="noopener">
         <div class="row-icon">📱</div>
         <div style="flex-grow:1"><div class="row-t">Registrar Producción</div><div class="row-d">Abrir lotes, cerrar lotes, entrega de turno y paros por NFC.</div></div>
@@ -224,21 +216,21 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
       </a>
     </div>
 
-    <!-- SECCIÓN NUEVA: MANTENIMIENTO Y HOJAS DE VIDA -->
+    <!-- 3. NUEVA SECCIÓN: MANTENIMIENTO Y HVS -->
     <div class="section" id="sec-mantenimiento">
       <div class="sec-title">Mantenimiento y Hojas de Vida de Máquinas</div>
-      <div class="sec-sub">Historial técnico, intervenciones, repuestos y estado mecánico de las 142 máquinas</div>
+      <div class="sec-sub">Historial técnico, reparaciones, repuestos y control de estado de las 142 máquinas</div>
 
       <div class="maint-container">
         <div class="maint-actions">
           <input type="text" class="maint-search" id="maintSearchInp" placeholder="Buscar máquina por ID (ej: S37, L42)..." oninput="filtrarMaqsMaint(this.value)">
-          <button class="btn btn-navy" onclick="escanearNfcMaint()">📱 Escanear NFC</button>
+          <button class="btn btn-navy" onclick="escanearNfcMaint()">📱 Escanear NFC de Máquina</button>
         </div>
         <div class="maint-teams" id="maintTeamsGrid"></div>
       </div>
     </div>
 
-    <!-- SECCIÓN: FICHAS TÉCNICAS -->
+    <!-- 4. FICHAS TÉCNICAS -->
     <div class="section" id="sec-fichas">
       <div class="sec-title">Fichas técnicas</div>
       <div class="sec-sub">Ingeniería de producto y costeo</div>
@@ -249,7 +241,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
       </a>
     </div>
 
-    <!-- SECCIÓN: DESARROLLO DE PRODUCTO -->
+    <!-- 5. DESARROLLO DE PRODUCTO -->
     <div class="section" id="sec-desarrollo">
       <div class="sec-title">Desarrollo de producto</div>
       <div class="sec-sub">Seguimiento de nuevos desarrollos, de la referencia a producción</div>
@@ -260,7 +252,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
       </a>
     </div>
 
-    <!-- SECCIÓN: MATERIA PRIMA -->
+    <!-- 6. MATERIA PRIMA -->
     <div class="section" id="sec-materia">
       <div class="sec-title">Materia prima</div>
       <div class="sec-sub">Consumo y pedido de hilo para bodega</div>
@@ -271,7 +263,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
       </a>
     </div>
 
-    <!-- SECCIÓN: CONFIGURACIÓN -->
+    <!-- 7. CONFIGURACIÓN -->
     <div class="section" id="sec-config">
       <div class="sec-title">Configuración y guías</div>
       <div class="sec-sub">Pasos para conectar cada herramienta, una sola vez</div>
@@ -292,10 +284,10 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
         <div class="modal-title" id="hv-maq-title">Máquina --</div>
         <div style="font-size:11px;color:#64748b" id="hv-maq-sub">--</div>
       </div>
-      <button class="btn btn-red" id="btn-toggle-est" onclick="cambiarEstadoMaqHv()">Cambiar a Averiada</button>
+      <button class="btn btn-red" id="btn-toggle-est" onclick="cambiarEstadoMaqHv()">Marcar como Averiada</button>
     </div>
 
-    <!-- FORMULARIO INTERVENCIÓN RÁPIDA -->
+    <!-- FORMULARIO INTERVENCIÓN -->
     <div class="maint-form-box">
       <div style="font-weight:700;font-size:13px;color:#0f2942;margin-bottom:6px">+ Registrar Nueva Intervención o Repuesto</div>
       <div class="fg">
@@ -338,7 +330,45 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 </div>
 
 <script>
-// BASE DE DATOS DE LAS 142 MÁQUINAS (Santoni y Lonati)
+// FUNCIONES DE CONTROL DE SECCIONES
+function showSection(name) {
+  var secs = ['flujo', 'produccion', 'mantenimiento', 'fichas', 'desarrollo', 'materia', 'config'];
+  for (var i = 0; i < secs.length; i++) {
+    var isOn = secs[i] === name;
+    var el = document.getElementById('sec-' + secs[i]);
+    if(el) el.classList.toggle('active', isOn);
+  }
+  var navs = document.querySelectorAll('.navitem');
+  for (var j = 0; j < navs.length; j++) {
+    navs[j].classList.toggle('active', navs[j].getAttribute('data-sec') === name);
+  }
+  var contentEl = document.querySelector('.content');
+  if (contentEl) contentEl.classList.toggle('wide', name === 'flujo' || name === 'mantenimiento');
+  try { location.hash = name; } catch(e) {}
+  
+  if (name === 'mantenimiento') {
+    renderMaintGrid();
+    sincronizarMaintEstados();
+  }
+}
+
+// CONTROL DE CONEXIÓN
+function updateNetworkStatus() {
+  var dot = document.getElementById('netDot');
+  var text = document.getElementById('netText');
+  if (!dot || !text) return;
+  if (navigator.onLine) {
+    dot.classList.remove('offline');
+    text.textContent = 'Sistema en línea';
+  } else {
+    dot.classList.add('offline');
+    text.textContent = 'Modo Offline (Sin Red)';
+  }
+}
+window.addEventListener('online', updateNetworkStatus);
+window.addEventListener('offline', updateNetworkStatus);
+
+// DATOS DE LAS 142 MÁQUINAS PARA MANTENIMIENTO
 var EQS_M = [
   {id:'E2',name:'Equipo 2',type:'lonati'},{id:'E3',name:'Equipo 3',type:'lonati'},
   {id:'E5',name:'Equipo 5',type:'santoni'},{id:'E6',name:'Equipo 6',type:'santoni'},
@@ -421,6 +451,8 @@ function abrirHv(maqId) {
   cargarHistorialHv(maqId);
   document.getElementById('ov-hv').classList.add('on');
 }
+
+function closeOv(id) { document.getElementById(id).classList.remove('on'); }
 
 function cambiarEstadoMaqHv() {
   if (!maqActualHv) return;
@@ -521,7 +553,6 @@ function cargarHistorialHv(maqId) {
   });
 }
 
-// LECTOR NFC PARA MANTENIMIENTO
 async function escanearNfcMaint() {
   if (!('NDEFReader' in window)) {
     alert('El lector NFC requiere Chrome en Android y HTTPS.');
@@ -548,7 +579,6 @@ async function escanearNfcMaint() {
   }
 }
 
-// Sincronizar estados al abrir
 function sincronizarMaintEstados() {
   if (!dbMaint) return;
   dbMaint.collection('fichas').where('estado', '==', 'bad').get().then(function(snap){
@@ -560,8 +590,12 @@ function sincronizarMaintEstados() {
   }).catch(function(){ renderMaintGrid(); });
 }
 
-renderMaintGrid();
-sincronizarMaintEstados();
+(function initFromHash() {
+  updateNetworkStatus();
+  var h = (location.hash || '').replace('#', '');
+  var valid = ['flujo', 'produccion', 'mantenimiento', 'fichas', 'desarrollo', 'materia', 'config'];
+  if (valid.indexOf(h) >= 0) showSection(h);
+})();
 </script>
 
 </body>
