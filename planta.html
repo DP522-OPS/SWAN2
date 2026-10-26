@@ -34,6 +34,23 @@ header h1{font-size:16px;font-weight:700}
 .bn{display:flex;flex-direction:column;align-items:center}
 .bn .tl{font-size:11px;line-height:1;letter-spacing:1px;min-height:12px}
 .bn .tb{width:54px;height:13px;border-radius:2px;background:#6b7a8a;border:1px solid #8ea0b3;box-shadow:0 3px 0 #3f4b58}
+.ofj{position:relative;width:250px;height:92px}
+.ofj .per{position:absolute;left:105px;top:6px;width:40px;animation:nod 4s ease-in-out infinite}
+.ofj .per svg{width:40px;height:40px}
+.ofj .esc{position:absolute;left:10px;top:44px;width:230px;height:22px;background:#6b4a2b;border:2px solid #8b6540;border-radius:3px;box-shadow:0 3px 0 #3a2814}
+.ofj .ret{position:absolute;left:212px;top:44px;width:30px;height:46px;background:#6b4a2b;border:2px solid #8b6540;border-radius:3px;box-shadow:0 3px 0 #3a2814}
+.pc{position:absolute;top:22px;width:34px;height:24px;border-radius:2px;border:2px solid #1e3a8a;background:linear-gradient(135deg,#3b82f6,#1e40af);animation:glow 2.4s ease-in-out infinite}
+.pc::after{content:'';position:absolute;left:4px;right:4px;top:5px;height:2px;background:#bfdbfe;box-shadow:0 5px 0 #93c5fd,0 10px 0 #bfdbfe}
+@keyframes glow{50%{filter:brightness(1.35)}}
+@keyframes nod{0%,100%{transform:translateY(0)}45%{transform:translateY(2px) rotate(-3deg)}55%{transform:translateY(2px) rotate(3deg)}}
+.ji{position:relative;width:78px;height:62px;cursor:pointer}
+.ji .per{position:absolute;left:25px;top:0;width:30px;animation:nod 3.2s ease-in-out infinite}
+.ji .per svg{width:30px;height:30px}
+.ji .esc{position:absolute;left:4px;top:30px;width:70px;height:14px;background:#6b4a2b;border:2px solid #8b6540;border-radius:3px;box-shadow:0 2px 0 #3a2814}
+.ji .pc{top:14px;left:8px;width:22px;height:16px}
+.ji .mn{position:absolute;top:27px;width:5px;height:5px;border-radius:50%;background:#f1c9a5;animation:tp .5s ease-in-out infinite}
+.ji .mn.b{animation-delay:.25s}
+@keyframes tp{50%{transform:translateY(-3px)}}
 .sec{display:flex;align-items:center;gap:4px;cursor:pointer}.sec svg{width:30px;height:30px}
 .erow{display:flex;border-bottom:2px solid #31465c}.erow:last-child{border-bottom:0}
 .lc{width:300px;flex-shrink:0;display:flex;flex-direction:column;background:#1f2e3d;border-right:3px solid #3b5068}
@@ -156,8 +173,8 @@ function render(){
     E3:'<div class="half"><div class="rm">🚻 Baños<small>hombres · mujeres</small></div></div>',
     E4:'<div class="half"><div style="width:110px;display:flex;flex-direction:column;justify-content:space-between;padding:6px;gap:6px;border-right:2px solid #31465c"><div class="rm asc" style="flex:0 0 58px;border:2px solid #4b5d70;border-radius:4px">🛗 Ascensor 2<small>2.000 kg</small></div><div class="rm asc" style="flex:0 0 58px;border:2px solid #4b5d70;border-radius:4px">🛗 Ascensor 1<small>1.000 kg</small></div></div><div class="rm" style="flex:1"><small>espacio libre</small></div></div>',
     E5:'<div class="half"><div class="rm back">🪜 Escaleras<small>llegada / entrada a la planta</small></div><div class="rm front">🚪 Cabina de entrada</div></div>',
-    E6:'<div class="half" style="min-height:110px"><div class="rm jefe">👔 Oficina jefe<small>ventana grande</small></div></div>',
-    E7:'<div class="half"><div class="rm back"><div class="dec">'+MC+MC+'</div>🍽 Comedor operarios</div><div class="rm front"><div class="sec" onclick="detRol(\'sec\')">🖥️'+persona('secretaria',{long:true,color:'#db2777',pelo:'#3b2314'})+'</div><small>Oficina secretaría</small></div></div><div class="half"><div class="rm back"><div class="dec"><div class="bn"><div class="tl">🔧🔨🪛</div><div class="tb"></div></div><div class="bn"><div class="tl">🔩🪚🧰</div><div class="tb"></div></div></div>🔩 Taller de mecánicos</div><div class="rm tur front">🌀 Turbina del 7</div></div>',
+    E6:'<div class="half" style="min-height:110px"><div class="rm jefe"><div class="ofj"><div class="pc" style="left:14px"></div><div class="pc" style="left:50px"></div><div class="pc" style="left:156px"></div><div class="pc" style="left:192px"></div><div class="per">'+persona('jefe',{color:'#1e293b',pelo:'#facc15'})+'</div><div class="esc"></div><div class="ret"></div></div></div></div>',
+    E7:'<div class="half"><div class="rm back"><div class="dec">'+MC+MC+'</div>🍽 Comedor operarios</div><div class="rm front"><div class="ji" onclick="detRol(\'sec\')"><div class="pc"></div><div class="per">'+persona('jefeinfo',{color:'#0d9488',pelo:'#2b1d12'})+'</div><div class="esc"></div><i class="mn" style="left:34px"></i><i class="mn b" style="left:44px"></i></div><small>Jefe de información</small></div><div class="half"><div class="rm back"><div class="dec"><div class="bn"><div class="tl">🔧🔨🪛</div><div class="tb"></div></div><div class="bn"><div class="tl">🔩🪚🧰</div><div class="tb"></div></div></div>🔩 Taller de mecánicos</div><div class="rm tur front">🌀 Turbina del 7</div></div>',
     E8:'<div class="half"><div class="rm back"><small>Equipo 8 está en otro piso; aquí se muestra a continuación del 7</small></div></div>'
   };
   // Bodega MP: franja de todo el largo, como un equipo, arriba del Equipo 2
@@ -236,7 +253,7 @@ function detOp(k){
 function setW(){document.documentElement.style.setProperty('--W',(COLS_LON*(tam+4)-4)+'px');}
 // ===== PERSONAL QUE CAMINA: enconador (surte hilo) y planillero (recoge lotes cerrados) =====
 var COLL={}, collInit=false, WK={};
-var ROLES={sec:['Secretaria','Atiende la oficina y el escritorio de la planta.'],enc:['Enconador','Recorre la planta surtiendo la materia prima (conos de hilo) a las máquinas que están corriendo.'],pla:['Planillero','Recorre la planta recogiendo los lotes que se van cerrando.']};
+var ROLES={sec:['Jefe de información','Maneja la información de la planta desde su escritorio.'],enc:['Enconador','Recorre la planta surtiendo la materia prima (conos de hilo) a las máquinas que están corriendo.'],pla:['Planillero','Recorre la planta recogiendo los lotes que se van cerrando.']};
 function detRol(k){var r=ROLES[k],w=WK[k];var h='<h2>'+r[0]+'<button onclick="document.getElementById(\'ov\').classList.remove(\'on\')">✕</button></h2><div class="sub">'+r[1]+'</div>'+(w&&w.nota?'<dl><dt>Ahora</dt><dd>'+esc(w.nota)+'</dd></dl>':'');document.getElementById('sh').innerHTML=h;document.getElementById('ov').classList.add('on');}
 function rel(el){var r=el.getBoundingClientRect(),w=document.getElementById('pw').getBoundingClientRect();return {x:r.left-w.left+r.width/2,y:r.top-w.top+r.height/2};}
 function pasX(){var e=document.querySelector('.pas');return e?rel(e).x:60;}
