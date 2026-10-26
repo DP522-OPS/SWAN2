@@ -264,6 +264,7 @@ function borrar(id){
   db.collection('fichas').doc(id).delete().catch(function(){toast('No se pudo eliminar');});
 }
 init();
+try{var _m=new URLSearchParams(location.search).get('m');if(_m)setTimeout(function(){abrir(_m);},400);}catch(e){}
 </script>
 </body>
 </html>
