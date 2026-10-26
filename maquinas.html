@@ -56,6 +56,14 @@ main{padding:14px 12px;max-width:1100px;margin:0 auto}
 .n .del{margin-left:auto;border:0;background:none;color:#9ca3af;font-size:12px;cursor:pointer}
 .n.t-Mantenimiento{border-left-color:#10b981}.n.t-Cambio{border-left-color:#3b82f6}.n.t-Reparación{border-left-color:#ef4444}.n.t-Revisión{border-left-color:#f59e0b}
 .empty{color:#9ca3af;font-size:13.5px;padding:10px 2px}
+.fb{display:flex;gap:8px;margin-top:4px}
+.fb label.b{flex:1;text-align:center;border:1px dashed #94a3b8;border-radius:8px;padding:11px 6px;font-size:14px;font-weight:600;color:#0f2942;cursor:pointer;margin:0;background:#f8fafc}
+.prev,.fotos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.prev div{position:relative}
+.prev img,.fotos img{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #cbd2d9;cursor:pointer;background:#eef1f4}
+.prev button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:#ef4444;color:#fff;font-size:12px;cursor:pointer}
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;z-index:40;align-items:center;justify-content:center}
+.lb.on{display:flex}.lb img{max-width:100%;max-height:100%}
 .stat{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:9px 16px;border-radius:20px;font-size:13px;display:none;z-index:30}
 .net{font-size:11px;margin-top:6px;color:#8ea3b8}
 </style>
@@ -84,6 +92,12 @@ main{padding:14px 12px;max-width:1100px;margin:0 auto}
         <textarea id="nota" placeholder="Ej: se cambió banda del motor principal, se lubricó…"></textarea>
         <label>Elemento / repuesto (opcional)</label>
         <input id="elem" placeholder="Ej: aguja, sinker, banda, rodamiento">
+        <label>Fotos (opcional)</label>
+        <div class="fb">
+          <label class="b">📷 Tomar foto<input type="file" accept="image/*" capture="environment" hidden onchange="addFotos(this)"></label>
+          <label class="b">🖼 Galería<input type="file" accept="image/*" multiple hidden onchange="addFotos(this)"></label>
+        </div>
+        <div class="prev" id="prev"></div>
         <div class="row2">
           <div><label>Fecha</label><input id="fecha" type="date"></div>
           <div><label>Mecánico</label><input id="mec" placeholder="Tu nombre"></div>
@@ -95,12 +109,14 @@ main{padding:14px 12px;max-width:1100px;margin:0 auto}
     </div>
   </div>
 </div>
+<div class="lb" id="lb" onclick="this.classList.remove('on')"><img id="lbi"></div>
 <div class="stat" id="stat"></div>
 
 <script>
 var CFG = {apiKey:'AIzaSyAZkeIEa2xhXeyV6Ndy18FFJ3a6msCEyWQ',authDomain:'swantex-produccion.firebaseapp.com',projectId:'swantex-produccion',storageBucket:'swantex-produccion.firebasestorage.app',messagingSenderId:'952859382279',appId:'1:952859382279:web:c7d7190cc6a5c5eafa90a2'};
 var TIPOS = ['Mantenimiento','Cambio','Reparación','Revisión','Otro'];
 var TIPO_LBL = {Mantenimiento:'🛠 Mantenimiento',Cambio:'🔄 Cambio de elemento',Reparación:'🔧 Reparación',Revisión:'👁 Revisión',Otro:'📝 Otro'};
+var PEND = [], FCACHE = {};
 var db, MAQS = [], NOTAS = [], sel = null, tipoSel = 'Mantenimiento', filtro = 'Todas';
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -162,7 +178,7 @@ function render(){
     items.forEach(function(m){
       var u = ultMant(m.id), d = u!==null ? dias(u) : null, c = d===null ? '' : (d<60?'ok':d<=120?'warn':'late');
       var nn = notasDe(m.id).length;
-      h += '<button class="m '+c+'" onclick="abrir(\''+esc(m.id)+'\')"><b>'+esc(m.id)+'</b><small>'+esc((m.model||'')+' '+(m.diam||''))+'</small><div class="u">'+(u?('🛠 '+fmt(u)):'Sin mantenimiento')+(nn?' · '+nn+' 📝':'')+'</div></button>';
+      h += '<button class="m '+c+'" onclick="abrir(\''+esc(m.id)+'\')"><b>'+esc(m.id)+'</b><small>'+esc((m.model||'')+' '+(m.diam||''))+'</small><div class="u">'+(u?('🛠 '+fmt(u)):'Sin mantenimiento')+(nn?' · '+nn+' 📝':'')+(notasDe(m.id).some(function(x){return x.fotos&&x.fotos.length;})?' 📷':'')+'</div></button>';
     });
     h += '</div>';
   });
@@ -173,7 +189,7 @@ function setF(f){filtro=f;render();}
 function abrir(id){
   sel = MAQS.filter(function(m){return String(m.id)===id;})[0] || {id:id};
   document.getElementById('sh-t').innerHTML = esc(sel.id)+'<span class="d">'+esc(((sel.type||'')+' '+(sel.model||'')+' '+(sel.diam||'')+' · Equipo '+(sel.teamId||'')).trim())+'</span>';
-  document.getElementById('nota').value=''; document.getElementById('elem').value='';
+  document.getElementById('nota').value=''; document.getElementById('elem').value=''; PEND=[]; pintarPrev();
   document.getElementById('fecha').value = hoy();
   pintarTipos(); pintarHist();
   document.getElementById('ov').classList.add('on');
@@ -185,25 +201,65 @@ function pintarTipos(){
 function pintarHist(){
   var l = notasDe(sel.id);
   document.getElementById('hist').innerHTML = l.length ? l.map(function(n){
-    return '<div class="n t-'+esc(n.tipoN)+'"><div class="l"><span class="tp">'+esc(TIPO_LBL[n.tipoN]||n.tipoN)+'</span><span>'+fmt(n.fecha)+'</span>'+(n.mec?'<span>· '+esc(n.mec)+'</span>':'')+'<button class="del" onclick="borrar(\''+esc(n._id)+'\')">Eliminar</button></div>'+(n.elem?'<div class="el">Elemento: <b>'+esc(n.elem)+'</b></div>':'')+(n.nota?'<div class="tx">'+esc(n.nota)+'</div>':'')+'</div>';
+    return '<div class="n t-'+esc(n.tipoN)+'"><div class="l"><span class="tp">'+esc(TIPO_LBL[n.tipoN]||n.tipoN)+'</span><span>'+fmt(n.fecha)+'</span>'+(n.mec?'<span>· '+esc(n.mec)+'</span>':'')+'<button class="del" onclick="borrar(\''+esc(n._id)+'\')">Eliminar</button></div>'+(n.elem?'<div class="el">Elemento: <b>'+esc(n.elem)+'</b></div>':'')+(n.nota?'<div class="tx">'+esc(n.nota)+'</div>':'')+((n.fotos&&n.fotos.length)?'<div class="fotos">'+n.fotos.map(function(f){return '<img data-f="'+esc(f)+'" alt="" onclick="verFoto(this)">';}).join('')+'</div>':'')+'</div>';
   }).join('') : '<div class="empty">Aún no hay notas para esta máquina.</div>';
+  if(db) cargarFotos();
+}
+function comprimir(file){
+  return new Promise(function(ok,ko){
+    var r=new FileReader();
+    r.onerror=ko;
+    r.onload=function(){var im=new Image();im.onerror=ko;im.onload=function(){
+      var M=1000,w=im.width,h=im.height,k=Math.min(1,M/Math.max(w,h));
+      var c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(h*k);
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      ok(c.toDataURL('image/jpeg',0.7));
+    };im.src=r.result;};
+    r.readAsDataURL(file);
+  });
+}
+function addFotos(inp){
+  var fl=Array.prototype.slice.call(inp.files||[]); inp.value='';
+  fl.forEach(function(f){
+    if(PEND.length>=4){toast('Máximo 4 fotos por nota');return;}
+    comprimir(f).then(function(d){PEND.push(d);pintarPrev();}).catch(function(){toast('No se pudo leer la foto');});
+  });
+}
+function pintarPrev(){
+  document.getElementById('prev').innerHTML=PEND.map(function(d,i){return '<div><img src="'+d+'" onclick="verFoto(this)"><button onclick="PEND.splice('+i+',1);pintarPrev()">✕</button></div>';}).join('');
+}
+function verFoto(img){document.getElementById('lbi').src=img.src;document.getElementById('lb').classList.add('on');}
+function cargarFotos(){
+  Array.prototype.forEach.call(document.querySelectorAll('#hist img[data-f]'),function(im){
+    var id=im.getAttribute('data-f');
+    if(FCACHE[id]){im.src=FCACHE[id];return;}
+    db.collection('fichas').doc(id).get().then(function(d){if(d.exists){FCACHE[id]=d.data().img;im.src=FCACHE[id];}}).catch(function(){});
+  });
 }
 function guardar(){
   var nota = document.getElementById('nota').value.trim(), elem = document.getElementById('elem').value.trim();
   var fecha = document.getElementById('fecha').value || hoy(), mec = document.getElementById('mec').value.trim();
-  if(!nota && !elem){toast('Escribe una nota o el elemento');return;}
+  if(!nota && !elem && !PEND.length){toast('Escribe una nota o agrega una foto');return;}
   if(!db){toast('Sin conexión a la nube');return;}
   lsSet('mv_mec',mec);
   var ts = Date.now(), id = 'MAQNOTA-'+sel.id+'-'+ts+'-'+Math.random().toString(36).slice(2,6);
   var doc = {tipo:'maq_nota', maqId:String(sel.id), tipoN:tipoSel, nota:nota, elem:elem, fecha:fecha, mec:mec, ts:ts};
   var b = document.getElementById('btn'); b.disabled = true;
-  NOTAS.push(Object.assign({_id:id},doc)); render(); pintarHist();
-  db.collection('fichas').doc(id).set(doc).then(function(){
-    toast('✔ Nota guardada'); document.getElementById('nota').value=''; document.getElementById('elem').value=''; b.disabled=false;
-  }).catch(function(){ toast('No se pudo guardar, reintenta'); NOTAS = NOTAS.filter(function(n){return n._id!==id;}); render(); pintarHist(); b.disabled=false; });
+  var fotos=PEND.slice(), fids=fotos.map(function(_,i){return 'MAQFOTO-'+id.slice(8)+'-'+i;});
+  doc.fotos=fids; doc.maqId=String(sel.id);
+  fids.forEach(function(f,i){FCACHE[f]=fotos[i];});
+  b.disabled=true; b.textContent='Guardando…';
+  Promise.all(fotos.map(function(d,i){return db.collection('fichas').doc(fids[i]).set({tipo:'maq_foto',maqId:doc.maqId,img:d,ts:ts});}))
+  .then(function(){return db.collection('fichas').doc(id).set(doc);})
+  .then(function(){
+    toast('✔ Nota guardada'); document.getElementById('nota').value=''; document.getElementById('elem').value=''; PEND=[]; pintarPrev();
+    b.disabled=false; b.textContent='Guardar nota';
+  }).catch(function(){ toast('No se pudo guardar, reintenta'); b.disabled=false; b.textContent='Guardar nota'; });
 }
 function borrar(id){
   if(!confirm('¿Eliminar esta nota?')) return;
+  var nn=NOTAS.filter(function(n){return n._id===id;})[0];
+  if(nn&&nn.fotos) nn.fotos.forEach(function(f){db.collection('fichas').doc(f).delete().catch(function(){});});
   NOTAS = NOTAS.filter(function(n){return n._id!==id;}); render(); pintarHist();
   db.collection('fichas').doc(id).delete().catch(function(){toast('No se pudo eliminar');});
 }
