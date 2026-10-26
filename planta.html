@@ -22,6 +22,19 @@ header h1{font-size:16px;font-weight:700}
 .plant{display:flex;flex-direction:column;gap:0;min-width:max-content;background:#243545;border:3px solid #3b5068;border-radius:10px}
 .bodrow{display:flex;align-items:center;gap:16px;padding:14px 18px;background:#3a2f12;border-bottom:3px solid #b8921e;color:#fcd34d;font-size:15px}
 .bodrow span{color:#d6c48a;font-size:12.5px}.bodrow a{margin-left:auto;background:#b8921e;color:#111;font-weight:700;font-size:13px;padding:8px 12px;border-radius:8px;text-decoration:none}
+.pw{position:relative;min-width:max-content}
+.wk{position:absolute;width:34px;margin:-44px 0 0 -17px;z-index:6;cursor:pointer;display:flex;flex-direction:column;align-items:center;transition:left var(--d,1s) linear,top var(--d,1s) linear}
+.wk svg{width:30px;height:30px}.wk.go svg{animation:wk .35s linear infinite}
+.wk span{font-size:9px;line-height:1;color:#fff;background:rgba(15,23,42,.8);padding:1px 4px;border-radius:6px;white-space:nowrap;margin-top:1px}
+.wk .bb{position:absolute;top:-12px;font-size:13px}
+.dec{display:flex;gap:10px;justify-content:center;margin-bottom:3px}
+.mc{display:flex;flex-direction:column;align-items:center;gap:2px}
+.mc .ch{display:flex;gap:8px}.mc .ch i{width:9px;height:7px;border-radius:3px;background:#5b6b7c}
+.mc .tb{width:42px;height:16px;border-radius:3px;background:#8a6a45;border:1px solid #a98457}
+.bn{display:flex;flex-direction:column;align-items:center}
+.bn .tl{font-size:11px;line-height:1;letter-spacing:1px;min-height:12px}
+.bn .tb{width:54px;height:13px;border-radius:2px;background:#6b7a8a;border:1px solid #8ea0b3;box-shadow:0 3px 0 #3f4b58}
+.sec{display:flex;align-items:center;gap:4px;cursor:pointer}.sec svg{width:30px;height:30px}
 .erow{display:flex;border-bottom:2px solid #31465c}.erow:last-child{border-bottom:0}
 .lc{width:300px;flex-shrink:0;display:flex;flex-direction:column;background:#1f2e3d;border-right:3px solid #3b5068}
 .lc .half{flex:1;display:flex;border-bottom:2px solid #31465c;min-height:64px}.lc .half:last-child{border-bottom:0}
@@ -93,7 +106,7 @@ header h1{font-size:16px;font-weight:700}
   <div class="net" id="net">Conectando…</div>
 </header>
 <div class="scroll">
-  <div class="plant" id="plant"></div>
+  <div class="pw" id="pw"><div class="plant" id="plant"></div><div id="walk"></div></div>
 </div>
 <div class="leg"><span><i style="background:#10b981"></i>Corriendo</span><span><i style="background:#ef4444"></i>Parada</span><span><i style="background:#475569"></i>Sin lote abierto</span><span><i style="background:#f59e0b"></i>Eficiencia de hoy &lt; 75%</span><span>🔧 Mantenimiento vencido (&gt;120 días)</span></div>
 <div class="ov" id="ov" onclick="if(event.target===this)this.classList.remove('on')"><div class="sh" id="sh"></div></div>
@@ -133,17 +146,18 @@ function tile(m){
   var cls='t '+(st==='free'?'':st)+((e!==null&&e<EFF_MIN)?' low':'');
   var r=ABIERTOS[m.id];
   var sub=st==='stop'?esc(r.parado.mot||'paro'):(r?esc(r.refId||''):(e!==null?e+'%':''));
-  return '<button class="'+cls+'" style="width:'+twOf(m.teamId)+'px" onclick="det(\''+esc(m.id)+'\')">'+(venc?'<span class="mn">🔧</span>':'')+esc(m.id)+'<small>'+sub+'</small></button>';
+  return '<button data-m="'+esc(m.id)+'" class="'+cls+'" style="width:'+twOf(m.teamId)+'px" onclick="det(\''+esc(m.id)+'\')">'+(venc?'<span class="mn">🔧</span>':'')+esc(m.id)+'<small>'+sub+'</small></button>';
 }
 function render(){
   var h='',run=0,stop=0,free=0,mnt=0, nAb=Object.keys(ABIERTOS).length;
+  var MC='<div class="mc"><div class="ch"><i></i><i></i><i></i></div><div class="tb"></div><div class="ch"><i></i><i></i><i></i></div></div>';
   var LEFT={
     E2:'<div class="half"><div class="rm back"><small>espacio libre</small></div></div>',
     E3:'<div class="half"><div class="rm">🚻 Baños<small>hombres · mujeres</small></div></div>',
     E4:'<div class="half"><div style="width:110px;display:flex;flex-direction:column;justify-content:space-between;padding:6px;gap:6px;border-right:2px solid #31465c"><div class="rm asc" style="flex:0 0 58px;border:2px solid #4b5d70;border-radius:4px">🛗 Ascensor 2<small>2.000 kg</small></div><div class="rm asc" style="flex:0 0 58px;border:2px solid #4b5d70;border-radius:4px">🛗 Ascensor 1<small>1.000 kg</small></div></div><div class="rm" style="flex:1"><small>espacio libre</small></div></div>',
     E5:'<div class="half"><div class="rm back">🪜 Escaleras<small>llegada / entrada a la planta</small></div><div class="rm front">🚪 Cabina de entrada</div></div>',
     E6:'<div class="half" style="min-height:110px"><div class="rm jefe">👔 Oficina jefe<small>ventana grande</small></div></div>',
-    E7:'<div class="half"><div class="rm back">🍽 Comedor operarios</div><div class="rm front">🗂 Oficina secretaría</div></div><div class="half"><div class="rm back">🔩 Taller de mecánicos</div><div class="rm tur front">🌀 Turbina del 7</div></div>',
+    E7:'<div class="half"><div class="rm back"><div class="dec">'+MC+MC+'</div>🍽 Comedor operarios</div><div class="rm front"><div class="sec" onclick="detRol(\'sec\')">🖥️'+persona('secretaria',{long:true,color:'#db2777',pelo:'#3b2314'})+'</div><small>Oficina secretaría</small></div></div><div class="half"><div class="rm back"><div class="dec"><div class="bn"><div class="tl">🔧🔨🪛</div><div class="tb"></div></div><div class="bn"><div class="tl">🔩🪚🧰</div><div class="tb"></div></div></div>🔩 Taller de mecánicos</div><div class="rm tur front">🌀 Turbina del 7</div></div>',
     E8:'<div class="half"><div class="rm back"><small>Equipo 8 está en otro piso; aquí se muestra a continuación del 7</small></div></div>'
   };
   // Bodega MP: franja de todo el largo, como un equipo, arriba del Equipo 2
@@ -167,6 +181,10 @@ function render(){
 var AV={}, _walkT={};
 var COLS=['#2563eb','#db2777','#d97706','#7c3aed','#0d9488','#dc2626','#4d7c0f','#0891b2'], PIEL=['#f1c9a5','#e0ac85','#c68642','#8d5524'];
 function hsh(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h);}
+function persona(seed,o){
+  o=o||{}; var h=hsh(seed),c=o.color||COLS[h%COLS.length],p=PIEL[(h>>3)%PIEL.length],pelo=o.pelo||['#2b1d12','#111','#6b3f1d','#a16207'][(h>>5)%4];
+  return '<svg viewBox="0 0 26 26">'+(o.long?'<path d="M5 8c0-5 3-7 8-7s8 2 8 7v11c-2 0-3-2-3-4V9H8v6c0 2-1 4-3 4z" fill="'+pelo+'"/>':'')+'<path d="M4 26c0-7 4-10 9-10s9 3 9 10z" fill="'+c+'"/>'+(o.chaleco?'<path d="M8 26l1-9h2v9zM18 26l-1-9h-2v9z" fill="'+o.chaleco+'"/>':'')+'<circle cx="13" cy="9" r="6" fill="'+p+'"/>'+(o.long?'<path d="M7 8c0-4 3-5 6-5s6 1 6 5c-2-1.5-4-2-6-2s-4 .5-6 2z" fill="'+pelo+'"/>':'<path d="M7 8c0-4 3-6 6-6s6 2 6 6c-2-2-4-3-6-3s-4 1-6 3z" fill="'+pelo+'"/>')+(o.gorra?'<path d="M6 7c0-4 3-6 7-6s7 2 7 6z" fill="'+o.gorra+'"/>':'')+'</svg>';
+}
 function svgAv(id,alerta){
   var h=hsh(id),c=COLS[h%COLS.length],p=PIEL[(h>>3)%PIEL.length],pelo=['#2b1d12','#111','#6b3f1d','#a16207'][(h>>5)%4];
   return '<svg viewBox="0 0 26 26"><path d="M4 26c0-7 4-10 9-10s9 3 9 10z" fill="'+c+'"/><circle cx="13" cy="9" r="6" fill="'+p+'"/><path d="M7 8c0-4 3-6 6-6s6 2 6 6c-2-2-4-3-6-3s-4 1-6 3z" fill="'+pelo+'"/></svg>';
@@ -216,6 +234,57 @@ function detOp(k){
   document.getElementById('sh').innerHTML=h; document.getElementById('ov').classList.add('on');
 }
 function setW(){document.documentElement.style.setProperty('--W',(COLS_LON*(tam+4)-4)+'px');}
+// ===== PERSONAL QUE CAMINA: enconador (surte hilo) y planillero (recoge lotes cerrados) =====
+var COLL={}, collInit=false, WK={};
+var ROLES={sec:['Secretaria','Atiende la oficina y el escritorio de la planta.'],enc:['Enconador','Recorre la planta surtiendo la materia prima (conos de hilo) a las máquinas que están corriendo.'],pla:['Planillero','Recorre la planta recogiendo los lotes que se van cerrando.']};
+function detRol(k){var r=ROLES[k],w=WK[k];var h='<h2>'+r[0]+'<button onclick="document.getElementById(\'ov\').classList.remove(\'on\')">✕</button></h2><div class="sub">'+r[1]+'</div>'+(w&&w.nota?'<dl><dt>Ahora</dt><dd>'+esc(w.nota)+'</dd></dl>':'');document.getElementById('sh').innerHTML=h;document.getElementById('ov').classList.add('on');}
+function rel(el){var r=el.getBoundingClientRect(),w=document.getElementById('pw').getBoundingClientRect();return {x:r.left-w.left+r.width/2,y:r.top-w.top+r.height/2};}
+function pasX(){var e=document.querySelector('.pas');return e?rel(e).x:60;}
+function laneY(eq){var e=document.getElementById('ln-'+eq);return e?rel(e).y+4:null;}
+function tilePos(id){var t=document.querySelector('.t[data-m="'+id+'"]');if(!t)return null;var m=MAQS.filter(function(x){return String(x.id)===id;})[0];var ly=m?laneY(m.teamId):null;if(ly==null)return null;return {x:rel(t).x,y:ly};}
+function mkWk(k,html,nm){
+  var el=document.createElement('div');el.className='wk';el.innerHTML=html+'<span>'+nm+'</span><b class="bb"></b>';el.onclick=function(){detRol(k);};
+  document.getElementById('walk').appendChild(el);
+  var w=WK[k]={el:el,x:0,y:0,busy:false,nota:''};return w;
+}
+function place(w,x,y,dur){w.el.style.setProperty('--d',dur+'s');w.el.style.left=x+'px';w.el.style.top=y+'px';w.x=x;w.y=y;}
+function walkTo(w,tgt,done){
+  var legs=[{x:pasX(),y:w.y},{x:pasX(),y:tgt.y},{x:tgt.x,y:tgt.y}], i=0;
+  w.el.classList.add('go');
+  (function next(){
+    if(i>=legs.length){w.el.classList.remove('go');done&&done();return;}
+    var l=legs[i++],d=Math.hypot(l.x-w.x,l.y-w.y),t=Math.max(.05,d/170);
+    if(d<2){next();return;}
+    place(w,l.x,l.y,t);setTimeout(next,t*1000+30);
+  })();
+}
+function bubble(w,t){w.el.querySelector('.bb').textContent=t||'';}
+function startWalkers(){
+  var b=document.querySelector('.bodrow');if(!b||!document.querySelector('.pas')){setTimeout(startWalkers,800);return;}
+  if(WK.enc)return;
+  var bp=rel(b);
+  var e=mkWk('enc',persona('enconador',{color:'#334155',chaleco:'#f97316',gorra:'#f97316'}),'Enconador');
+  var p=mkWk('pla',persona('planillero',{color:'#1d4ed8',gorra:'#facc15'}),'Planillero');
+  place(e,pasX(),bp.y+14,0);place(p,pasX(),bp.y+14,0);
+  var nEnc=0;
+  (function loopE(){
+    var run=Object.keys(ABIERTOS).filter(function(id){return !ABIERTOS[id].parado&&tilePos(id);});
+    if(!run.length||nEnc%5===4){nEnc++;e.nota='Cargando hilo en la bodega';walkTo(e,{x:pasX(),y:bp.y+14},function(){bubble(e,'🧵');setTimeout(function(){bubble(e,'');loopE();},2500);});return;}
+    var id=run[Math.floor(Math.random()*run.length)];nEnc++;
+    e.nota='Surtiendo hilo a '+id;
+    walkTo(e,tilePos(id),function(){bubble(e,'🧵');setTimeout(function(){bubble(e,'');loopE();},2200);});
+  })();
+  (function loopP(){
+    var pend=Object.keys(CERR).filter(function(k){return CERR[k].n>(COLL[k]||0)&&tilePos(k);}).sort(function(a,b){return CERR[a].last-CERR[b].last;});
+    if(pend.length){var id=pend[0];p.nota='Recogiendo el lote cerrado de '+id;bubble(p,'📋');
+      walkTo(p,tilePos(id),function(){COLL[id]=CERR[id].n;bubble(p,'✔');setTimeout(function(){bubble(p,'');loopP();},2000);});return;}
+    var eqs=ORDEN_EQ.filter(function(q){return laneY(q)!=null;});
+    if(!eqs.length){setTimeout(loopP,2000);return;}
+    var q=eqs[Math.floor(Math.random()*eqs.length)],tg={x:pasX()+60+Math.random()*500,y:laneY(q)};
+    p.nota='Recorriendo la planta';
+    walkTo(p,tg,function(){setTimeout(loopP,3500);});
+  })();
+}
 function zoom(d){tam=Math.max(30,Math.min(90,tam+d));document.documentElement.style.setProperty('--t',tam+'px');setW();AV={};render();}
 
 function det(id){
@@ -255,11 +324,12 @@ function init(){
       ABIERTOS=a; document.getElementById('net').textContent='● En vivo · '+new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); render();
     },oK);
     col.where('tipo','==','lote').where('fecha','==',hoy()).onSnapshot(function(s){
-      var c={}; s.forEach(function(d){var x=d.data(); if(x&&!x._del&&x.status==='cerrado'&&typeof x.eff==='number'){var k=c[x.maqId]||(c[x.maqId]={s:0,n:0});k.s+=x.eff;k.n++;}});
-      CERR=c; render();
+      var c={}; s.forEach(function(d){var x=d.data(); if(x&&!x._del&&x.status==='cerrado'&&typeof x.eff==='number'){var k=c[x.maqId]||(c[x.maqId]={s:0,n:0,last:0});k.s+=x.eff;k.n++;k.last=Math.max(k.last,x.ts||0);}});
+      CERR=c; if(!collInit){collInit=true;Object.keys(c).forEach(function(k){COLL[k]=c[k].n;});} render();
     },oK);
     col.where('tipo','==','maq_nota').onSnapshot(function(s){NOTAS=[];s.forEach(function(d){NOTAS.push(d.data());});render();},function(){});
   }catch(e){document.getElementById('net').textContent='○ Sin conexión';}
+  setTimeout(startWalkers,900);
   setInterval(render,60000); setInterval(patrulla,6000);
 }
 init();
