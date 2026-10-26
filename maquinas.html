@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Swantex - Hojas de vida de máquinas</title>
+<meta name="theme-color" content="#0f2942">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#f3f5f7;color:#111827;min-height:100vh;padding-bottom:40px}
+header{background:#0f2942;color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5}
+header h1{font-size:17px;font-weight:700}
+header .sub{font-size:11.5px;color:#8ea3b8;margin-top:2px}
+.bar{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.bar input{flex:1;min-width:140px;padding:10px 12px;border-radius:8px;border:0;font-size:15px}
+.chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto;padding-bottom:2px}
+.chip{border:1px solid rgba(255,255,255,.25);background:none;color:#c3ccd6;border-radius:20px;padding:6px 12px;font-size:12.5px;white-space:nowrap;cursor:pointer;font-family:inherit}
+.chip.on{background:#c9a227;border-color:#c9a227;color:#111;font-weight:700}
+main{padding:14px 12px;max-width:1100px;margin:0 auto}
+.eq{font-size:12px;font-weight:700;color:#5b6772;letter-spacing:.5px;text-transform:uppercase;margin:16px 4px 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.m{background:#fff;border:1px solid #dde1e6;border-left:5px solid #cbd2d9;border-radius:8px;padding:9px 10px;text-align:left;cursor:pointer;font-family:inherit;min-height:74px}
+.m:active{background:#eef1f4}
+.m b{font-size:17px;display:block}
+.m small{display:block;font-size:11px;color:#6b7785;margin-top:1px;line-height:1.3}
+.m .u{font-size:10.5px;margin-top:4px;color:#374151}
+.m.ok{border-left-color:#10b981}.m.warn{border-left-color:#f59e0b}.m.late{border-left-color:#ef4444}
+.leg{font-size:11.5px;color:#6b7785;margin:2px 4px 0;display:flex;gap:12px;flex-wrap:wrap}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+/* hoja */
+.ov{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;z-index:20}
+.ov.on{display:block}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:28px;background:#fff;border-radius:16px 16px 0 0;display:flex;flex-direction:column;max-width:720px;margin:0 auto}
+.sh-h{padding:14px 16px;border-bottom:1px solid #e6e8eb;display:flex;align-items:center;gap:10px}
+.sh-h h2{font-size:20px;flex:1}
+.sh-h .d{font-size:12px;color:#6b7785;font-weight:400;display:block}
+.x{border:0;background:#eef1f4;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer}
+.sh-b{overflow-y:auto;padding:14px 16px;flex:1}
+.f label{display:block;font-size:12px;font-weight:600;color:#5b6772;margin:10px 0 4px}
+.f input,.f textarea{width:100%;padding:11px;border:1px solid #cbd2d9;border-radius:8px;font-size:16px;font-family:inherit}
+.f textarea{min-height:76px;resize:vertical}
+.tipos{display:flex;flex-wrap:wrap;gap:6px}
+.t{border:1px solid #cbd2d9;background:#fff;border-radius:20px;padding:8px 13px;font-size:13.5px;cursor:pointer;font-family:inherit}
+.t.on{background:#0f2942;border-color:#0f2942;color:#fff;font-weight:600}
+.row2{display:flex;gap:8px}.row2>div{flex:1}
+.save{width:100%;margin-top:14px;padding:14px;border:0;border-radius:10px;background:#0f7a4d;color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+.save:disabled{opacity:.5}
+.hist-t{font-size:12px;font-weight:700;color:#5b6772;letter-spacing:.5px;text-transform:uppercase;margin:22px 0 8px}
+.n{border:1px solid #e6e8eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:4px solid #94a3b8}
+.n .l{display:flex;gap:8px;align-items:center;font-size:12px;color:#6b7785}
+.n .tp{font-weight:700;color:#111;font-size:13px}
+.n .tx{margin-top:4px;font-size:14.5px;white-space:pre-wrap;word-break:break-word}
+.n .el{font-size:12.5px;color:#374151;margin-top:3px}
+.n .del{margin-left:auto;border:0;background:none;color:#9ca3af;font-size:12px;cursor:pointer}
+.n.t-Mantenimiento{border-left-color:#10b981}.n.t-Cambio{border-left-color:#3b82f6}.n.t-Reparación{border-left-color:#ef4444}.n.t-Revisión{border-left-color:#f59e0b}
+.empty{color:#9ca3af;font-size:13.5px;padding:10px 2px}
+.stat{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:9px 16px;border-radius:20px;font-size:13px;display:none;z-index:30}
+.net{font-size:11px;margin-top:6px;color:#8ea3b8}
+</style>
+</head>
+<body>
+<header>
+  <h1>🔧 Hojas de vida de máquinas</h1>
+  <div class="sub">Toca una máquina para ver su historial y anotar</div>
+  <div class="bar"><input id="q" type="search" placeholder="Buscar máquina (ej. S45)" oninput="render()"></div>
+  <div class="chips" id="chips"></div>
+  <div class="net" id="net">Cargando…</div>
+</header>
+<main>
+  <div class="leg"><span><i style="background:#10b981"></i>Mantenimiento &lt; 60 días</span><span><i style="background:#f59e0b"></i>60–120 días</span><span><i style="background:#ef4444"></i>&gt; 120 días</span><span><i style="background:#cbd2d9"></i>Sin registro</span></div>
+  <div id="list"></div>
+</main>
+
+<div class="ov" id="ov" onclick="if(event.target===this)cerrar()">
+  <div class="sheet">
+    <div class="sh-h"><h2 id="sh-t"></h2><button class="x" onclick="cerrar()">✕</button></div>
+    <div class="sh-b">
+      <div class="f">
+        <label>¿Qué se hizo?</label>
+        <div class="tipos" id="tipos"></div>
+        <label>Nota</label>
+        <textarea id="nota" placeholder="Ej: se cambió banda del motor principal, se lubricó…"></textarea>
+        <label>Elemento / repuesto (opcional)</label>
+        <input id="elem" placeholder="Ej: aguja, sinker, banda, rodamiento">
+        <div class="row2">
+          <div><label>Fecha</label><input id="fecha" type="date"></div>
+          <div><label>Mecánico</label><input id="mec" placeholder="Tu nombre"></div>
+        </div>
+        <button class="save" id="btn" onclick="guardar()">Guardar nota</button>
+      </div>
+      <div class="hist-t">Historial</div>
+      <div id="hist"></div>
+    </div>
+  </div>
+</div>
+<div class="stat" id="stat"></div>
+
+<script>
+var CFG = {apiKey:'AIzaSyAZkeIEa2xhXeyV6Ndy18FFJ3a6msCEyWQ',authDomain:'swantex-produccion.firebaseapp.com',projectId:'swantex-produccion',storageBucket:'swantex-produccion.firebasestorage.app',messagingSenderId:'952859382279',appId:'1:952859382279:web:c7d7190cc6a5c5eafa90a2'};
+var TIPOS = ['Mantenimiento','Cambio','Reparación','Revisión','Otro'];
+var TIPO_LBL = {Mantenimiento:'🛠 Mantenimiento',Cambio:'🔄 Cambio de elemento',Reparación:'🔧 Reparación',Revisión:'👁 Revisión',Otro:'📝 Otro'};
+var db, MAQS = [], NOTAS = [], sel = null, tipoSel = 'Mantenimiento', filtro = 'Todas';
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function lsGet(k,d){try{var v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function hoy(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+function fmt(f){var p=(f||'').split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f;}
+function dias(f){var p=f.split('-');return Math.floor((Date.now()-new Date(+p[0],+p[1]-1,+p[2]).getTime())/864e5);}
+function toast(t){var e=document.getElementById('stat');e.textContent=t;e.style.display='block';setTimeout(function(){e.style.display='none';},2200);}
+
+function init(){
+  MAQS = (lsGet('swx_maqs',[])||[]).filter(function(m){return m&&m.id;});
+  NOTAS = lsGet('mv_notas',[]);
+  document.getElementById('mec').value = lsGet('mv_mec','');
+  try{
+    firebase.initializeApp(CFG); db = firebase.firestore();
+    db.collection('fichas').doc('SWAN2-OPS-CONFIG').get().then(function(d){
+      var m = d.exists && d.data().maqs;
+      if (m && m.length) { MAQS = m.filter(function(x){return x&&x.id;}); render(); }
+    }).catch(function(){});
+    db.collection('fichas').where('tipo','==','maq_nota').onSnapshot(function(s){
+      NOTAS = []; s.forEach(function(d){var x=d.data(); x._id=d.id; NOTAS.push(x);});
+      lsSet('mv_notas',NOTAS); setNet(true); render(); if(sel) pintarHist();
+    }, function(e){ setNet(false); });
+  }catch(e){ setNet(false); }
+  render();
+}
+function setNet(ok){document.getElementById('net').textContent = ok ? '● En línea · ' + NOTAS.length + ' notas' : '○ Sin conexión — mostrando lo último guardado';}
+
+function notasDe(id){return NOTAS.filter(function(n){return n.maqId===id;}).sort(function(a,b){return (b.fecha+(b.ts||0)).localeCompare(a.fecha+(a.ts||0));});}
+function ultMant(id){var l=notasDe(id).filter(function(n){return n.tipoN==='Mantenimiento';});return l.length?l[0].fecha:null;}
+
+function grupos(){
+  var g = {}, ord = [];
+  MAQS.filter(function(m){return m.active!==false;}).forEach(function(m){
+    var k = m.type==='lonati' ? 'Lonati' : 'Santoni';
+    if(!g[k]){g[k]=[];ord.push(k);}
+    g[k].push(m);
+  });
+  return ord.sort().map(function(k){return {n:k,l:g[k]};});
+}
+function render(){
+  var gs = grupos();
+  var ch = '<button class="chip'+(filtro==='Todas'?' on':'')+'" onclick="setF(\'Todas\')">Todas</button>';
+  gs.forEach(function(g){ch+='<button class="chip'+(filtro===g.n?' on':'')+'" onclick="setF(\''+g.n+'\')">'+g.n+'</button>';});
+  ch+='<button class="chip'+(filtro==='Atrasadas'?' on':'')+'" onclick="setF(\'Atrasadas\')">⚠ Atrasadas</button>';
+  document.getElementById('chips').innerHTML = ch;
+  var q = document.getElementById('q').value.trim().toUpperCase(), h = '';
+  if(!MAQS.length) h = '<div class="empty">No se encontró la lista de máquinas. Abre primero la app de Registrar Producción en este equipo y vuelve.</div>';
+  gs.forEach(function(g){
+    if(filtro!=='Todas' && filtro!=='Atrasadas' && filtro!==g.n) return;
+    var items = g.l.filter(function(m){
+      if(q && String(m.id).toUpperCase().indexOf(q)<0) return false;
+      if(filtro==='Atrasadas'){var u=ultMant(m.id);return !u || dias(u)>120;}
+      return true;
+    }).sort(function(a,b){return String(a.id).localeCompare(String(b.id),undefined,{numeric:true});});
+    if(!items.length) return;
+    h += '<div class="eq">'+g.n+' · '+items.length+'</div><div class="grid">';
+    items.forEach(function(m){
+      var u = ultMant(m.id), d = u!==null ? dias(u) : null, c = d===null ? '' : (d<60?'ok':d<=120?'warn':'late');
+      var nn = notasDe(m.id).length;
+      h += '<button class="m '+c+'" onclick="abrir(\''+esc(m.id)+'\')"><b>'+esc(m.id)+'</b><small>'+esc((m.model||'')+' '+(m.diam||''))+'</small><div class="u">'+(u?('🛠 '+fmt(u)):'Sin mantenimiento')+(nn?' · '+nn+' 📝':'')+'</div></button>';
+    });
+    h += '</div>';
+  });
+  document.getElementById('list').innerHTML = h;
+}
+function setF(f){filtro=f;render();}
+
+function abrir(id){
+  sel = MAQS.filter(function(m){return String(m.id)===id;})[0] || {id:id};
+  document.getElementById('sh-t').innerHTML = esc(sel.id)+'<span class="d">'+esc(((sel.type||'')+' '+(sel.model||'')+' '+(sel.diam||'')+' · Equipo '+(sel.teamId||'')).trim())+'</span>';
+  document.getElementById('nota').value=''; document.getElementById('elem').value='';
+  document.getElementById('fecha').value = hoy();
+  pintarTipos(); pintarHist();
+  document.getElementById('ov').classList.add('on');
+}
+function cerrar(){document.getElementById('ov').classList.remove('on'); sel=null;}
+function pintarTipos(){
+  document.getElementById('tipos').innerHTML = TIPOS.map(function(t){return '<button class="t'+(t===tipoSel?' on':'')+'" onclick="tipoSel=\''+t+'\';pintarTipos()">'+TIPO_LBL[t]+'</button>';}).join('');
+}
+function pintarHist(){
+  var l = notasDe(sel.id);
+  document.getElementById('hist').innerHTML = l.length ? l.map(function(n){
+    return '<div class="n t-'+esc(n.tipoN)+'"><div class="l"><span class="tp">'+esc(TIPO_LBL[n.tipoN]||n.tipoN)+'</span><span>'+fmt(n.fecha)+'</span>'+(n.mec?'<span>· '+esc(n.mec)+'</span>':'')+'<button class="del" onclick="borrar(\''+esc(n._id)+'\')">Eliminar</button></div>'+(n.elem?'<div class="el">Elemento: <b>'+esc(n.elem)+'</b></div>':'')+(n.nota?'<div class="tx">'+esc(n.nota)+'</div>':'')+'</div>';
+  }).join('') : '<div class="empty">Aún no hay notas para esta máquina.</div>';
+}
+function guardar(){
+  var nota = document.getElementById('nota').value.trim(), elem = document.getElementById('elem').value.trim();
+  var fecha = document.getElementById('fecha').value || hoy(), mec = document.getElementById('mec').value.trim();
+  if(!nota && !elem){toast('Escribe una nota o el elemento');return;}
+  if(!db){toast('Sin conexión a la nube');return;}
+  lsSet('mv_mec',mec);
+  var ts = Date.now(), id = 'MAQNOTA-'+sel.id+'-'+ts+'-'+Math.random().toString(36).slice(2,6);
+  var doc = {tipo:'maq_nota', maqId:String(sel.id), tipoN:tipoSel, nota:nota, elem:elem, fecha:fecha, mec:mec, ts:ts};
+  var b = document.getElementById('btn'); b.disabled = true;
+  NOTAS.push(Object.assign({_id:id},doc)); render(); pintarHist();
+  db.collection('fichas').doc(id).set(doc).then(function(){
+    toast('✔ Nota guardada'); document.getElementById('nota').value=''; document.getElementById('elem').value=''; b.disabled=false;
+  }).catch(function(){ toast('No se pudo guardar, reintenta'); NOTAS = NOTAS.filter(function(n){return n._id!==id;}); render(); pintarHist(); b.disabled=false; });
+}
+function borrar(id){
+  if(!confirm('¿Eliminar esta nota?')) return;
+  NOTAS = NOTAS.filter(function(n){return n._id!==id;}); render(); pintarHist();
+  db.collection('fichas').doc(id).delete().catch(function(){toast('No se pudo eliminar');});
+}
+init();
+</script>
+</body>
+</html>
