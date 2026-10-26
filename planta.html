@@ -19,14 +19,26 @@ header h1{font-size:16px;font-weight:700}
 .zb button{width:34px;height:34px;border-radius:8px;border:0;background:#1e3a5f;color:#fff;font-size:18px;cursor:pointer;margin-left:4px}
 .net{font-size:11px;color:#8ea3b8;width:100%}
 .scroll{overflow:auto;padding:14px;-webkit-overflow-scrolling:touch}
-.plant{display:flex;gap:0;min-width:max-content;background:#243545;border:3px solid #3b5068;border-radius:10px}
+.plant{display:flex;flex-direction:column;gap:0;min-width:max-content;background:#243545;border:3px solid #3b5068;border-radius:10px}
+.erow{display:flex;border-bottom:2px solid #31465c}.erow:last-child{border-bottom:0}
+.lc{width:300px;flex-shrink:0;display:flex;flex-direction:column;background:#1f2e3d;border-right:3px solid #3b5068}
+.lc .half{flex:1;display:flex;border-bottom:2px solid #31465c;min-height:64px}.lc .half:last-child{border-bottom:0}
+.rm{flex:1;padding:6px;font-size:12px;color:#9fb1c4;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border-right:2px solid #31465c;line-height:1.3}
+.rm:last-child{border-right:0}
+.rm.back{flex:1;background:#1a2733;color:#7d92a8}.rm.front{flex:1.2}
+.rm.tur{background:#7f1d1d;color:#fecaca}
+.rm.jefe{background:#243a52;color:#c7d6e6;font-weight:600}
+.rm.bod{background:#3a2f12;color:#fcd34d;font-weight:700;font-size:13px}.rm.bod a{margin-top:6px;background:#b8921e;color:#111;padding:6px 10px;border-radius:6px;text-decoration:none;font-size:12px}
+.rm.asc{background:#2a3340}
+.rm small{font-size:10.5px;color:inherit;opacity:.8;font-weight:400}
 .left{width:150px;display:flex;flex-direction:column;border-right:3px solid #3b5068;background:#1f2e3d}
 .room{flex:1;border-bottom:2px solid #3b5068;padding:8px;font-size:12px;color:#8ea3b8;display:flex;align-items:center;justify-content:center;text-align:center;min-height:60px}
 .room:last-child{border-bottom:0}
 .room.big{flex:2}
-.pas{width:34px;background:repeating-linear-gradient(0deg,#2c3f52 0 14px,#27384a 14px 28px);display:flex;align-items:center;justify-content:center}
+.pas{width:34px;flex-shrink:0;background:repeating-linear-gradient(0deg,#2c3f52 0 14px,#27384a 14px 28px);display:flex;align-items:center;justify-content:center}
 .pas span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;letter-spacing:3px;color:#7d92a8}
-.main{padding:0 14px 14px}
+.main{padding:10px 14px;flex:1}
+.main.ina{display:flex;align-items:center;min-height:calc(var(--t)*1.8 + 78px)}
 .bod{margin:14px 0 8px;padding:10px 14px;background:#3a2f12;border:2px solid #b8921e;border-radius:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .bod b{color:#fcd34d;font-size:15px}.bod a{margin-left:auto;background:#b8921e;color:#111;font-weight:700;font-size:13px;padding:8px 12px;border-radius:8px;text-decoration:none}
 .bod small{color:#d6c48a;font-size:12px}
@@ -79,21 +91,7 @@ header h1{font-size:16px;font-weight:700}
   <div class="net" id="net">Conectando…</div>
 </header>
 <div class="scroll">
-  <div class="plant">
-    <div class="left">
-      <div class="room">🚻 Baños</div>
-      <div class="room big">🏢 Oficina</div>
-      <div class="room">☕ Cafetería</div>
-      <div class="room big">👔 Oficina jefe</div>
-      <div class="room">🗂 Oficina secretaría</div>
-    </div>
-    <div class="pas"><span>PASILLO</span></div>
-    <div class="main">
-      <div class="bod"><div><b>📦 Bodega MP</b><br><small id="bodinfo">Materia prima (hilos)</small></div><a href="hilos.html">Ver pedido de hilo de hoy →</a></div>
-      <div id="eqs"></div>
-      <div class="inact">Equipo 4 Lonati — inactivo</div>
-    </div>
-  </div>
+  <div class="plant" id="plant"></div>
 </div>
 <div class="leg"><span><i style="background:#10b981"></i>Corriendo</span><span><i style="background:#ef4444"></i>Parada</span><span><i style="background:#475569"></i>Sin lote abierto</span><span><i style="background:#f59e0b"></i>Eficiencia de hoy &lt; 75%</span><span>🔧 Mantenimiento vencido (&gt;120 días)</span></div>
 <div class="ov" id="ov" onclick="if(event.target===this)this.classList.remove('on')"><div class="sh" id="sh"></div></div>
@@ -136,20 +134,28 @@ function tile(m){
   return '<button class="'+cls+'" style="width:'+twOf(m.teamId)+'px" onclick="det(\''+esc(m.id)+'\')">'+(venc?'<span class="mn">🔧</span>':'')+esc(m.id)+'<small>'+sub+'</small></button>';
 }
 function render(){
-  var h='',run=0,stop=0,free=0,mnt=0;
-  ORDEN_EQ.forEach(function(eq){
+  var h='',run=0,stop=0,free=0,mnt=0, nAb=Object.keys(ABIERTOS).length;
+  var LEFT={
+    E2:'<div class="half"><div class="rm bod">📦 Bodega MP<small>'+nAb+' máquinas con lote abierto</small><a href="hilos.html">Pedido de hilo de hoy →</a></div></div>',
+    E3:'<div class="half"><div class="rm">🚻 Baños<small>hombres · mujeres</small></div></div>',
+    E5:'<div class="half"><div class="rm asc">🛗 Ascensores<small>1.000 kg · 2.000 kg</small></div><div class="rm front">🚪 Cabina de entrada</div></div>',
+    E6:'<div class="half" style="min-height:110px"><div class="rm back">Ventana grande</div><div class="rm jefe front">👔 Oficina jefe</div></div>',
+    E7:'<div class="half"><div class="rm back">🍽 Comedor operarios</div><div class="rm front">🗂 Oficina secretaría</div></div><div class="half"><div class="rm back">🔩 Taller de mecánicos</div><div class="rm tur front">🌀 Turbina del 7</div></div>',
+    E8:'<div class="half"><div class="rm back"><small>Equipo 8 está en otro piso; aquí se muestra a continuación del 7</small></div></div>'
+  };
+  ['E2','E3','E4','E5','E6','E7','E8'].forEach(function(eq){
+   if(eq==='E4'){h+='<div class="erow"><div class="lc"><div class="half"><div class="rm back"><small>espacio libre</small></div></div></div><div class="pas"></div><div class="main ina"><div class="inact" style="flex:1;margin:0">Equipo 4 Lonati — inactivo (espacio reservado)</div></div></div>';return;}
     var f=filas(eq), tot=f.der.length+f.izq.length; if(!tot) return;
     var r=0,s=0;
     f.der.concat(f.izq).forEach(function(m){var st=stOf(m.id);if(st==='run'){run++;r++;}else if(st==='stop'){stop++;s++;}else free++; var u=ultMant(m.id);if(u&&dias(u)>120)mnt++;});
     var tur=function(alta){return '<div class="tur'+(alta?' alta':'')+'">🌀<br>Turbina de succión</div>';};
-    h+='<div class="eq"><div class="row">'+f.izq.map(tile).join('')+(eq==='E2'?tur(false):'')+'</div>'+
+    h+='<div class="erow"><div class="lc">'+(LEFT[eq]||'')+'</div><div class="pas">'+(eq==='E2'?'<span>PASILLO</span>':'')+'</div><div class="main"><div class="eq"><div class="row">'+f.izq.map(tile).join('')+(eq==='E2'?tur(false):'')+'</div>'+
        '<div class="aisle"><div class="lbl">'+EQ_NOMBRE[eq]+' <em>'+r+' corriendo · '+s+' paradas · '+(tot-r-s)+' sin lote</em></div><div class="lane" id="ln-'+eq+'"></div></div>'+
-       '<div class="row">'+f.der.map(tile).join('')+(eq==='E3'?tur(false):'')+'</div></div>';
+       '<div class="row">'+f.der.map(tile).join('')+(eq==='E3'?tur(false):'')+'</div></div></div></div>';
   });
-  document.getElementById('eqs').innerHTML=h;
+  document.getElementById('plant').innerHTML=h;
   document.getElementById('kp').innerHTML='<span class="k run">▶ '+run+' corriendo</span><span class="k stop">■ '+stop+' paradas</span><span class="k free">○ '+free+' sin lote</span>'+(mnt?'<span class="k mnt">🔧 '+mnt+' mant.</span>':'');
   dibujarAv();
-  document.getElementById('bodinfo').textContent='Hilo para '+run+' máquinas corriendo ahora';
 }
 // ===== AVATARES: un operario por equipo, de pie frente a sus maquinas abiertas =====
 var AV={}, _walkT={};
