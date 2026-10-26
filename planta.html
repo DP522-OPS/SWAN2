@@ -20,6 +20,8 @@ header h1{font-size:16px;font-weight:700}
 .net{font-size:11px;color:#8ea3b8;width:100%}
 .scroll{overflow:auto;padding:14px;-webkit-overflow-scrolling:touch}
 .plant{display:flex;flex-direction:column;gap:0;min-width:max-content;background:#243545;border:3px solid #3b5068;border-radius:10px}
+.bodrow{display:flex;align-items:center;gap:16px;padding:14px 18px;background:#3a2f12;border-bottom:3px solid #b8921e;color:#fcd34d;font-size:15px}
+.bodrow span{color:#d6c48a;font-size:12.5px}.bodrow a{margin-left:auto;background:#b8921e;color:#111;font-weight:700;font-size:13px;padding:8px 12px;border-radius:8px;text-decoration:none}
 .erow{display:flex;border-bottom:2px solid #31465c}.erow:last-child{border-bottom:0}
 .lc{width:300px;flex-shrink:0;display:flex;flex-direction:column;background:#1f2e3d;border-right:3px solid #3b5068}
 .lc .half{flex:1;display:flex;border-bottom:2px solid #31465c;min-height:64px}.lc .half:last-child{border-bottom:0}
@@ -44,7 +46,7 @@ header h1{font-size:16px;font-weight:700}
 .bod small{color:#d6c48a;font-size:12px}
 .eq{margin-bottom:12px}
 .row{display:flex;gap:4px}
-.aisle{margin:4px 0;padding-top:4px;flex-direction:column;align-items:stretch;background:repeating-linear-gradient(90deg,#2c3f52 0 16px,#27384a 16px 32px);border-radius:4px;display:flex;font-size:12px;font-weight:700;letter-spacing:.5px;color:#cbd5e1;white-space:nowrap}
+.aisle{width:calc(var(--W) + 6px);margin:4px 0;padding-top:4px;flex-direction:column;align-items:stretch;background:repeating-linear-gradient(90deg,#2c3f52 0 16px,#27384a 16px 32px);border-radius:4px;display:flex;font-size:12px;font-weight:700;letter-spacing:.5px;color:#cbd5e1;white-space:nowrap}
 .aisle .lbl{display:flex;align-items:center;gap:10px;padding:0 12px;height:20px}
 .lane{position:relative;height:40px;margin-top:2px}
 .av{position:absolute;top:0;width:var(--t);display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:left 2.2s ease-in-out;z-index:2}
@@ -66,7 +68,7 @@ header h1{font-size:16px;font-weight:700}
 .t.low{border-color:#f59e0b}
 .t .mn{position:absolute;top:0;right:1px;font-size:calc(var(--t)*.22)}
 .t.dim{opacity:.25}
-.tur{flex-shrink:0;width:calc(var(--t)*1.5);height:calc(var(--t)*.9);margin-left:6px;border:2px solid #ef4444;background:#7f1d1d;border-radius:6px;color:#fecaca;font-size:calc(var(--t)*.17);font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.1}
+.tur{flex-shrink:0;width:calc(var(--t)*1.5);height:calc(var(--t)*.9);margin-left:auto;border:2px solid #ef4444;background:#7f1d1d;border-radius:6px;color:#fecaca;font-size:calc(var(--t)*.17);font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.1}
 .tur.alta{height:calc(var(--t)*1.9 + 34px);align-self:stretch}
 .inact{margin-bottom:12px;padding:8px 12px;border:1px dashed #4b5d70;border-radius:6px;font-size:12px;color:#6b7f93}
 .leg{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:#8ea3b8;padding:0 14px 14px}
@@ -136,22 +138,26 @@ function tile(m){
 function render(){
   var h='',run=0,stop=0,free=0,mnt=0, nAb=Object.keys(ABIERTOS).length;
   var LEFT={
-    E2:'<div class="half"><div class="rm bod">📦 Bodega MP<small>'+nAb+' máquinas con lote abierto</small><a href="hilos.html">Pedido de hilo de hoy →</a></div></div>',
+    E2:'<div class="half"><div class="rm back"><small>espacio libre</small></div></div>',
     E3:'<div class="half"><div class="rm">🚻 Baños<small>hombres · mujeres</small></div></div>',
-    E5:'<div class="half"><div class="rm asc">🛗 Ascensores<small>1.000 kg · 2.000 kg</small></div><div class="rm front">🚪 Cabina de entrada</div></div>',
-    E6:'<div class="half" style="min-height:110px"><div class="rm back">Ventana grande</div><div class="rm jefe front">👔 Oficina jefe</div></div>',
+    E4:'<div class="half"><div style="width:110px;display:flex;flex-direction:column;justify-content:space-between;padding:6px;gap:6px;border-right:2px solid #31465c"><div class="rm asc" style="flex:0 0 58px;border:2px solid #4b5d70;border-radius:4px">🛗 Ascensor 2<small>2.000 kg</small></div><div class="rm asc" style="flex:0 0 58px;border:2px solid #4b5d70;border-radius:4px">🛗 Ascensor 1<small>1.000 kg</small></div></div><div class="rm" style="flex:1"><small>espacio libre</small></div></div>',
+    E5:'<div class="half"><div class="rm back">🪜 Escaleras<small>llegada / entrada a la planta</small></div><div class="rm front">🚪 Cabina de entrada</div></div>',
+    E6:'<div class="half" style="min-height:110px"><div class="rm jefe">👔 Oficina jefe<small>ventana grande</small></div></div>',
     E7:'<div class="half"><div class="rm back">🍽 Comedor operarios</div><div class="rm front">🗂 Oficina secretaría</div></div><div class="half"><div class="rm back">🔩 Taller de mecánicos</div><div class="rm tur front">🌀 Turbina del 7</div></div>',
     E8:'<div class="half"><div class="rm back"><small>Equipo 8 está en otro piso; aquí se muestra a continuación del 7</small></div></div>'
   };
+  // Bodega MP: franja de todo el largo, como un equipo, arriba del Equipo 2
+  h+='<div class="bodrow"><b>📦 Bodega MP</b><span>'+nAb+' máquinas con lote abierto</span><a href="hilos.html">Pedido de hilo de hoy →</a></div>';
+
   ['E2','E3','E4','E5','E6','E7','E8'].forEach(function(eq){
-   if(eq==='E4'){h+='<div class="erow"><div class="lc"><div class="half"><div class="rm back"><small>espacio libre</small></div></div></div><div class="pas"></div><div class="main ina"><div class="inact" style="flex:1;margin:0">Equipo 4 Lonati — inactivo (espacio reservado)</div></div></div>';return;}
+   if(eq==='E4'){h+='<div class="erow"><div class="lc">'+LEFT.E4+'</div><div class="pas"></div><div class="main ina"><div class="inact" style="flex:1;margin:0">Equipo 4 Lonati — inactivo (espacio reservado)</div></div></div>';return;}
     var f=filas(eq), tot=f.der.length+f.izq.length; if(!tot) return;
     var r=0,s=0;
     f.der.concat(f.izq).forEach(function(m){var st=stOf(m.id);if(st==='run'){run++;r++;}else if(st==='stop'){stop++;s++;}else free++; var u=ultMant(m.id);if(u&&dias(u)>120)mnt++;});
     var tur=function(alta){return '<div class="tur'+(alta?' alta':'')+'">🌀<br>Turbina de succión</div>';};
-    h+='<div class="erow"><div class="lc">'+(LEFT[eq]||'')+'</div><div class="pas">'+(eq==='E2'?'<span>PASILLO</span>':'')+'</div><div class="main"><div class="eq"><div class="row">'+f.izq.map(tile).join('')+(eq==='E2'?tur(false):'')+'</div>'+
+    h+='<div class="erow"><div class="lc">'+(LEFT[eq]||'')+'</div><div class="pas">'+(eq==='E2'?'<span>PASILLO</span>':'')+'</div><div class="main"><div class="eq"><div class="row">'+f.izq.map(tile).join('')+(eq==='E3'?tur(false):'')+'</div>'+
        '<div class="aisle"><div class="lbl">'+EQ_NOMBRE[eq]+' <em>'+r+' corriendo · '+s+' paradas · '+(tot-r-s)+' sin lote</em></div><div class="lane" id="ln-'+eq+'"></div></div>'+
-       '<div class="row">'+f.der.map(tile).join('')+(eq==='E3'?tur(false):'')+'</div></div></div></div>';
+       '<div class="row">'+f.der.map(tile).join('')+(eq==='E2'?tur(false):'')+'</div></div></div></div>';
   });
   document.getElementById('plant').innerHTML=h;
   document.getElementById('kp').innerHTML='<span class="k run">▶ '+run+' corriendo</span><span class="k stop">■ '+stop+' paradas</span><span class="k free">○ '+free+' sin lote</span>'+(mnt?'<span class="k mnt">🔧 '+mnt+' mant.</span>':'');
@@ -209,7 +215,8 @@ function detOp(k){
   h+='</dl>';
   document.getElementById('sh').innerHTML=h; document.getElementById('ov').classList.add('on');
 }
-function zoom(d){tam=Math.max(30,Math.min(90,tam+d));document.documentElement.style.setProperty('--t',tam+'px');AV={};render();}
+function setW(){document.documentElement.style.setProperty('--W',(COLS_LON*(tam+4)-4)+'px');}
+function zoom(d){tam=Math.max(30,Math.min(90,tam+d));document.documentElement.style.setProperty('--t',tam+'px');setW();AV={};render();}
 
 function det(id){
   var m=MAQS.filter(function(x){return String(x.id)===id;})[0]||{id:id}, r=ABIERTOS[id], st=stOf(id), e=effHoy(id), um=ultMant(id);
@@ -229,6 +236,7 @@ function det(id){
 }
 
 function init(){
+  setW();
   MAQS=(lsGet('swx_maqs',[])||[]).filter(function(m){return m&&m.id;});
   OPS=lsGet('swx_ops',[])||[];
   NOTAS=lsGet('mv_notas',[]);
