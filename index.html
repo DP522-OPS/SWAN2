@@ -1404,7 +1404,7 @@ function closeValues(lote, ce, hf, extraParos, cierre) {
   var std = null, eff = null, dur = null;
   if (tubos && ref) std = Math.round((tubos / ref[4]) * ref[5] * 10) / 10;
   if (lote.hi && hf) { dur = tdiff(lote.hi, hf); if (std && dur > pm) eff = Math.round(std / (dur - pm) * 100); }
-  return { parado: null, ctrEnd: ce, tubos: tubos, hf: hf, dur: dur, paros: paros, parosMin: pm, std: std, eff: eff, status: 'cerrado', cierre: cierre };
+  return { parado: null, ctrEnd: ce, tubos: tubos, hf: hf, dur: dur, paros: paros, parosMin: pm, std: std, eff: eff, status: 'cerrado', cierre: cierre, cerradoTs: Date.now(), cerradoDev: (function(){ try { return devId(); } catch(e) { return ''; } })() };
 }
 
 // ===== ENTREGA DE TURNO =====
