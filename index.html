@@ -828,6 +828,14 @@ code{font-size:.71rem;background:var(--steell);padding:.1rem .3rem;border-radius
       <div class="card-t">Estado</div>
       <div id="sync-stats" style="font-size:.84rem;color:var(--steel)">Configure la URL arriba para ver el estado.</div>
     </div>
+    <div class="card">
+      <div class="card-t">Estado del sistema (equipos conectados)</div>
+      <div class="fg"><label class="lbl">Nombre de ESTE equipo</label>
+        <div style="display:flex;gap:.5rem"><input type="text" class="inp" id="dev-name" placeholder="Ej: Celular tejeduria E3">
+        <button class="btn btn-navy" onclick="guardarNombreEquipo()">Guardar</button></div></div>
+      <div id="salud-body" style="font-size:.84rem;color:var(--steel)">Cargando equipos...</div>
+      <button class="btn btn-out btn-sm" style="margin-top:.55rem" onclick="renderSalud()">Actualizar</button>
+    </div>
   </div>
 </div>
 
@@ -2614,6 +2622,7 @@ function testGasUrl() {
     });
 }
 function initNubePanel() {
+  try { var dn = document.getElementById('dev-name'); if (dn) dn.value = devNombre(); renderSalud(); } catch (e) {}
   var url = getGasUrl();
   var inp = document.getElementById('gas-url');
   if (inp) inp.value = url;
@@ -2786,12 +2795,18 @@ function applyLiveRefs(rows) {
   }
   return { added: added, updated: updated };
 }
+// Solo los precosteos (ids SW-... y STRUCT-...): antes se leia TODA la coleccion (lotes, medidas, etc.) en cada equipo
+function leerPrecosteos(db) {
+  var FP = firebase.firestore.FieldPath, col = db.collection('fichas');
+  var q = function(p) { return col.where(FP.documentId(), '>=', p).where(FP.documentId(), '<', p + '').get(); };
+  return Promise.all([q('SW-'), q('STRUCT-')]).then(function(r) { return { forEach: function(f) { r.forEach(function(s) { s.forEach(f); }); } }; });
+}
 function syncRefsFromFichas(notify) {
   // AHORRO DE CUOTA: esto lee TODA la coleccion. Solo a mano (boton) o si pasaron 60 min.
   if (!notify) { var _t = sg('refs_fichas_ts', 0); if (_t && Date.now() - _t < 3600000) return; }
   var db = initFichasFirebase();
   if (!db) { if (notify) toast('No se pudo conectar con Fichas'); return; }
-  db.collection('fichas').get().then(function(snap) {
+  (notify ? db.collection('fichas').get() : leerPrecosteos(db)).then(function(snap) {
     var rows = [];
     snap.forEach(function(doc) {
       var row = fichaToRefRow(doc.id, doc.data() || {});
@@ -3626,14 +3641,41 @@ function onLotesRemoteChange() {
   if (_fichaMaq) renderLive();
   if (on('view-reg')) { try { updateRegStatus(); } catch(e) {} }
 }
-var _lotesUnsub = null;
+var _lotesUnsub = null, _lotesUnsubA = null, _lotesRecon = {};
+// AHORRO DE LECTURAS: ya no se descarga todo el historial. Se escuchan (1) los lotes tocados en los
+// ultimos N dias y (2) todos los que siguen ABIERTOS, aunque sean viejos. Lo anterior ya esta en cada equipo.
+var LOTES_VENTANA_DIAS = 7;
+function lotesDesde(dias) { return Date.now() - (dias || LOTES_VENTANA_DIAS) * 86400000; }
 function aplicarSnapLotes(snap) {
   var changed = false;
   snap.docChanges().forEach(function(ch) {
     if (ch.type === 'removed') return;   // las bajas se manejan con lapidas, no con 'removed'
-    if (mergeRemoteLote(ch.doc.data())) changed = true;
+    var d = ch.doc.data();
+    if (!d || d.tipo !== LOTES_TIPO) return;
+    if (mergeRemoteLote(d)) changed = true;
   });
   if (changed) onLotesRemoteChange();
+}
+// Un lote abierto aqui que la nube ya no tiene como abierto (se cerro/borro hace mas de la ventana): se pide solo ese
+function reconciliarAbiertos(snap) {
+  if (snap.metadata && snap.metadata.fromCache) return;
+  var db = initFichasFirebase(); if (!db) return;
+  var enNube = {}; snap.forEach(function(d) { enNube[d.id] = 1; });
+  var n = 0;
+  sg_lotes().forEach(function(l) {
+    if (!isOpen(l) || l._p !== l._upd) return;            // pendientes de subir no se tocan
+    var did = LOTES_DOC_PREFIX + l.id;
+    if (enNube[did] || _lotesRecon[did] || n >= 40) return;
+    _lotesRecon[did] = 1; n++;
+    db.collection('fichas').doc(did).get().then(function(doc) {
+      if (doc.exists && mergeRemoteLote(doc.data())) onLotesRemoteChange();
+    }).catch(function() { delete _lotesRecon[did]; });
+  });
+}
+function cerrarListenersLotes() {
+  try { if (_lotesUnsub) _lotesUnsub(); } catch(e) {}
+  try { if (_lotesUnsubA) _lotesUnsubA(); } catch(e) {}
+  _lotesUnsub = null; _lotesUnsubA = null; _lotesStarted = false;
 }
 function startLotesSync() {
   if (_lotesStarted) return;
@@ -3641,18 +3683,23 @@ function startLotesSync() {
   if (!db) { lotesCloudState('offline'); setTimeout(startLotesSync, 5000); return; }
   _lotesStarted = true;
   var col = db.collection('fichas');
-  // Un solo filtro por igualdad (tipo=='lote'): no necesita indice compuesto.
-  _lotesUnsub = col.where('tipo', '==', LOTES_TIPO).onSnapshot(function(snap) {
+  var alError = function(err) {
+    // El listener murio (cuota, red, permisos): se cierran y se vuelven a abrir solos
+    lotesCloudError(err);
+    cerrarListenersLotes();
+    setTimeout(startLotesSync, 10000);
+  };
+  // (1) tocados en la ventana: un solo filtro de rango sobre _upd (indice automatico)
+  _lotesUnsub = col.where('_upd', '>=', lotesDesde()).onSnapshot(function(snap) {
     aplicarSnapLotes(snap);
     if (snap.metadata && snap.metadata.fromCache) lotesCloudState('offline');
     else lotesCloudState('ok', '');
-  }, function(err) {
-    // El listener murio (cuota, red, permisos): se cierra y se vuelve a abrir solo
-    lotesCloudError(err);
-    try { if (_lotesUnsub) _lotesUnsub(); } catch(e) {}
-    _lotesUnsub = null; _lotesStarted = false;
-    setTimeout(startLotesSync, 10000);
-  });
+  }, alError);
+  // (2) todos los abiertos (igualdad + igualdad: no necesita indice compuesto)
+  _lotesUnsubA = col.where('tipo', '==', LOTES_TIPO).where('status', '==', 'abierto').onSnapshot(function(snap) {
+    aplicarSnapLotes(snap);
+    reconciliarAbiertos(snap);
+  }, alError);
   pushLotes();
 }
 // Al volver a la app o recuperar la red: reabre el listener si estaba caido, trae los cambios
@@ -3662,7 +3709,7 @@ function refrescarLotes() {
   if (!_lotesStarted) startLotesSync();
   var db = initFichasFirebase(); if (!db || Date.now() - _lotesUltRefresco < 120000) { pushLotes(); return; }
   _lotesUltRefresco = Date.now();
-  db.collection('fichas').where('tipo', '==', LOTES_TIPO).get().then(function(snap) {
+  db.collection('fichas').where('_upd', '>=', lotesDesde(2)).get().then(function(snap) {
     aplicarSnapLotes(snap); lotesCloudState('ok', '');
   }).catch(function(e) { lotesCloudError(e); });
   pushLotes();
@@ -3673,6 +3720,88 @@ window.addEventListener('online', function() { refrescarLotes(); });
 window.addEventListener('offline', function() { lotesCloudState('offline'); });
 document.addEventListener('visibilitychange', function() { if (!document.hidden) { refrescarLotes(); renderCloudPill(); try { renderDash(); } catch(e) {} } });
 
+
+// ============ MONITOREO: cada equipo avisa como esta ============
+// Cada celular/PC deja un "latido" (cada ~15 min y cuando cambia su estado de nube) en la nube.
+// Config > Nube lo lista: quien no ha reportado, quien tiene cambios sin subir, errores. Asi se detecta
+// un equipo que no sincroniza ANTES de que el operario lo reporte.
+var APP_VER = '2026-10-26a';
+var _ultLatido = 0, _ultEstadoLatido = '';
+function _lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function _lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function devId() {
+  var id = _lsGet('swx_devid');
+  if (!id) { id = 'D' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(); _lsSet('swx_devid', id); }
+  return id;
+}
+function devNombre() { return _lsGet('swx_devname') || ''; }
+function guardarNombreEquipo() {
+  var el = document.getElementById('dev-name'); if (!el) return;
+  _lsSet('swx_devname', el.value.trim().slice(0, 40));
+  enviarLatido(true); toast('Nombre guardado');
+  setTimeout(renderSalud, 1500);
+}
+function _anotaError(m) {
+  try { _lsSet('swx_last_err', JSON.stringify({ t: Date.now(), m: String(m || 'error').slice(0, 140) })); } catch (e) {}
+}
+window.addEventListener('error', function(ev) { _anotaError((ev && ev.message) + (ev && ev.lineno ? ' (linea ' + ev.lineno + ')' : '')); });
+window.addEventListener('unhandledrejection', function(ev) { _anotaError('promesa: ' + ((ev && ev.reason && (ev.reason.message || ev.reason)) || '')); });
+function enviarLatido(forzar) {
+  var db = initFichasFirebase(); if (!db || document.hidden) return;
+  var ahora = Date.now();
+  if (!forzar && ahora - _ultLatido < 15 * 60000) return;
+  if (forzar === 'cambio' && ahora - _ultLatido < 120000) return;
+  _ultLatido = ahora;
+  var er = null; try { er = JSON.parse(_lsGet('swx_last_err') || 'null'); } catch (e) {}
+  var lotes = sg_lotes(), ab = 0; for (var i = 0; i < lotes.length; i++) if (isOpen(lotes[i])) ab++;
+  var ua = navigator.userAgent || '';
+  var d = {
+    tipo: 'dispositivo', id: devId(), nombre: devNombre(), ver: APP_VER, visto: ahora,
+    equipo: /Android/i.test(ua) ? 'Android' : /iPhone|iPad/i.test(ua) ? 'iPhone' : /Windows/i.test(ua) ? 'Windows' : 'otro',
+    pend: lotesPending(), estado: _lotesCloud.state, estadoMsg: String(_lotesCloud.err || '').slice(0, 120),
+    ultOk: _lotesCloud.lastOk || 0, lotesLocal: lotes.length, abiertos: ab,
+    err: er && ahora - er.t < 86400000 ? er : null
+  };
+  db.collection('fichas').doc('SWAN2-DISP-' + devId()).set(d).catch(function() {});
+}
+setInterval(function() { enviarLatido(false); }, 5 * 60000);
+setTimeout(function() { enviarLatido(false); }, 8000);
+document.addEventListener('visibilitychange', function() { if (!document.hidden) setTimeout(function() { enviarLatido(false); }, 3000); });
+function _hace(ms) {
+  var m = Math.round((Date.now() - ms) / 60000);
+  return m < 1 ? 'ahora' : m < 60 ? m + ' min' : m < 1440 ? Math.round(m / 60) + ' h' : Math.round(m / 1440) + ' d';
+}
+function _escS(x) { return String(x == null ? '' : x).replace(/[&<>"]/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function renderSalud() {
+  var el = document.getElementById('salud-body'); if (!el) return;
+  var db = initFichasFirebase();
+  if (!db) { el.textContent = 'Sin conexion con la nube.'; return; }
+  el.textContent = 'Consultando equipos...';
+  db.collection('fichas').where('tipo', '==', 'dispositivo').get().then(function(snap) {
+    var rows = [];
+    snap.forEach(function(d) { var x = d.data() || {}; if (x.visto && Date.now() - x.visto < 30 * 86400000) rows.push(x); });
+    rows.sort(function(a, b) { return (b.visto || 0) - (a.visto || 0); });
+    if (!rows.length) { el.textContent = 'Todavia ningun equipo ha reportado. Se llenan solos en unos minutos.'; return; }
+    var mal = 0, h = '<table style="width:100%;border-collapse:collapse;font-size:.78rem"><tr style="text-align:left;color:var(--steel)"><th>Equipo</th><th>Visto</th><th>Pend.</th><th>Nube</th><th>Ver.</th></tr>';
+    rows.forEach(function(x) {
+      var viejo = Date.now() - x.visto > 30 * 60000, err = x.estado === 'error', pend = (x.pend || 0) > 0;
+      var color = err || (x.err && Date.now() - x.err.t < 3600000) ? 'var(--red)' : (pend || viejo || x.estado === 'offline') ? 'var(--amberd)' : 'var(--green)';
+      if (color !== 'var(--green)') mal++;
+      h += '<tr style="border-top:1px solid #e2e8f0"><td><span style="color:' + color + '">&#9679;</span> <strong>' + _escS(x.nombre || x.id) + '</strong><br><span style="color:var(--steel)">' + _escS(x.equipo || '') + (x.nombre ? ' · ' + _escS(x.id) : '') + '</span></td>' +
+        '<td>' + _hace(x.visto) + '</td><td style="color:' + (pend ? 'var(--amberd)' : 'inherit') + '">' + (x.pend || 0) + '</td>' +
+        '<td>' + _escS(x.estado || '--') + (x.estadoMsg ? '<br><span style="color:var(--red)">' + _escS(x.estadoMsg) + '</span>' : '') + (x.err ? '<br><span style="color:var(--red)">err: ' + _escS(x.err.m) + '</span>' : '') + '</td>' +
+        '<td>' + _escS(x.ver || '--') + '</td></tr>';
+    });
+    h += '</table>';
+    el.innerHTML = '<div style="margin-bottom:.4rem;font-weight:700;color:' + (mal ? 'var(--red)' : 'var(--green)') + '">' + rows.length + ' equipos · ' + (mal ? mal + ' con algo por revisar' : 'todos bien') + '</div>' + h;
+  }).catch(function(e) { el.textContent = 'No se pudo leer: ' + (e && e.message ? e.message : e); });
+}
+// cuando cambia el estado de la nube, avisar sin esperar los 15 min
+var _lotesCloudStateOrig = lotesCloudState;
+lotesCloudState = function(st, err) {
+  _lotesCloudStateOrig(st, err);
+  if (st !== _ultEstadoLatido) { _ultEstadoLatido = st; if (st === 'error' || st === 'offline') setTimeout(function() { enviarLatido('cambio'); }, 1500); }
+};
 
 // ============ CLAVE DE ADMINISTRADOR ============
 // Protege Config: agregar/quitar referencias, operarios, maquinas, stickers NFC y la

@@ -339,6 +339,12 @@ function cargarGasUrlDeLaNube() {
   }).catch(function(e){ console.warn('No se pudo traer la URL de la nube', e); });
 }
 
+// Solo los precosteos (ids SW-... y STRUCT-...): antes se leia TODA la coleccion (lotes, medidas, etc.) en cada equipo
+function leerPrecosteos(db) {
+  var FP = firebase.firestore.FieldPath, col = db.collection('fichas');
+  var q = function(p) { return col.where(FP.documentId(), '>=', p).where(FP.documentId(), '<', p + '').get(); };
+  return Promise.all([q('SW-'), q('STRUCT-')]).then(function(r) { return { forEach: function(f) { r.forEach(function(s) { s.forEach(f); }); } }; });
+}
 function cargarFichasMaquina(cb) {
   var st = document.getElementById('fichas-status');
   var db = initFichasFirebase();
@@ -355,7 +361,7 @@ function cargarFichasMaquina(cb) {
     }
   } catch (e) {}
   st.textContent = 'Cargando maquina/diametro desde Fichas...'; st.className='status';
-  db.collection('fichas').get().then(function(snap) {
+  leerPrecosteos(db).then(function(snap) {
     var map = {}, completas = 0;
     snap.forEach(function(doc) {
       var d = doc.data() || {};

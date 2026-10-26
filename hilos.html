@@ -412,6 +412,12 @@ function fichaToMaterial(id, d) {
   };
 }
 
+// Solo los precosteos (ids SW-... y STRUCT-...): antes se leia TODA la coleccion (lotes, medidas, etc.) en cada equipo
+function leerPrecosteos(db) {
+  var FP = firebase.firestore.FieldPath, col = db.collection('fichas');
+  var q = function(p) { return col.where(FP.documentId(), '>=', p).where(FP.documentId(), '<', p + '').get(); };
+  return Promise.all([q('SW-'), q('STRUCT-')]).then(function(r) { return { forEach: function(f) { r.forEach(function(s) { s.forEach(f); }); } }; });
+}
 function syncMateriales(cb) {
   var st = document.getElementById('fichas-status');
   // AHORRO DE CUOTA: leer toda la coleccion solo si el guardado tiene mas de 60 min (o con ?fresh=1)
@@ -432,7 +438,7 @@ function syncMateriales(cb) {
     if (cb) cb();
     return;
   }
-  db.collection('fichas').get().then(function(snap) {
+  leerPrecosteos(db).then(function(snap) {
     var mats = {}, estado = {};
     snap.forEach(function(doc) {
       var dd = doc.data() || {};
