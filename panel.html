@@ -118,6 +118,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
     <button class="navitem active" data-sec="flujo" onclick="showSection('flujo')">Cómo funciona</button>
     <button class="navitem" data-sec="produccion" onclick="showSection('produccion')">Producción diaria</button>
     <button class="navitem" data-sec="planta" onclick="showSection('planta')">Planta virtual</button>
+    <button class="navitem" data-sec="maquinas" onclick="showSection('maquinas')">Hojas de vida de máquinas</button>
     <button class="navitem" data-sec="personal" onclick="showSection('personal')">Personal</button>
     <button class="navitem" data-sec="fichas" onclick="showSection('fichas')">Fichas técnicas</button>
     <button class="navitem" data-sec="desarrollo" onclick="showSection('desarrollo')">Desarrollo de producto</button>
@@ -311,6 +312,21 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
       </a>
     </div>
 
+    <!-- HOJAS DE VIDA DE MÁQUINAS -->
+    <div class="section" id="sec-maquinas">
+      <div class="sec-title">Hojas de vida de máquinas</div>
+      <div class="sec-sub">Historial técnico de cada máquina, para los mecánicos</div>
+      <a class="row" href="https://dp522-ops.github.io/SWAN2/maquinas.html" target="_blank" rel="noopener">
+        <div class="row-icon">🔧</div>
+        <div style="flex-grow:1"><div class="row-t">Abrir hojas de vida de máquinas</div><div class="row-d">Mantenimientos, cambios de elementos, notas rápidas y fotos del estado de cada máquina. El mecánico toca la máquina y registra en segundos.</div></div>
+        <span class="row-tag tag-cfg">Mecánica</span>
+      </a>
+      <div class="row" style="cursor:default;background:#f6f8fa">
+        <div class="row-icon">📱</div>
+        <div style="flex-grow:1"><div class="row-t">Para los técnicos</div><div class="row-d">Comparte con ellos la dirección directa, para que la abran en el celular sin pasar por el panel: dp522-ops.github.io/SWAN2/maquinas.html</div></div>
+      </div>
+    </div>
+
     <!-- PERSONAL -->
     <div class="section" id="sec-personal">
       <div class="sec-title">Personal</div>
@@ -375,7 +391,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 <script>
 // FUNCIONES DE CONTROL DE SECCIONES
 function showSection(name) {
-  var secs = ['flujo', 'produccion', 'planta', 'personal', 'fichas', 'desarrollo', 'materia', 'config'];
+  var secs = ['flujo', 'produccion', 'planta', 'maquinas', 'personal', 'fichas', 'desarrollo', 'materia', 'config'];
   for (var i = 0; i < secs.length; i++) {
     var isOn = secs[i] === name;
     var el = document.getElementById('sec-' + secs[i]);
@@ -410,7 +426,7 @@ window.addEventListener('offline', updateNetworkStatus);
 (function initFromHash() {
   updateNetworkStatus();
   var h = (location.hash || '').replace('#', '');
-  var valid = ['flujo', 'produccion', 'planta', 'personal', 'fichas', 'desarrollo', 'materia', 'config'];
+  var valid = ['flujo', 'produccion', 'planta', 'maquinas', 'personal', 'fichas', 'desarrollo', 'materia', 'config'];
   if (valid.indexOf(h) >= 0) showSection(h);
   else showSection('flujo');
 })();
