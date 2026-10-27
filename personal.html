@@ -230,7 +230,7 @@ function traerOps(){
   });
 }
 function editP(id){
-  var p=id?P[id]:{activo:true,cargo:'Operario'};
+  var p=id?P[id]:{activo:true,cargo:'Operario'};if(!id)PEND=[];
   $('sheet').innerHTML='<h2>'+(id?'Editar':'Nueva')+' persona<button class="btn o s" onclick="cerrar()">✕</button></h2>'+
   '<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px"><div class="av" style="width:64px;height:64px" id="pfoto">'+(p.foto?'<img src="'+p.foto+'">':esc(ini(p.nombre)))+'</div><label class="btn o s">📷 Foto<input type="file" accept="image/*" capture="user" style="display:none" onchange="fotoP(this)"></label></div>'+
   '<div class="f">'+
@@ -249,6 +249,8 @@ function editP(id){
       '<td><input type="time" id="f_n'+w+'e" value="'+(nn[0]||'')+'"></td><td><input type="time" id="f_n'+w+'s" value="'+(nn[1]||'')+'"></td></tr>';}).join('')+
   '</table><div class="muted" style="margin-top:4px">Deja vacío el día que no trabaja (por ejemplo sábado o domingo). La salida de la noche es del día siguiente.</div></div>'+
   '<label class="muted">Notas</label><textarea id="f_notas">'+esc(p.notas||'')+'</textarea>'+
+  '<div class="muted" style="margin-top:10px"><b>Documentos</b> — hoja de vida en papel, contrato, cédula, certificados, exámenes.</div>'+
+  (id?archBox(id):pendBox())+
   '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn g" onclick="saveP(\''+(id||'')+'\')">Guardar</button>'+(id?'<button class="btn r" onclick="delP(\''+id+'\')">Eliminar</button>':'')+'</div>';
   window._foto=p.foto||'';$('ov').classList.add('on');
 }
@@ -260,7 +262,9 @@ function saveP(id){
     rot:$('f_rot').value,grp:$('f_grp').value,alm:+$('f_alm').value||0,d:[],n:[]};
   for(var w=0;w<7;w++){var de=$('f_d'+w+'e').value,dsv=$('f_d'+w+'s').value,ne=$('f_n'+w+'e').value,ns=$('f_n'+w+'s').value;
     o.d[w]=(de&&dsv)?de+'-'+dsv:'';o.n[w]=(ne&&ns)?ne+'-'+ns:'';}
-  col.doc(id||'RH-P-'+uid()).set(o,{merge:true}).then(function(){toast('Guardado');if(id&&pcur===id)renderP();else cerrar();});
+  var pid2=id||'RH-P-'+uid();
+  col.doc(pid2).set(o,{merge:true}).then(function(){return subirPend(pid2);}).then(function(){
+    toast('Guardado');if(id&&pcur===id)renderP();else cerrar();});
 }
 function delP(id){if(!confirm('¿Eliminar esta persona? (mejor márcala como Retirado para conservar el historial)'))return;col.doc(id).delete().then(function(){cerrar();toast('Eliminada');});}
 var pcur='', ptab='datos';
@@ -370,6 +374,7 @@ function vNov(){
   return h;
 }
 function editN(id,pid,tipo){
+  if(!id)PEND=[];
   var n=id?NOV.filter(function(x){return x.id===id;})[0]:{pid:pid||'',tipoN:tipo||'Falta',desde:hoy(),hasta:hoy(),arch:[]};
   var opts=pList(true).map(function(p){return '<option value="'+p.id+'"'+(n.pid===p.id?' selected':'')+'>'+esc(p.nombre)+'</option>';}).join('');
   $('sheet').innerHTML='<h2>'+(id?'Registro':'Nuevo registro')+'<button class="btn o s" onclick="'+(pcur?'renderP()':'cerrar()')+'">✕</button></h2><div class="f">'+
@@ -379,8 +384,8 @@ function editN(id,pid,tipo){
   '<div><label>Hasta</label><input type="date" id="n_hasta" value="'+(n.hasta||n.desde)+'"></div>'+
   '<div><label>Horas (extra / permiso)</label><input type="number" step="0.5" id="n_horas" value="'+esc(n.horas||'')+'"></div></div>'+
   '<textarea id="n_nota" placeholder="Nota (motivo, diagnóstico no es necesario)">'+esc(n.nota||'')+'</textarea>'+
-  '<div class="muted" style="margin-top:8px">Soportes (foto de incapacidad, permiso firmado…)</div>'+
-  (id?archBox(id):'<div class="muted">Guarda primero y luego podrás adjuntar documentos.</div>')+
+  '<div class="muted" style="margin-top:10px"><b>Soportes</b> — foto del formato físico, incapacidad, permiso o memorando firmado.</div>'+
+  (id?archBox(id):pendBox())+
   '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn g" onclick="saveN(\''+(id||'')+'\')">Guardar</button>'+(id?'<button class="btn r" onclick="delN(\''+id+'\')">Eliminar</button>':'')+(pcur?'<button class="btn o" onclick="renderP()">Volver a la ficha</button>':'')+'</div>';
   $('ov').classList.add('on');
 }
@@ -389,7 +394,8 @@ function saveN(id){
   if(!o.pid||!o.desde){toast('Elige persona y fecha');return;}
   o.tipo='rh_nov';o.tipoN=o.ttipo;delete o.ttipo;
   var nid=id||'RH-N-'+uid();
-  col.doc(nid).set(o,{merge:true}).then(function(){toast('Guardado');if(id&&pcur)renderP();else if(!id){editN(nid);}else cerrar();});
+  col.doc(nid).set(o,{merge:true}).then(function(){return subirPend(nid);}).then(function(){
+    toast('Guardado');if(id&&pcur)renderP();else if(!id){editN(nid);}else cerrar();});
 }
 function delN(id){if(!confirm('¿Eliminar este registro?'))return;col.doc(id).delete().then(function(){if(pcur)renderP();else cerrar();});}
 
@@ -405,6 +411,22 @@ function subirArch(owner,file){
     b.set(col.doc(aid),{tipo:'rh_arch',owner:owner,nombre:file.name||('foto-'+hoy()+'.jpg'),mime:file.type||'application/octet-stream',n:parts.length,fecha:hoy(),ts:Date.now()});
     return b.commit().then(function(){return aid;});
   });
+}
+/* Archivos elegidos antes de que el registro exista: se suben al guardar */
+var PEND=[];
+function pendBox(){
+  return '<div id="pendwrap">'+pendInner()+'</div>';
+}
+function pendInner(){
+  return '<div class="att">'+PEND.map(function(f,i){return '<span class="at">'+(f.type.indexOf('image/')===0?'🖼':'📄')+' '+esc(f.name||'foto.jpg')+' <a onclick="PEND.splice('+i+',1);$(\'pendwrap\').innerHTML=pendInner()" style="color:#b91c1c">✕</a></span>';}).join('')+'</div>'+
+    '<label class="btn o s">📎 Subir archivo<input type="file" multiple style="display:none" onchange="addPend(this)"></label> '+
+    '<label class="btn o s">📷 Tomar foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="addPend(this)"></label>';
+}
+function addPend(inp){Array.prototype.slice.call(inp.files).forEach(function(f){PEND.push(f);});inp.value='';$('pendwrap').innerHTML=pendInner();}
+function subirPend(owner){
+  if(!PEND.length)return Promise.resolve();
+  var fl=PEND.slice();PEND=[];toast('Subiendo '+fl.length+' archivo(s)…');
+  return fl.reduce(function(p,f){return p.then(function(){return subirArch(owner,f);});},Promise.resolve());
 }
 function archBox(owner){return '<div class="ab" data-o="'+owner+'">'+archInner(owner)+'</div>';}
 function archInner(owner){
