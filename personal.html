@@ -76,7 +76,7 @@ td.l,th.l{text-align:left}
 <script>
 var CFG = {apiKey:'AIzaSyAZkeIEa2xhXeyV6Ndy18FFJ3a6msCEyWQ',authDomain:'swantex-produccion.firebaseapp.com',projectId:'swantex-produccion',storageBucket:'swantex-produccion.firebasestorage.app',messagingSenderId:'',appId:''};
 var db=null, col=null;
-var P={}, NOV=[], TU={}, MA={}, ARCH=[];
+var P={}, NOV=[], TU={}, MA={}, ARCH=[], COB=[];
 var tab='personal', mes='', brush='A-8', fPers='', fCot='';
 var SH={'A-8':{n:'A',s:6,e:14,c:'sA'},'B-8':{n:'B',s:14,e:22,c:'sB'},'C-8':{n:'C',s:22,e:30,c:'sC'},'DIA-12':{n:'D',s:6,e:18,c:'sD'},'NOC-12':{n:'N',s:18,e:30,c:'sN'},'L':{n:'L',c:'sL'}};
 var SHORD=['A-8','B-8','C-8','DIA-12','NOC-12','L'];
@@ -131,6 +131,7 @@ function entrar(){
   col.where('tipo','==','rh_nov').onSnapshot(function(s){NOV=[];s.forEach(function(d){var x=d.data();x.id=d.id;NOV.push(x);});draw();});
   col.where('tipo','==','rh_turnos').onSnapshot(function(s){TU={};s.forEach(function(d){var x=d.data();TU[x.mes]=x.a||{};});draw();});
   col.where('tipo','==','rh_marc').onSnapshot(function(s){MA={};s.forEach(function(d){var x=d.data();MA[x.mes]=x.m||{};});draw();});
+  col.where('tipo','==','rh_cob').onSnapshot(function(s){COB=[];s.forEach(function(d){var r=d.data().r||{};Object.keys(r).forEach(function(k){COB.push(r[k]);});});draw();});
   col.where('tipo','==','rh_arch').onSnapshot(function(s){ARCH=[];s.forEach(function(d){var x=d.data();x.id=d.id;ARCH.push(x);});draw();Array.prototype.forEach.call(document.querySelectorAll('.ab'),function(e){e.innerHTML=archInner(e.getAttribute('data-o'));});});
   draw();
 }
@@ -299,8 +300,9 @@ function importar(){ $('fileimp').click(); }
 function leerImp(inp){
   var f=inp.files[0];inp.value='';if(!f)return;
   var r=new FileReader();r.onload=function(){
-    var wb=XLSX.read(r.result,{type:'array',cellDates:true});var ws=wb.Sheets[wb.SheetNames[0]];
+    var wb=XLSX.read(r.result,{type:'array',cellDates:false});var ws=wb.Sheets[wb.SheetNames[0]];
     var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+    if(rows.some(function(r){return r[0]==='TARJETA DE REGISTROS';})){tarjeta(rows,f);return;}
     var hi=0;for(var i=0;i<Math.min(rows.length,15);i++){if(rows[i].filter(function(c){return String(c).trim();}).length>=2){hi=i;break;}}
     IMP={file:f,head:rows[hi].map(function(x,i){return String(x||('Col '+(i+1)));}),rows:rows.slice(hi+1)};
     mapImp();
@@ -318,8 +320,10 @@ function mapImp(){
   '<div style="margin-top:12px"><button class="btn g" onclick="aplicarImp()">Importar y cotejar</button></div>';
   $('ov').classList.add('on');
 }
-function cellTxt(c){if(c instanceof Date)return c.getFullYear()+'-'+pad(c.getMonth()+1)+'-'+pad(c.getDate())+' '+pad(c.getHours())+':'+pad(c.getMinutes());return String(c==null?'':c);}
+function cellTxt(c){if(typeof c==='number'){if(c>20000){var q=serie(c);return q.d+(q.t?' '+q.t:'');}if(c>=0&&c<1)return horasDe(c)[0]||'';}if(c instanceof Date)return c.getFullYear()+'-'+pad(c.getMonth()+1)+'-'+pad(c.getDate())+' '+pad(c.getHours())+':'+pad(c.getMinutes());return String(c==null?'':c);}
+function serie(c){var d=Math.floor(c),fr=Math.round((c-d)*1440),u=new Date(Date.UTC(1899,11,30+d));return {d:u.getUTCFullYear()+'-'+pad(u.getUTCMonth()+1)+'-'+pad(u.getUTCDate()),t:fr?pad(Math.floor(fr/60))+':'+pad(fr%60):''};}
 function parseFecha(c){
+  if(typeof c==='number'&&c>20000)return serie(c);
   if(c instanceof Date){var d=new Date(c.getTime()+30000);return {d:d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()),t:(d.getHours()||d.getMinutes())?pad(d.getHours())+':'+pad(d.getMinutes()):''};}
   var s=String(c||'').trim(),m;
   if((m=s.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})(?:[ T]+(\d{1,2}):(\d{2}))?/)))return {d:m[1]+'-'+pad(+m[2])+'-'+pad(+m[3]),t:m[4]?pad(+m[4])+':'+m[5]:''};
@@ -328,7 +332,7 @@ function parseFecha(c){
 }
 function horasDe(c){
   if(c instanceof Date){return [pad(c.getHours())+':'+pad(c.getMinutes())];}
-  if(typeof c==='number'&&c>=0&&c<1){var t=Math.round(c*1440);return [pad(Math.floor(t/60))+':'+pad(t%60)];}
+  if(typeof c==='number'&&c>=0){var t=Math.round((c-Math.floor(c))*1440);if(!t&&c<1)return [];return [pad(Math.floor(t/60))+':'+pad(t%60)];}
   var o=[],re=/(\d{1,2}):(\d{2})/g,m,s=String(c||'');while((m=re.exec(s)))o.push(pad(+m[1])+':'+m[2]);return o;
 }
 function buscaP(v){
@@ -361,18 +365,60 @@ function aplicarImp(){
   tab='cot';draw();
 }
 
+
+/* Formato "Tarjeta de registros" (reloj biométrico de Gestión Humana): un bloque por persona */
+function tarjeta(rows,f){
+  var B=[],cur=null,dmin='9',dmax='0';
+  rows.forEach(function(r){
+    var a=r[0];
+    if(a==='Nombre'){cur={nombre:String(r[1]).replace(/\s+/g,' ').trim(),cedula:'',cargo:'',ingreso:'',dias:[]};B.push(cur);return;}
+    if(!cur)return;
+    if(a==='Nº Identificador')cur.cedula=String(r[1]).trim();
+    else if(a==='Función')cur.cargo=String(r[1]).replace(/\s+/g,' ').trim();
+    else if(a==='Libreta'){var i=r.indexOf('Ingreso ');if(i>=0&&typeof r[i+1]==='number'&&r[i+1]>20000)cur.ingreso=serie(r[i+1]).d;}
+    else if(typeof a==='string'){var m=a.match(/^(\d\d)\/(\d\d)\/(\d\d) - /);if(m){var d='20'+m[3]+'-'+m[2]+'-'+m[1];if(d<dmin)dmin=d;if(d>dmax)dmax=d;
+      var hs=[];for(var c=1;c<=6;c++){horasDe(r[c]).forEach(function(h){hs.push(h);});}cur.dias.push({d:d,h:hs});}}
+  });
+  IMP={tarjeta:B,file:f,desde:dmin,hasta:dmax};
+  var nuevos=B.filter(function(b){return !buscaP(b.cedula||b.nombre);});
+  var tit=function(x){return x.toLowerCase().replace(/(^|\s)\S/g,function(c){return c.toUpperCase();});};
+  $('sheet').innerHTML='<h2>Reporte de timbradas detectado<button class="btn o s" onclick="cerrar()">✕</button></h2>'+
+  '<div class="card">Periodo <b>'+fmt(dmin)+' a '+fmt(dmax)+'</b> · '+B.length+' personas · '+B.reduce(function(a,b){return a+b.dias.reduce(function(x,d){return x+d.h.length;},0);},0)+' marcaciones.</div>'+
+  (nuevos.length?'<div class="muted" style="margin-bottom:6px">Estas personas no están en el sistema. Marca las que quieres crear (se usan cédula, nombre, cargo e ingreso del reporte):</div>'+nuevos.map(function(b,i){return '<label style="display:block;padding:3px 0"><input type="checkbox" class="nw" data-i="'+B.indexOf(b)+'" '+(b.cedula==='1073700007'?'':'checked')+'> '+esc(tit(b.nombre))+' <span class="muted">· CC '+esc(b.cedula)+' · '+esc(tit(b.cargo))+'</span></label>';}).join(''):'<div class="card">Todas las personas ya existen.</div>')+
+  '<div style="margin-top:12px"><button class="btn g" onclick="aplicarTarjeta()">Cargar timbradas</button></div>';
+  $('ov').classList.add('on');
+}
+function aplicarTarjeta(){
+  var B=IMP.tarjeta,tit=function(x){return x.toLowerCase().replace(/(^|\s)\S/g,function(c){return c.toUpperCase();});};
+  var crear={};Array.prototype.forEach.call(document.querySelectorAll('.nw'),function(e){if(e.checked)crear[e.getAttribute('data-i')]=1;});
+  var bt=db.batch(),ids={};
+  B.forEach(function(b,i){var p=buscaP(b.cedula||b.nombre);
+    if(p){ids[i]=p.id;if(!p.cedula&&b.cedula)bt.set(col.doc(p.id),{cedula:b.cedula},{merge:true});}
+    else if(crear[i]){var id='RH-P-'+uid();ids[i]=id;bt.set(col.doc(id),{tipo:'rh_persona',nombre:tit(b.nombre),cedula:b.cedula,cargo:tit(b.cargo),ingreso:b.ingreso,activo:true,ts:Date.now()});}});
+  bt.commit();
+  var nuevos={},ok=0,pers={};
+  B.forEach(function(b,i){var pid=ids[i];if(!pid)return;b.dias.forEach(function(d){d.h.forEach(function(h){var m=d.d.slice(0,7);(nuevos[m]=nuevos[m]||{});(nuevos[m][pid]=nuevos[m][pid]||[]).push(d.d+' '+h);ok++;pers[pid]=1;});});});
+  Object.keys(nuevos).forEach(function(m){var out={};Object.keys(nuevos[m]).forEach(function(pid){var set={};((MA[m]||{})[pid]||[]).forEach(function(x){set[x]=1;});nuevos[m][pid].forEach(function(x){set[x]=1;});out[pid]=Object.keys(set).sort();});
+    col.doc('RH-M-'+m).set({tipo:'rh_marc',mes:m,m:out},{merge:true});});
+  var cb={};cb['i'+Date.now().toString(36)]={d:IMP.desde,h:IMP.hasta};col.doc('RH-COB').set({tipo:'rh_cob',r:cb},{merge:true});
+  subirArch('TIMBRADAS',IMP.file);
+  $('sheet').innerHTML='<h2>Listo<button class="btn" onclick="cerrar()">Ver resultado</button></h2><div class="card">✅ '+ok+' marcaciones de '+Object.keys(pers).length+' personas, del '+fmt(IMP.desde)+' al '+fmt(IMP.hasta)+'.<br><small class="muted">El reporte original quedó guardado en “Archivos”.</small></div>';
+  mes=IMP.desde.slice(0,7);tab='cot';draw();
+}
+
 /* TIMBRADAS: cotejo */
 function mar(pid){var o=[];Object.keys(MA).forEach(function(m){(MA[m][pid]||[]).forEach(function(k){o.push(mins(k.slice(0,10),k.slice(11)));});});return o.sort(function(a,b){return a-b;});}
 function justif(pid,date){var r=NOV.filter(function(n){return n.pid===pid&&n.desde<=date&&(n.hasta||n.desde)>=date&&(JUST.indexOf(n.tipoN)>=0||n.tipoN==='Falta');})[0];return r?r.tipoN:'';}
 function clasif(a,b,res){ // minutos [a,b) por tipo de hora extra
   for(var t=a;t<b;t++){var d=new Date(t*60000),h=d.getHours(),n=(h>=21||h<6),dom=d.getDay()===0;var k=(dom?'hed':'he')+(n?'n':'d');k=dom?(n?'hend':'hedd'):(n?'hen':'hed');res[k]=(res[k]||0)+1;}
 }
+function cubierto(date){return !COB.length||COB.some(function(r){return date>=r.d&&date<=r.h;});}
 function calc(p){
   var n=dimes(mes),P_=mar(p.id),R={p:p,prog:0,trab:0,faltas:0,just:0,tardes:0,minTarde:0,ant:0,sinSal:0,sinTurno:0,he:{hed:0,hen:0,hedd:0,hend:0},heMin:0,det:[]};
   var wins=[];
   for(var d=-1;d<=n+1;d++){var dt=new Date(+mes.slice(0,4),+mes.slice(5)-1,d);var date=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());var c=getCode(p.id,date);
     if(c&&SH[c]&&SH[c].s!=null){var s=minsDate(date,SH[c].s),e=minsDate(date,SH[c].e);wins.push([s-120,e+240]);
-      if(d>=1&&d<=n){
+      if(d>=1&&d<=n&&cubierto(date)){
         R.prog++;var j=justif(p.id,date),row={fecha:date,turno:c,ent:'',sal:'',tarde:0,ant:0,extra:0,estado:''};
         var inw=P_.filter(function(x){return x>=s-120&&x<=e+240;});
         if(!inw.length){ if(j&&j!=='Falta'){R.just++;row.estado='Justificado: '+j;} else {R.faltas++;row.estado=j==='Falta'?'Falta (registrada)':'Sin timbrada';} }
