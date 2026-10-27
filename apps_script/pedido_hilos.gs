@@ -20,7 +20,7 @@
 // ===================== CONFIGURACION (edite aqui) =====================
 var DESTINATARIOS = '';                       // Ej: 'materiaprima@swantex.com, otra@gmail.com' (varios separados por coma)
 var COPIA = 'jdposada33@gmail.com';           // copia para usted (deje '' para no copiar)
-var HORAS_PROYECCION = 0;                     // 0 = lo que falta del dia hasta medianoche (igual que Hilos); o un numero fijo, ej: 24
+var HORAS_PROYECCION = 24;                     // 0 = lo que falta del dia hasta medianoche (igual que Hilos); o un numero fijo, ej: 24
 var EFICIENCIA_PCT = 85;                      // eficiencia esperada (igual que Hilos)
 var HORA_ENVIO = 8;                           // hora del envio diario (0-23, hora Bogota)
 var ZONA = 'America/Bogota';

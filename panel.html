@@ -9,8 +9,6 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-panel-180.png">
 <link rel="manifest" href="manifest-panel.json">
 <meta name="theme-color" content="#1e3a5f">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;color:#111827;min-height:100vh}
@@ -57,44 +55,6 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 .guide-icon{color:#818a94;flex-shrink:0}
 .guide-t{font-size:14px;font-weight:600;color:#111111}
 .guide-d{font-size:12px;color:#818a94;margin-top:1px}
-
-/* MÓDULO MANTENIMIENTO & HVs */
-.maint-container{display:flex;flex-direction:column;gap:1rem}
-.maint-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1rem}
-.maint-search{flex:1;min-width:220px;padding:10px 14px;border:1.5px solid #d7dbe0;border-radius:8px;font-size:14px}
-.maint-teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem}
-.maint-tc{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px}
-.maint-tc-title{font-weight:700;font-size:15px;color:#0f2942;margin-bottom:8px}
-.maint-maq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:4px}
-.maint-tile{border-radius:6px;padding:6px 2px;text-align:center;border:1.5px solid transparent;cursor:pointer;transition:.15s}
-.maint-tile:hover{transform:scale(1.05)}
-.maint-tile.ok{background:#d1fae5;border-color:#34d399;color:#065f46}
-.maint-tile.bad{background:#fee2e2;border-color:#fca5a5;color:#b91c1c}
-.maint-tile-id{font-size:11px;font-weight:800;line-height:1}
-.maint-tile-m{font-size:9px;opacity:.8;margin-top:2px}
-
-/* MODAL HOJA DE VIDA */
-.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:200;padding:1rem}
-.ov.on{display:flex}
-.modal{background:#fff;border-radius:14px;padding:20px;max-width:620px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.2)}
-.modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid #e2e8f0;padding-bottom:10px}
-.modal-title{font-size:18px;font-weight:800;color:#0f2942}
-.maint-form-box{background:#f1f5f9;border-radius:8px;padding:12px;margin-bottom:14px}
-.fg{margin-bottom:8px}
-.lbl{display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:2px;text-transform:uppercase}
-.inp{width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px}
-.btn{padding:8px 14px;border-radius:6px;border:none;cursor:pointer;font-weight:700;font-size:12px}
-.btn-navy{background:#0f2942;color:#fff}
-.btn-red{background:#ef4444;color:#fff}
-.btn-green{background:#10b981;color:#fff}
-.btn-out{background:#fff;border:1px solid #cbd5e1;color:#475569}
-.timeline{margin-top:12px;border-left:2px solid #cbd5e1;padding-left:12px;display:flex;flex-direction:column;gap:10px}
-.tl-item{position:relative}
-.tl-item::before{content:'';position:absolute;left:-17px;top:4px;width:8px;height:8px;border-radius:50%;background:#0f2942}
-.tl-date{font-size:10px;color:#64748b}
-.tl-desc{font-size:12px;color:#1e293b;margin-top:2px}
-.tl-tech{font-size:10px;color:#059669;font-weight:700}
-.tl-img{margin-top:4px;max-width:100px;border-radius:4px;border:1px solid #cbd5e1;cursor:pointer}
 
 /* Estilos de flujo detallado en zigzag */
 .fc{margin-top:6px}
@@ -156,7 +116,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 
     <button class="navitem active" data-sec="flujo" onclick="showSection('flujo')">Cómo funciona</button>
     <button class="navitem" data-sec="produccion" onclick="showSection('produccion')">Producción diaria</button>
-    <button class="navitem" data-sec="mantenimiento" onclick="showSection('mantenimiento')">🛠️ Mantenimiento y HVs</button>
+    <button class="navitem" data-sec="planta" onclick="showSection('planta')">Planta virtual</button>
     <button class="navitem" data-sec="fichas" onclick="showSection('fichas')">Fichas técnicas</button>
     <button class="navitem" data-sec="desarrollo" onclick="showSection('desarrollo')">Desarrollo de producto</button>
     <button class="navitem" data-sec="materia" onclick="showSection('materia')">Materia prima</button>
@@ -167,7 +127,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
         <div class="net-dot" id="netDot"></div>
         <span id="netText">Sistema en línea</span>
       </div>
-      <div>Modiark • Planta 142 Máquinas</div>
+      <div>Swantex • Planta de producción</div>
     </div>
   </div>
 
@@ -224,7 +184,7 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
             <div class="fc-box">
               <div class="fc-step">Paso 4</div>
               <div class="fc-title">Registra producción, paros y entrega de turno</div>
-              <div class="fc-desc">Unidades producidas, hora real, motivo de paros y entrega de turno. Todo queda guardado al instante en Google Sheets (Apps Script).</div>
+              <div class="fc-desc">Unidades producidas, hora real, motivo de paros y entrega de turno. Todo queda guardado al instante en la nube y se respalda en Google Sheets.</div>
               <span class="fc-tag" style="cursor:default">Registro en tiempo real</span>
             </div>
           </div>
@@ -331,16 +291,6 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
         <div style="flex-grow:1"><div class="row-t">Tablero Maestro</div><div class="row-d">Vista en tiempo real de todos los equipos, eficiencia y motivos de paro por máquina.</div></div>
         <span class="row-tag tag-sup">Supervisión</span>
       </a>
-      <a class="row" href="https://dp522-ops.github.io/SWAN2/planta.html" target="_blank" rel="noopener">
-        <div class="row-icon">🏭</div>
-        <div style="flex-grow:1"><div class="row-t">Planta virtual</div><div class="row-d">Plano de la planta en vivo: cada máquina por equipo con su estado, operario y referencia.</div></div>
-        <span class="row-tag tag-sup">Supervisión</span>
-      </a>
-      <a class="row" href="https://dp522-ops.github.io/SWAN2/maquinas.html" target="_blank" rel="noopener">
-        <div class="row-icon">🔧</div>
-        <div style="flex-grow:1"><div class="row-t">Hojas de vida de máquinas</div><div class="row-d">Historial de cada máquina: mantenimientos, cambios de elementos y notas rápidas del mecánico.</div></div>
-        <span class="row-tag tag-cfg">Mecánica</span>
-      </a>
       <a class="row" href="https://dp522-ops.github.io/SWAN2/planeacion.html" target="_blank" rel="noopener">
         <div class="row-icon">📅</div>
         <div style="flex-grow:1"><div class="row-t">Planeación de Producción</div><div class="row-d">Gantt proyectado: según el programa mensual, qué máquina corre cada referencia.</div></div>
@@ -348,18 +298,15 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
       </a>
     </div>
 
-    <!-- 3. NUEVA SECCIÓN: MANTENIMIENTO Y HVS -->
-    <div class="section" id="sec-mantenimiento">
-      <div class="sec-title">Mantenimiento y Hojas de Vida de Máquinas</div>
-      <div class="sec-sub">Historial técnico, reparaciones, repuestos y control de estado de las 142 máquinas</div>
-
-      <div class="maint-container">
-        <div class="maint-actions">
-          <input type="text" class="maint-search" id="maintSearchInp" placeholder="Buscar máquina por ID (ej: S37, L42)..." oninput="filtrarMaqsMaint(this.value)">
-          <button class="btn btn-navy" onclick="escanearNfcMaint()">📱 Escanear NFC de Máquina</button>
-        </div>
-        <div class="maint-teams" id="maintTeamsGrid"></div>
-      </div>
+    <!-- PLANTA VIRTUAL -->
+    <div class="section" id="sec-planta">
+      <div class="sec-title">Planta virtual</div>
+      <div class="sec-sub">Plano de la planta en vivo, para supervisión</div>
+      <a class="row" href="https://dp522-ops.github.io/SWAN2/planta.html" target="_blank" rel="noopener">
+        <div class="row-icon">🏭</div>
+        <div style="flex-grow:1"><div class="row-t">Abrir planta virtual</div><div class="row-d">Cada máquina por equipo con su estado, operario y referencia, con el personal en movimiento.</div></div>
+        <span class="row-tag tag-sup">Supervisión</span>
+      </a>
     </div>
 
     <!-- 4. FICHAS TÉCNICAS -->
@@ -408,63 +355,10 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#fff;c
 
 </div>
 
-<!-- MODAL HOJA DE VIDA INTERACTIVA -->
-<div class="ov" id="ov-hv">
-  <div class="modal">
-    <div class="modal-hdr">
-      <div>
-        <div class="modal-title" id="hv-maq-title">Máquina --</div>
-        <div style="font-size:11px;color:#64748b" id="hv-maq-sub">--</div>
-      </div>
-      <button class="btn btn-red" id="btn-toggle-est" onclick="cambiarEstadoMaqHv()">Marcar como Averiada</button>
-    </div>
-
-    <!-- FORMULARIO INTERVENCIÓN -->
-    <div class="maint-form-box">
-      <div style="font-weight:700;font-size:13px;color:#0f2942;margin-bottom:6px">+ Registrar Nueva Intervención o Repuesto</div>
-      <div class="fg">
-        <label class="lbl">Tipo de Falla / Mantenimiento</label>
-        <select class="inp" id="iv-tipo">
-          <option>Mantenimiento Preventivo / Rutina</option>
-          <option>Rotura de Agujas / Cambio de cilindro</option>
-          <option>Falla Eléctrica / Electrónica</option>
-          <option>Problema de Hilado / Alimentadores</option>
-          <option>Ajuste Mecánico General</option>
-        </select>
-      </div>
-      <div class="fg">
-        <label class="lbl">Técnico / Mecánico</label>
-        <input type="text" class="inp" id="iv-tecnico" placeholder="Tu nombre">
-      </div>
-      <div class="fg">
-        <label class="lbl">Repuestos Cambiados / Notas</label>
-        <textarea class="inp" id="iv-obs" rows="2" placeholder="Ej: Cambio de 3 agujas, limpieza de cilindro..."></textarea>
-      </div>
-      <div class="fg">
-        <label class="lbl">Foto de la Evidencia (Opcional)</label>
-        <input type="file" class="inp" id="iv-foto" accept="image/*" capture="environment">
-      </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:8px">
-        <button class="btn btn-navy" onclick="guardarIntervencionHv()">Guardar en Hoja de Vida</button>
-      </div>
-    </div>
-
-    <!-- HISTORIAL TIMELINE -->
-    <div style="font-weight:800;font-size:13px;color:#0f2942;margin-bottom:4px">Trayectoria e Historial de la Máquina</div>
-    <div class="timeline" id="hv-timeline">
-      <div style="color:#64748b;font-size:12px;font-style:italic">Cargando historial...</div>
-    </div>
-
-    <div style="display:flex;justify-content:flex-end;margin-top:14px">
-      <button class="btn btn-out" onclick="closeOv('ov-hv')">Cerrar</button>
-    </div>
-  </div>
-</div>
-
 <script>
 // FUNCIONES DE CONTROL DE SECCIONES
 function showSection(name) {
-  var secs = ['flujo', 'produccion', 'mantenimiento', 'fichas', 'desarrollo', 'materia', 'config'];
+  var secs = ['flujo', 'produccion', 'planta', 'fichas', 'desarrollo', 'materia', 'config'];
   for (var i = 0; i < secs.length; i++) {
     var isOn = secs[i] === name;
     var el = document.getElementById('sec-' + secs[i]);
@@ -475,13 +369,9 @@ function showSection(name) {
     navs[j].classList.toggle('active', navs[j].getAttribute('data-sec') === name);
   }
   var contentEl = document.querySelector('.content');
-  if (contentEl) contentEl.classList.toggle('wide', name === 'flujo' || name === 'mantenimiento');
+  if (contentEl) contentEl.classList.toggle('wide', name === 'flujo');
   try { location.hash = name; } catch(e) {}
   
-  if (name === 'mantenimiento') {
-    renderMaintGrid();
-    sincronizarMaintEstados();
-  }
 }
 
 // CONTROL DE CONEXIÓN
@@ -500,235 +390,10 @@ function updateNetworkStatus() {
 window.addEventListener('online', updateNetworkStatus);
 window.addEventListener('offline', updateNetworkStatus);
 
-// DATOS DE LAS 142 MÁQUINAS PARA MANTENIMIENTO
-var EQS_M = [
-  {id:'E2',name:'Equipo 2',type:'lonati'},{id:'E3',name:'Equipo 3',type:'lonati'},
-  {id:'E5',name:'Equipo 5',type:'santoni'},{id:'E6',name:'Equipo 6',type:'santoni'},
-  {id:'E7',name:'Equipo 7',type:'santoni'},{id:'E8',name:'Equipo 8',type:'santoni'}
-];
-
-var MAQS_M = [
-  ["S37", "santoni", "SM4", "13\"", "E5"], ["S38", "santoni", "SM4", "13\"", "E5"], ["S39", "santoni", "SM4", "13\"", "E5"], ["S40", "santoni", "SM4", "14\"", "E5"], ["S41", "santoni", "SM4", "14\"", "E5"], ["S42", "santoni", "SM4", "14\"", "E5"], ["S43", "santoni", "SM4", "15\"", "E5"], ["S44", "santoni", "SM4", "15\"", "E5"], ["S45", "santoni", "SM4", "15\"", "E5"], ["S46", "santoni", "SM4", "16\"", "E5"], ["S47", "santoni", "SM4", "16\"", "E5"], ["S48", "santoni", "SM4", "16\"", "E5"], ["S49", "santoni", "TOP1", "13\"", "E5"], ["S50", "santoni", "TOP1", "13\"", "E5"], ["S51", "santoni", "TOP1", "13\"", "E5"], ["S52", "santoni", "TOP1", "13\"", "E5"],
-  ["S19", "santoni", "TOP2HIE", "14\"", "E6"], ["S20", "santoni", "TOP2HIE", "14\"", "E6"], ["S21", "santoni", "TOP2HIE", "15\"", "E6"], ["S22", "santoni", "TOP2HIE", "15\"", "E6"], ["S23", "santoni", "TOP2HIE", "16\"", "E6"], ["S24", "santoni", "TOP2HIE", "16\"", "E6"], ["S25", "santoni", "TOP1", "13\"", "E6"], ["S26", "santoni", "TOP1", "13\"", "E6"], ["S27", "santoni", "TOP1", "13\"", "E6"], ["S28", "santoni", "TOP1", "13\"", "E6"], ["S29", "santoni", "TOP1", "13\"", "E6"], ["S30", "santoni", "TOP1", "13\"", "E6"], ["S31", "santoni", "TOP1", "13\"", "E6"], ["S32", "santoni", "TOP1", "13\"", "E6"], ["S33", "santoni", "TOP1", "13\"", "E6"], ["S34", "santoni", "TOP1", "13\"", "E6"], ["S35", "santoni", "TOP1", "13\"", "E6"], ["S36", "santoni", "TOP1", "13\"", "E6"],
-  ["S1", "santoni", "TOP1", "13\"", "E7"], ["S2", "santoni", "TOP1", "13\"", "E7"], ["S3", "santoni", "TOP1", "13\"", "E7"], ["S4", "santoni", "TOP1", "13\"", "E7"], ["S5", "santoni", "TOP1", "13\"", "E7"], ["S6", "santoni", "TOP1", "13\"", "E7"], ["S7", "santoni", "TOP1", "13\"", "E7"], ["S8", "santoni", "TOP1", "13\"", "E7"], ["S9", "santoni", "TOP1", "13\"", "E7"], ["S10", "santoni", "TOP1", "13\"", "E7"], ["S11", "santoni", "TOP1", "13\"", "E7"], ["S12", "santoni", "TOP1", "13\"", "E7"], ["S13", "santoni", "TOP1", "13\"", "E7"], ["S14", "santoni", "TOP1", "13\"", "E7"], ["S15", "santoni", "TOP1", "13\"", "E7"], ["S16", "santoni", "TOP1", "13\"", "E7"], ["S17", "santoni", "TOP1", "13\"", "E7"], ["S18", "santoni", "TOP1", "13\"", "E7"],
-  ["S53", "santoni", "TOP2V", "15\"", "E8"], ["S54", "santoni", "TOP2V", "15\"", "E8"], ["S55", "santoni", "TOP2V", "15\"", "E8"], ["S56", "santoni", "TOP2V", "15\"", "E8"], ["S57", "santoni", "TOP2V", "15\"", "E8"], ["S58", "santoni", "TOP2V", "16\"", "E8"], ["S59", "santoni", "TOP2V", "16\"", "E8"], ["S60", "santoni", "TOP2V", "16\"", "E8"], ["S61", "santoni", "TOP2V", "16\"", "E8"], ["S62", "santoni", "TOP2V", "16\"", "E8"], ["S63", "santoni", "TOP2V", "17\"", "E8"], ["S64", "santoni", "TOP2V", "17\"", "E8"], ["S65", "santoni", "TOP2V", "17\"", "E8"], ["S66", "santoni", "TOP2V", "17\"", "E8"], ["S67", "santoni", "TOP2V", "17\"", "E8"], ["S68", "santoni", "TOP2V", "18\"", "E8"], ["S69", "santoni", "TOP2V", "18\"", "E8"], ["S70", "santoni", "TOP2V", "18\"", "E8"],
-  ["L42", "lonati", "02MJ", "", "E2"], ["L43", "lonati", "02MJ", "", "E2"], ["L44", "lonati", "02MJ", "", "E2"], ["L45", "lonati", "02MJ", "", "E2"], ["L46", "lonati", "02MJ", "", "E2"], ["L47", "lonati", "02MJ", "", "E2"], ["L48", "lonati", "02MJ", "", "E2"], ["L49", "lonati", "02MJ", "", "E2"], ["L50", "lonati", "02MJ", "", "E2"], ["L51", "lonati", "02MJ", "", "E2"], ["L92", "lonati", "B16", "", "E2"], ["L93", "lonati", "B16", "", "E2"], ["L117", "lonati", "B16", "", "E2"], ["L118", "lonati", "B16", "", "E2"], ["L119", "lonati", "B16", "", "E2"], ["L120", "lonati", "B16", "", "E2"], ["L121", "lonati", "B16", "", "E2"], ["L122", "lonati", "B16", "", "E2"], ["L123", "lonati", "B16", "", "E2"], ["L124", "lonati", "B16", "", "E2"], ["L125", "lonati", "B16", "", "E2"], ["L126", "lonati", "B16", "", "E2"], ["L22", "lonati", "416E", "", "E2"], ["L24", "lonati", "416E", "", "E2"], ["L33", "lonati", "416E", "", "E2"], ["L34", "lonati", "416E", "", "E2"], ["L35", "lonati", "416E", "", "E2"], ["L36", "lonati", "416E", "", "E2"], ["L37", "lonati", "416E", "", "E2"], ["L38", "lonati", "416E", "", "E2"], ["L41", "lonati", "416E", "", "E2"], ["L85", "lonati", "416E", "", "E2"], ["L86", "lonati", "416E", "", "E2"], ["L90", "lonati", "416E", "", "E2"], ["L91", "lonati", "416E", "", "E2"],
-  ["L97", "lonati", "409", "", "E3"], ["L98", "lonati", "409", "", "E3"], ["L99", "lonati", "409", "", "E3"], ["L103", "lonati", "409", "", "E3"], ["L113", "lonati", "409", "", "E3"], ["L62", "lonati", "416E", "", "E3"], ["L67", "lonati", "416E", "", "E3"], ["L69", "lonati", "416E", "", "E3"], ["L70", "lonati", "416E", "", "E3"], ["L73", "lonati", "416E", "", "E3"], ["L76", "lonati", "416E", "", "E3"], ["L79", "lonati", "416E", "", "E3"], ["L80", "lonati", "416E", "", "E3"], ["L81", "lonati", "416E", "", "E3"], ["L87", "lonati", "416E", "", "E3"], ["L88", "lonati", "416E", "", "E3"], ["L89", "lonati", "416E", "", "E3"], ["L55", "lonati", "B04", "", "E3"], ["L58", "lonati", "B04", "", "E3"], ["L9", "lonati", "04JS", "", "E3"], ["L10", "lonati", "04JS", "", "E3"], ["L11", "lonati", "04JS", "", "E3"], ["L12", "lonati", "04JS", "", "E3"], ["L13", "lonati", "04JS", "", "E3"], ["L4", "lonati", "GL615", "", "E3"], ["L5", "lonati", "GL615", "", "E3"], ["L6", "lonati", "GL615", "", "E3"], ["L7", "lonati", "GL615", "", "E3"], ["L8", "lonati", "GL615", "", "E3"], ["L330", "lonati", "POR DEF", "", "E3"], ["L331", "lonati", "POR DEF", "", "E3"], ["L332", "lonati", "POR DEF", "", "E3"], ["L333", "lonati", "POR DEF", "", "E3"], ["L334", "lonati", "POR DEF", "", "E3"], ["L335", "lonati", "POR DEF", "", "E3"], ["L336", "lonati", "POR DEF", "", "E3"], ["L337", "lonati", "POR DEF", "", "E3"]
-];
-
-var dbMaint = null;
-try {
-  var appM = firebase.apps && firebase.apps.some(function(a){return a.name==='fichas';}) ? firebase.app('fichas') : firebase.initializeApp({
-    apiKey:'AIzaSyAZkeIEa2xhXeyV6Ndy18FFJ3a6msCEyWQ',
-    authDomain:'swantex-produccion.firebaseapp.com',
-    projectId:'swantex-produccion',
-    storageBucket:'swantex-produccion.firebasestorage.app',
-    messagingSenderId:'952859382279',
-    appId:'1:952859382279:web:c7d7190cc6a5c5eafa90a2'
-  }, 'fichas');
-  dbMaint = appM.firestore();
-} catch(e) {}
-
-var maqEstados = {};
-var maqActualHv = null;
-
-function renderMaintGrid(filtro) {
-  var gridEl = document.getElementById('maintTeamsGrid');
-  if (!gridEl) return;
-  var h = '';
-  filtro = (filtro || '').toUpperCase();
-  for (var i=0; i<EQS_M.length; i++) {
-    var eq = EQS_M[i];
-    var list = MAQS_M.filter(function(m){ return m[4] === eq.id && (!filtro || m[0].indexOf(filtro) >= 0); });
-    if (!filtro && list.length === 0) continue;
-    var isL = eq.type === 'lonati';
-
-    h += '<div class="maint-tc">';
-    h += '<div class="maint-tc-title">' + eq.name + ' (' + (isL ? 'Lonati' : 'Santoni') + ')</div>';
-    h += '<div class="maint-maq-grid">';
-
-    for (var j=0; j<list.length; j++) {
-      var m = list[j];
-      var id = m[0];
-      var st = maqEstados[id] || 'ok';
-      var cls = st === 'bad' ? 'bad' : 'ok';
-
-      h += '<div class="maint-tile ' + cls + '" onclick="abrirHv(\'' + id + '\')">';
-      h += '<div class="maint-tile-id">' + id + '</div>';
-      h += '<div class="maint-tile-m">' + m[2] + '</div>';
-      h += '</div>';
-    }
-    h += '</div></div>';
-  }
-  gridEl.innerHTML = h;
-}
-
-function filtrarMaqsMaint(val) { renderMaintGrid(val); }
-
-function abrirHv(maqId) {
-  maqActualHv = maqId;
-  var info = null;
-  for (var i=0; i<MAQS_M.length; i++) { if (MAQS_M[i][0] === maqId) { info = MAQS_M[i]; break; } }
-
-  document.getElementById('hv-maq-title').textContent = 'Máquina: ' + maqId;
-  document.getElementById('hv-maq-sub').textContent = info ? (info[1].toUpperCase() + ' - Modelo: ' + info[2] + ' ' + (info[3]||'') + ' (Equipo ' + info[4] + ')') : '';
-
-  var st = maqEstados[maqId] || 'ok';
-  var btnEst = document.getElementById('btn-toggle-est');
-  btnEst.className = 'btn ' + (st === 'bad' ? 'btn-green' : 'btn-red');
-  btnEst.textContent = st === 'bad' ? 'Marcar como Operativa' : 'Marcar como Averiada';
-
-  document.getElementById('iv-tecnico').value = localStorage.getItem('swx_user_nombre') || '';
-  document.getElementById('iv-obs').value = '';
-  document.getElementById('iv-foto').value = '';
-
-  cargarHistorialHv(maqId);
-  document.getElementById('ov-hv').classList.add('on');
-}
-
-function closeOv(id) { document.getElementById(id).classList.remove('on'); }
-
-function cambiarEstadoMaqHv() {
-  if (!maqActualHv) return;
-  var actual = maqEstados[maqActualHv] || 'ok';
-  maqEstados[maqActualHv] = actual === 'ok' ? 'bad' : 'ok';
-
-  var btnEst = document.getElementById('btn-toggle-est');
-  btnEst.className = 'btn ' + (maqEstados[maqActualHv] === 'bad' ? 'btn-green' : 'btn-red');
-  btnEst.textContent = maqEstados[maqActualHv] === 'bad' ? 'Marcar como Operativa' : 'Marcar como Averiada';
-
-  if (dbMaint) {
-    dbMaint.collection('fichas').doc('MAQ-ESTADO-' + maqActualHv).set({
-      maqId: maqActualHv, estado: maqEstados[maqActualHv], updatedAt: Date.now()
-    }, {merge: true});
-  }
-  renderMaintGrid(document.getElementById('maintSearchInp').value);
-}
-
-function guardarIntervencionHv() {
-  if (!maqActualHv) return;
-  var tipo = document.getElementById('iv-tipo').value;
-  var tecnico = document.getElementById('iv-tecnico').value.trim() || 'Técnico Anónimo';
-  var obs = document.getElementById('iv-obs').value.trim();
-  var fileInput = document.getElementById('iv-foto');
-
-  localStorage.setItem('swx_user_nombre', tecnico);
-
-  function salvar(urlFoto) {
-    var reg = {
-      id: 'm-' + Date.now(),
-      fecha: new Date().toLocaleString(),
-      tipo: tipo,
-      tecnico: tecnico,
-      obs: obs,
-      foto: urlFoto || null
-    };
-
-    if (dbMaint) {
-      dbMaint.collection('fichas').doc('HV-MAQ-' + maqActualHv).set({
-        maqId: maqActualHv,
-        historial: firebase.firestore.FieldValue.arrayUnion(reg)
-      }, {merge: true}).then(function() {
-        alert('Intervención guardada en la Hoja de Vida.');
-        document.getElementById('iv-obs').value = '';
-        fileInput.value = '';
-        cargarHistorialHv(maqActualHv);
-      }).catch(function(e){ alert('Error: ' + e.message); });
-    }
-  }
-
-  if (fileInput.files && fileInput.files[0]) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var img = new Image();
-      img.onload = function() {
-        var canvas = document.createElement('canvas');
-        var maxW = 600; var scale = maxW / img.width;
-        canvas.width = maxW; canvas.height = img.height * scale;
-        var ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        salvar(canvas.toDataURL('image/jpeg', 0.7));
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(fileInput.files[0]);
-  } else {
-    salvar(null);
-  }
-}
-
-function cargarHistorialHv(maqId) {
-  var tl = document.getElementById('hv-timeline');
-  if (!tl) return;
-  tl.innerHTML = '<div style="color:#64748b;font-size:12px">Cargando historial...</div>';
-
-  if (!dbMaint) { tl.innerHTML = '<div style="color:#ef4444;font-size:12px">Sin conexión a Firebase.</div>'; return; }
-
-  dbMaint.collection('fichas').doc('HV-MAQ-' + maqId).get().then(function(doc) {
-    if (!doc.exists || !doc.data().historial || doc.data().historial.length === 0) {
-      tl.innerHTML = '<div style="color:#64748b;font-size:12px;font-style:italic">No hay intervenciones registradas.</div>';
-      return;
-    }
-    var hist = doc.data().historial.sort(function(a,b){ return b.id.localeCompare(a.id); });
-    var h = '';
-    for (var i=0; i<hist.length; i++) {
-      var it = hist[i];
-      h += '<div class="tl-item">';
-      h += '<div class="tl-date">' + it.fecha + '</div>';
-      h += '<div class="tl-desc"><b>' + it.tipo + '</b>' + (it.obs ? ' - ' + it.obs : '') + '</div>';
-      h += '<div class="tl-tech">Técnico: ' + it.tecnico + '</div>';
-      if (it.foto) {
-        h += '<img src="' + it.foto + '" class="tl-img" onclick="window.open(this.src)">';
-      }
-      h += '</div>';
-    }
-    tl.innerHTML = h;
-  }).catch(function(e) {
-    tl.innerHTML = '<div style="color:#ef4444;font-size:12px">Error: ' + e.message + '</div>';
-  });
-}
-
-async function escanearNfcMaint() {
-  if (!('NDEFReader' in window)) {
-    alert('El lector NFC requiere Chrome en Android y HTTPS.');
-    return;
-  }
-  try {
-    const reader = new NDEFReader();
-    await reader.scan();
-    alert('Acerque el celular al sticker NFC de la máquina...');
-    reader.onreading = event => {
-      for (const record of event.message.records) {
-        if (record.recordType === "text") {
-          const textDecoder = new TextDecoder(record.encoding);
-          const data = JSON.parse(textDecoder.decode(record.data));
-          if (data && data.id) {
-            abrirHv(data.id);
-            return;
-          }
-        }
-      }
-    };
-  } catch (error) {
-    alert('Error NFC: ' + error);
-  }
-}
-
-function sincronizarMaintEstados() {
-  if (!dbMaint) return;
-  dbMaint.collection('fichas').where('estado', '==', 'bad').get().then(function(snap){
-    snap.forEach(function(doc){
-      var d = doc.data();
-      if (d.maqId && d.estado) maqEstados[d.maqId] = d.estado;
-    });
-    renderMaintGrid();
-  }).catch(function(){ renderMaintGrid(); });
-}
-
 (function initFromHash() {
   updateNetworkStatus();
   var h = (location.hash || '').replace('#', '');
-  var valid = ['flujo', 'produccion', 'mantenimiento', 'fichas', 'desarrollo', 'materia', 'config'];
+  var valid = ['flujo', 'produccion', 'planta', 'fichas', 'desarrollo', 'materia', 'config'];
   if (valid.indexOf(h) >= 0) showSection(h);
   else showSection('flujo');
 })();
