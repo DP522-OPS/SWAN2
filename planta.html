@@ -20,11 +20,34 @@ header h1{font-size:16px;font-weight:700}
 .net{font-size:11px;color:#8ea3b8;width:100%}
 .scroll{overflow:auto;padding:14px;-webkit-overflow-scrolling:touch}
 .plant{display:flex;flex-direction:column;gap:0;min-width:max-content;background:#243545;border:3px solid #3b5068;border-radius:10px}
+.erow.bodega{background:#2b2411}
+.erow.bodega .lc{background:#3a2f12;border-right-color:#b8921e}
+.erow.bodega .rm{color:#fcd34d}
+.erow.bodega .aisle .go{background:#b8921e;color:#111 !important;font-weight:700;padding:3px 10px;border-radius:6px;text-decoration:none;font-size:11.5px}
+.erow.bodega .aisle{background:repeating-linear-gradient(90deg,#4a3c17 0 16px,#413415 16px 32px)}
+.est{height:calc(var(--t)*1.25);flex-shrink:0;background:#1d2733;border:2px solid #8595a8;border-radius:2px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;padding:4px 6px;position:relative}
+.est::before,.est::after{content:'';position:absolute;top:-2px;bottom:-2px;width:4px;background:linear-gradient(#aab6c4,#67798d);border-radius:2px}
+.est::before{left:-2px}.est::after{right:-2px}
+.est .lv{display:flex;gap:3px;flex:1;border-bottom:4px solid #8595a8;padding-bottom:2px;align-items:flex-end;position:relative}
+.est .lv:last-child{border-bottom:0;padding-bottom:0}
+.est .lv i{flex:1;height:85%;border-radius:1px;border:1px solid #6b4423;background:linear-gradient(#d2a062,#b17c3e);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.est .lv i:nth-child(2){background:linear-gradient(#c08a4e,#9d6a2f);height:95%}
+.est .lv i:nth-child(3){background:linear-gradient(#e0b47a,#c08a4e);height:76%}
+.est.pal{border-style:dashed;border-color:#6b7d91;background:#1a2330}
+.est.pal::before,.est.pal::after{display:none}
+.est.pal .lv{flex:0 0 28%;border-bottom:0;gap:3px}
+.est.pal .lv i{height:100%;border-radius:2px}
+.est.pal .pl{flex:0 0 8px;background:repeating-linear-gradient(90deg,#8a6f22 0 7px,transparent 7px 11px);border-radius:1px}
+.fk .bx{opacity:0;transition:opacity .25s}
+.fk.load .bx{opacity:1}
 .bodrow{display:flex;align-items:center;gap:16px;padding:14px 18px;background:#3a2f12;border-bottom:3px solid #b8921e;color:#fcd34d;font-size:15px}
 .bodrow span{color:#d6c48a;font-size:12.5px}.bodrow a{margin-left:auto;background:#b8921e;color:#111;font-weight:700;font-size:13px;padding:8px 12px;border-radius:8px;text-decoration:none}
 .pw{position:relative;min-width:max-content}
 .wk{position:absolute;width:34px;margin:-44px 0 0 -17px;z-index:6;cursor:pointer;display:flex;flex-direction:column;align-items:center;transition:left var(--d,1s) linear,top var(--d,1s) linear}
 .wk svg{width:30px;height:30px}.wk.go svg{animation:wk .35s linear infinite}
+.wk.enc{width:52px;margin-left:-26px}.wk.enc svg{width:52px;height:34px;animation:none}
+.wk.enc.go svg{animation:fk .5s ease-in-out infinite}
+@keyframes fk{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
 .wk span{font-size:9px;line-height:1;color:#fff;background:rgba(15,23,42,.8);padding:1px 4px;border-radius:6px;white-space:nowrap;margin-top:1px}
 .wk .bb{position:absolute;top:-12px;font-size:13px}
 .dec{display:flex;gap:10px;justify-content:center;margin-bottom:3px}
@@ -165,6 +188,15 @@ function tile(m){
   var sub=st==='stop'?esc(r.parado.mot||'paro'):(r?esc(r.refId||''):(e!==null?e+'%':''));
   return '<button data-m="'+esc(m.id)+'" class="'+cls+'" style="width:'+twOf(m.teamId)+'px" onclick="det(\''+esc(m.id)+'\')">'+(venc?'<span class="mn">🔧</span>':'')+esc(m.id)+'<small>'+sub+'</small></button>';
 }
+function estantes(fila){
+  var n=COLS_LON,h='';
+  for(var i=0;i<n;i++){
+    var k=(i*7+fila*3)%5, lv='<div class="lv"><i></i><i></i><i></i></div>';
+    h+= k===3 ? '<div class="est pal" style="width:'+tam+'px"><div class="lv"><i></i><i></i></div><div class="lv"><i></i><i></i><i></i></div><div class="pl"></div></div>'
+              : '<div class="est" style="width:'+tam+'px">'+lv+lv+lv+'</div>';
+  }
+  return h;
+}
 function render(){
   var h='',run=0,stop=0,free=0,mnt=0, nAb=Object.keys(ABIERTOS).length;
   var MC='<div class="mc"><div class="ch"><i></i><i></i><i></i></div><div class="tb"></div><div class="ch"><i></i><i></i><i></i></div></div>';
@@ -177,8 +209,14 @@ function render(){
     E7:'<div class="half"><div class="rm back"><div class="dec">'+MC+MC+'</div>🍽 Comedor operarios</div><div class="rm front"><div class="ji" onclick="detRol(\'sec\')"><div class="pc"></div><div class="per">'+persona('jefeinfo',{color:'#0d9488',pelo:'#2b1d12'})+'</div><div class="esc"></div><i class="mn" style="left:34px"></i><i class="mn b" style="left:44px"></i></div><small>Jefe de información</small></div></div><div class="half"><div class="rm back"><div class="dec"><div class="bn"><div class="tl">🔧🔨🪛</div><div class="tb"></div></div><div class="bn"><div class="tl">🔩🪚🧰</div><div class="tb"></div></div></div>🔩 Taller de mecánicos</div><div class="rm tur front">🌀 Turbina del 7</div></div>',
     E8:'<div class="half"><div class="rm back"><small>Equipo 8 está en otro piso; aquí se muestra a continuación del 7</small></div></div>'
   };
-  // Bodega MP: franja de todo el largo, como un equipo, arriba del Equipo 2
-  h+='<div class="bodrow"><b>📦 Bodega MP</b><span>'+nAb+' máquinas con lote abierto</span><a href="hilos.html">Pedido de hilo de hoy →</a></div>';
+  // Bodega MP: fila completa, con estanteria y cajas a lado y lado del pasillo
+  var f2=filas('E2'), rng=f2.izq.length?(f2.izq[0].id+' – '+f2.izq[f2.izq.length-1].id):'';
+  h+='<div class="erow bodega"><div class="lc"><div class="half"><div class="rm">📦 Bodega de materia prima<small>conos de hilo por título y lote'+(rng?'<br>a lo largo de '+esc(rng):'')+'</small></div></div></div>'+
+     '<div class="pas"></div><div class="main"><div class="eq">'+
+     '<div class="row">'+estantes(0)+'</div>'+
+     '<div class="aisle"><div class="lbl">BODEGA MP <em>'+nAb+' máquinas con lote abierto</em><a class="go" href="hilos.html">Pedido de hilo de hoy →</a></div><div class="lane" id="ln-BOD"></div></div>'+
+     '<div class="row">'+estantes(1)+'</div>'+
+     '</div></div></div>';
 
   ['E2','E3','E4','E5','E6','E7','E8'].forEach(function(eq){
    if(eq==='E4'){h+='<div class="erow"><div class="lc">'+LEFT.E4+'</div><div class="pas"></div><div class="main ina"><div class="inact" style="flex:1;margin:0">Equipo 4 Lonati — inactivo (espacio reservado)</div></div></div>';return;}
@@ -253,7 +291,7 @@ function detOp(k){
 function setW(){document.documentElement.style.setProperty('--W',(COLS_LON*(tam+4)-4)+'px');}
 // ===== PERSONAL QUE CAMINA: enconador (surte hilo) y planillero (recoge lotes cerrados) =====
 var COLL={}, collInit=false, WK={};
-var ROLES={sec:['Jefe de información','Maneja la información de la planta desde su escritorio.'],enc:['Enconador','Recorre la planta surtiendo la materia prima (conos de hilo) a las máquinas que están corriendo.'],pla:['Planillero','Recorre la planta recogiendo los lotes que se van cerrando.']};
+var ROLES={sec:['Jefe de información','Maneja la información de la planta desde su escritorio.'],enc:['Enconador','Sale de la bodega de materia prima con el montacargas y lleva las cajas de conos de hilo a las máquinas que están corriendo.'],pla:['Planillero','Recorre la planta recogiendo los lotes que se van cerrando.']};
 function detRol(k){var r=ROLES[k],w=WK[k];var h='<h2>'+r[0]+'<button onclick="document.getElementById(\'ov\').classList.remove(\'on\')">✕</button></h2><div class="sub">'+r[1]+'</div>'+(w&&w.nota?'<dl><dt>Ahora</dt><dd>'+esc(w.nota)+'</dd></dl>':'');document.getElementById('sh').innerHTML=h;document.getElementById('ov').classList.add('on');}
 function rel(el){var r=el.getBoundingClientRect(),w=document.getElementById('pw').getBoundingClientRect();return {x:r.left-w.left+r.width/2,y:r.top-w.top+r.height/2};}
 function pasX(){var e=document.querySelector('.pas');return e?rel(e).x:60;}
@@ -276,20 +314,49 @@ function walkTo(w,tgt,done){
   })();
 }
 function bubble(w,t){w.el.querySelector('.bb').textContent=t||'';}
+function montacargas(){
+  return '<svg viewBox="0 0 54 38">'+
+    // horquillas y mastil
+    '<path d="M2 31h12M14 3v30" stroke="#94a3b8" stroke-width="2.5" fill="none" stroke-linecap="round"/>'+
+    '<path d="M11 3v28" stroke="#64748b" stroke-width="2" fill="none" stroke-linecap="round"/>'+
+    // carga
+    '<g class="bx">'+
+      '<rect x="2.5" y="21" width="11" height="9.5" rx="1" fill="#c08a4e" stroke="#6b4423"/>'+
+      '<rect x="3.5" y="12" width="10" height="9" rx="1" fill="#d2a062" stroke="#6b4423"/>'+
+      '<path d="M8 12v9M8 21v9.5" stroke="#8a5f30" stroke-width="1"/>'+
+    '</g>'+
+    // cuerpo
+    '<path d="M18 31V19h16l5 5v7z" fill="#f97316" stroke="#9a3412"/>'+
+    '<path d="M34 20h3l3.4 4H34z" fill="#fed7aa"/>'+
+    // techo de la cabina
+    '<path d="M21 19V8h12v11" fill="none" stroke="#64748b" stroke-width="2"/>'+
+    '<path d="M20 8h14" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/>'+
+    // conductor
+    '<path d="M23 19c0-4.6 2.2-6.6 4.6-6.6S32 14.4 32 19z" fill="#334155"/>'+
+    '<path d="M24 19l.8-5h1.6v5z" fill="#f97316"/><path d="M31 19l-.8-5h-1.6v5z" fill="#f97316"/>'+
+    '<circle cx="27.6" cy="11.4" r="3.4" fill="#e0ac85"/>'+
+    '<path d="M24.1 10.6c0-2.5 1.6-3.8 3.5-3.8s3.5 1.3 3.5 3.8c-.7-1.3-1.9-1.9-3.5-1.9s-2.8.6-3.5 1.9z" fill="#f97316"/>'+
+    // ruedas
+    '<circle cx="23" cy="32.5" r="3.4" fill="#1f2937"/><circle cx="36" cy="32.5" r="3.4" fill="#1f2937"/>'+
+    '<circle cx="23" cy="32.5" r="1.2" fill="#9ca3af"/><circle cx="36" cy="32.5" r="1.2" fill="#9ca3af"/></svg>';
+}
 function startWalkers(){
-  var b=document.querySelector('.bodrow');if(!b||!document.querySelector('.pas')){setTimeout(startWalkers,800);return;}
+  var b=document.getElementById('ln-BOD');if(!b||!document.querySelector('.pas')){setTimeout(startWalkers,800);return;}
   if(WK.enc)return;
   var bp=rel(b);
-  var e=mkWk('enc',persona('enconador',{color:'#334155',chaleco:'#f97316',gorra:'#f97316'}),'Enconador');
+  var e=mkWk('enc',montacargas(),'Enconador');e.el.classList.add('enc');e.fk=e.el.querySelector('svg');e.fk.classList.add('fk','load');
   var p=mkWk('pla',persona('planillero',{color:'#1d4ed8',gorra:'#facc15'}),'Planillero');
   place(e,pasX(),bp.y+14,0);place(p,pasX(),bp.y+14,0);
   var nEnc=0;
   (function loopE(){
     var run=Object.keys(ABIERTOS).filter(function(id){return !ABIERTOS[id].parado&&tilePos(id);});
-    if(!run.length||nEnc%5===4){nEnc++;e.nota='Cargando hilo en la bodega';walkTo(e,{x:pasX(),y:bp.y+14},function(){bubble(e,'🧵');setTimeout(function(){bubble(e,'');loopE();},2500);});return;}
+    if(!run.length||e.carga){ // vuelve a la bodega por mas cajas
+      nEnc++;e.nota='Cargando cajas de hilo en la bodega';
+      walkTo(e,{x:bp.x,y:bp.y},function(){bubble(e,'📦');setTimeout(function(){e.fk.classList.add('load');e.carga=0;bubble(e,'');loopE();},2200);});return;}
     var id=run[Math.floor(Math.random()*run.length)];nEnc++;
-    e.nota='Surtiendo hilo a '+id;
-    walkTo(e,tilePos(id),function(){bubble(e,'🧵');setTimeout(function(){bubble(e,'');loopE();},2200);});
+    e.nota='Llevando materia prima a '+id;
+    walkTo(e,tilePos(id),function(){bubble(e,'🧵');e.fk.classList.remove('load');e.carga=1;
+      setTimeout(function(){bubble(e,'');loopE();},2000);});
   })();
   (function loopP(){
     var pend=Object.keys(CERR).filter(function(k){return CERR[k].n>(COLL[k]||0)&&tilePos(k);}).sort(function(a,b){return CERR[a].last-CERR[b].last;});
