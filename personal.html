@@ -86,7 +86,8 @@ var PAUTA={rot:'rota',grp:'A',alm:30,
   n:['','18:00-06:00','18:00-06:00','18:00-06:00','18:00-06:00','18:00-06:00','18:00-06:00']};  // turno de noche
 var DIAS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 var SHORD=['D','N','L'];
-var TIPOS=['Falta','Incapacidad','Permiso','Vacaciones','Licencia','Llegada tarde','Hora extra','Otro'];
+var TIPOS=['Falta','Incapacidad','Permiso','Vacaciones','Licencia','Llegada tarde','Hora extra','Llamado de atención','Sanción','Memorando','Capacitación','Dotación','Otro'];
+var DISC=['Llamado de atención','Sanción','Memorando'];
 var JUST=['Incapacidad','Permiso','Vacaciones','Licencia'];
 var EQS=['E2','E3','E4','E5','E6','E7','E8','Otro'];
 var CONF={tol:5,minExtra:30,paso:30};
@@ -268,7 +269,7 @@ function verP(id){
     [1,2,3,4,5,6,0].map(function(w){var d=fila(p,'D',w),nn=fila(p,'N',w);return (d||nn)?DIAS[w]+' '+(d?'día '+d:'')+(d&&nn?' / ':'')+(nn?'noche '+nn:''):'';}).filter(Boolean).join(' · ')+'</div>'+
   '<div class="bar"><button class="btn s" onclick="editP(\''+id+'\')">✏️ Editar</button><button class="btn g s" onclick="editN(\'\',\''+id+'\')">+ Novedad</button></div>'+
   '<b>Documentos</b>'+archBox(id)+
-  '<b>Novedades</b>'+(nv.length?'<table><tr><th>Desde</th><th>Hasta</th><th>Tipo</th><th>Horas</th><th class="l">Nota</th></tr>'+nv.map(function(n){return '<tr><td>'+fmt(n.desde)+'</td><td>'+fmt(n.hasta)+'</td><td>'+esc(n.tipo)+'</td><td>'+(n.horas||'')+'</td><td class="l">'+esc(n.nota||'')+'</td></tr>';}).join('')+'</table>':'<div class="muted">Sin novedades</div>');
+  '<b>Novedades</b>'+(nv.length?'<table><tr><th>Desde</th><th>Hasta</th><th>Tipo</th><th>Horas</th><th class="l">Nota</th></tr>'+nv.map(function(n){return '<tr><td>'+fmt(n.desde)+'</td><td>'+fmt(n.hasta)+'</td><td>'+esc(n.tipoN)+'</td><td>'+(n.horas||'')+'</td><td class="l">'+esc(n.nota||'')+'</td></tr>';}).join('')+'</table>':'<div class="muted">Sin novedades</div>');
 }
 function cerrar(){$('ov').classList.remove('on');}
 
@@ -324,7 +325,7 @@ function limpiarMes(){if(!confirm('¿Quitar todas las excepciones de '+mes+' y d
 function vNov(){
   var l=NOV.filter(function(n){return n.desde.slice(0,7)<=mes&&(n.hasta||n.desde).slice(0,7)>=mes;}).sort(function(a,b){return b.desde.localeCompare(a.desde);});
   var h=mesBar('<button class="btn g" onclick="editN()">+ Nueva novedad</button>');
-  h+=l.length?'<div class="wrap"><table><tr><th>Desde</th><th>Hasta</th><th class="l">Persona</th><th>Tipo</th><th>Horas</th><th class="l">Nota</th><th></th></tr>'+l.map(function(n){var p=P[n.pid];return '<tr><td>'+fmt(n.desde)+'</td><td>'+fmt(n.hasta)+'</td><td class="l">'+esc(p?p.nombre:'?')+'</td><td><span class="pill '+(JUST.indexOf(n.tipo)>=0?'p-i':n.tipo==='Falta'?'p-b':n.tipo==='Hora extra'?'p-ok':'p-w')+'">'+esc(n.tipo)+'</span></td><td>'+(n.horas||'')+'</td><td class="l">'+esc(n.nota||'')+(n.arch&&n.arch.length?' 📎':'')+'</td><td><button class="btn o s" onclick="editN(\''+n.id+'\')">Ver</button></td></tr>';}).join('')+'</table></div>':'<div class="card muted">Sin novedades este mes.</div>';
+  h+=l.length?'<div class="wrap"><table><tr><th>Desde</th><th>Hasta</th><th class="l">Persona</th><th>Tipo</th><th>Horas</th><th class="l">Nota</th><th></th></tr>'+l.map(function(n){var p=P[n.pid];return '<tr><td>'+fmt(n.desde)+'</td><td>'+fmt(n.hasta)+'</td><td class="l">'+esc(p?p.nombre:'?')+'</td><td><span class="pill '+(JUST.indexOf(n.tipoN)>=0?'p-i':(n.tipoN==='Falta'||DISC.indexOf(n.tipoN)>=0)?'p-b':n.tipoN==='Hora extra'?'p-ok':'p-w')+'">'+esc(n.tipoN)+'</span></td><td>'+(n.horas||'')+'</td><td class="l">'+esc(n.nota||'')+(n.arch&&n.arch.length?' 📎':'')+'</td><td><button class="btn o s" onclick="editN(\''+n.id+'\')">Ver</button></td></tr>';}).join('')+'</table></div>':'<div class="card muted">Sin novedades este mes.</div>';
   return h;
 }
 function editN(id,pid){
@@ -367,7 +368,8 @@ function archBox(owner){return '<div class="ab" data-o="'+owner+'">'+archInner(o
 function archInner(owner){
   var l=ARCH.filter(function(a){return a.owner===owner;}).sort(function(a,b){return b.ts-a.ts;});
   return '<div class="att">'+l.map(function(a){return '<span class="at">'+(a.mime.indexOf('image/')===0?'🖼':'📄')+' <a onclick="abrirArch(\''+a.id+'\')">'+esc(a.nombre)+'</a><small class="muted">'+fmt(a.fecha)+'</small><a onclick="delArch(\''+a.id+'\')" style="color:#b91c1c">✕</a></span>';}).join('')+'</div>'+
-  '<label class="btn o s">📎 Agregar foto / documento<input type="file" multiple style="display:none" onchange="addArch(\''+owner+'\',this)"></label>';
+  '<label class="btn o s">📎 Subir archivo<input type="file" multiple style="display:none" onchange="addArch(\''+owner+'\',this)"></label> '+
+  '<label class="btn o s">📷 Tomar foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="addArch(\''+owner+'\',this)"></label>';
 }
 function addArch(owner,inp){var fl=Array.prototype.slice.call(inp.files);inp.value='';toast('Subiendo…');
   fl.reduce(function(p,f){return p.then(function(){return subirArch(owner,f);});},Promise.resolve()).then(function(){toast('Listo');});}
