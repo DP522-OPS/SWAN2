@@ -23,6 +23,8 @@ var COPIA = 'jdposada33@gmail.com';           // copia para usted (deje '' para 
 var HORAS_PROYECCION = 24;                     // 0 = lo que falta del dia hasta medianoche (igual que Hilos); o un numero fijo, ej: 24
 var EFICIENCIA_PCT = 85;                      // eficiencia esperada (igual que Hilos)
 var HORA_ENVIO = 8;                           // hora del envio diario (0-23, hora Bogota)
+var DETALLE_MAQUINAS = false;                 // false = pedido limpio para despacho (item, titulo, lote, kilos).
+                                              // true  = agrega la lista de maquinas montadas y sus referencias.
 var ZONA = 'America/Bogota';
 var PROYECTO = 'swantex-produccion';
 var API_KEY = 'AIzaSyAZkeIEa2xhXeyV6Ndy18FFJ3a6msCEyWQ';   // clave web publica de Firebase (no es secreta)
@@ -37,6 +39,11 @@ function enviarPedidoHilos() {
     if (COPIA && para.indexOf(COPIA) < 0) opts.cc = COPIA;
     MailApp.sendEmail(opts);
     Logger.log('Pedido enviado a ' + para + ' (' + r.nMaquinas + ' maquinas, ' + r.totalKg.toFixed(2) + ' kg)');
+    // Las maquinas que quedaron por fuera del pedido no le sirven a Materia Prima,
+    // pero usted si necesita saberlas: van en un correo aparte, solo para usted.
+    if (!DETALLE_MAQUINAS && r.aviso && COPIA) {
+      MailApp.sendEmail(COPIA, 'Fichas incompletas – quedaron máquinas fuera del pedido de hoy', r.aviso);
+    }
   } catch (e) {
     // Si algo falla, avisa al dueno del script en vez de fallar en silencio
     MailApp.sendEmail(Session.getEffectiveUser().getEmail(), 'FALLO el pedido automatico de hilo',
@@ -108,8 +115,14 @@ function construirPedido_() {
     nLotes: lotes.length, sinFicha: sinFicha, sinTiempo: sinTiempo
   };
   return {
-    asunto: '📦 Pedido de hilo – Planta Swantex [' + fecha + ']',
-    html: htmlPedido_(info), texto: textoPedido_(info), nMaquinas: maquinas.length, totalKg: totalKg
+    asunto: '📦 Pedido de hilo ' + fecha + ' – ' + kg_(totalKg * 1000) + ' kg',
+    html: htmlPedido_(info), texto: textoPedido_(info), nMaquinas: maquinas.length, totalKg: totalKg,
+    aviso: (sinFicha.length || sinTiempo.length)
+      ? ('El pedido de hilo del ' + fecha + ' se envió sin estas máquinas, porque su ficha está incompleta:\n\n' +
+         (sinFicha.length ? 'Sin composición de hilo: ' + sinFicha.join(', ') + '\n' : '') +
+         (sinTiempo.length ? 'Sin tiempo por tubo: ' + sinTiempo.join(', ') + '\n' : '') +
+         '\nComplete esas fichas para que el pedido salga con los kilos reales.')
+      : ''
   };
 }
 
@@ -238,38 +251,38 @@ function htmlPedido_(i) {
   var th = 'style="background:#0f2942;color:#fff;padding:8px 10px;text-align:left;font-size:12px"';
   var thr = 'style="background:#0f2942;color:#fff;padding:8px 10px;text-align:right;font-size:12px"';
   var h = '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:760px">';
-  h += '<h2 style="margin:0 0 4px;color:#9a3412">PEDIDO DE HILO PARA HOY</h2>';
-  h += '<div style="font-size:13px;color:#374151;margin-bottom:12px"><b>Fecha:</b> ' + i.fecha + ' &nbsp;|&nbsp; <b>Generado:</b> ' + i.hora +
-    ' &nbsp;|&nbsp; <b>Proyección:</b> ' + i.horas + ' h al ' + i.eff + '% de eficiencia</div>';
-  h += '<div style="background:#f3f4f6;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:14px">' +
-    '<b>' + i.maquinas.length + '</b> máquinas montadas &nbsp;•&nbsp; <b style="font-size:16px">' + kg_(i.totalKg * 1000) + ' kg</b> de hilo en total</div>';
+  h += '<h2 style="margin:0 0 4px;color:#9a3412">PEDIDO DE HILO</h2>';
+  h += '<div style="font-size:13px;color:#374151;margin-bottom:12px"><b>Fecha:</b> ' + i.fecha + ' &nbsp;|&nbsp; <b>Para despachar a planta de tejido</b></div>';
+  h += '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:14px">' +
+    'Total a despachar: <b style="font-size:20px;color:#9a3412">' + kg_(i.totalKg * 1000) + ' kg</b>' +
+    ' &nbsp;en ' + i.filas.length + ' ' + (i.filas.length === 1 ? 'renglón' : 'renglones') + '</div>';
 
   if (!i.filas.length) {
     h += '<p style="color:#b91c1c"><b>No hay datos para calcular el pedido</b> (no hay máquinas montadas con ficha de hilo completa).</p>';
   } else {
     h += '<table style="border-collapse:collapse;width:100%;font-size:13px"><thead><tr>' +
-      '<th ' + th + '>#</th><th ' + th + '>Item (S / Z)</th><th ' + th + '>Título</th><th ' + th + '>Lote</th><th ' + th + '>Tipo de hilo</th><th ' + thr + '>Kilos</th></tr></thead><tbody>';
+      '<th ' + th + '>#</th><th ' + th + '>Item (S / Z)</th><th ' + th + '>Título</th><th ' + th + '>Lote</th><th ' + thr + '>Kilos</th></tr></thead><tbody>';
     i.filas.forEach(function (r, n) {
       var bg = n % 2 ? '#f9fafb' : '#ffffff';
       h += '<tr style="background:' + bg + '"><td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:#6b7280">' + (n + 1) + '</td>' +
         '<td style="padding:7px 10px;border-bottom:1px solid #e5e7eb">' + esc_(itemTxt_(r)) + '</td>' +
-        '<td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-weight:bold">' + esc_(r.titulo) + '</td>' +
-        '<td style="padding:7px 10px;border-bottom:1px solid #e5e7eb">' + esc_(r.lote || '-') + '</td>' +
-        '<td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:#4b5563">' + esc_(r.nombre) + '</td>' +
-        '<td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:bold;font-size:14px">' + kg_(r.gramos) + '</td></tr>';
+        '<td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-weight:bold">' + esc_(r.titulo) +
+          '<div style="font-weight:normal;font-size:11.5px;color:#6b7280">' + esc_(r.nombre) + '</div></td>' +
+        '<td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-weight:bold">' + esc_(r.lote || '-') + '</td>' +
+        '<td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:bold;font-size:16px">' + kg_(r.gramos) + '</td></tr>';
     });
-    h += '<tr style="background:#fef3c7"><td colspan="5" style="padding:9px 10px;font-weight:bold">TOTAL</td><td style="padding:9px 10px;text-align:right;font-weight:bold;font-size:15px">' + kg_(i.totalKg * 1000) + ' kg</td></tr>';
+    h += '<tr style="background:#fef3c7"><td colspan="4" style="padding:9px 10px;font-weight:bold">TOTAL</td><td style="padding:9px 10px;text-align:right;font-weight:bold;font-size:15px">' + kg_(i.totalKg * 1000) + ' kg</td></tr>';
     h += '</tbody></table>';
   }
 
-  if (i.sinFicha.length || i.sinTiempo.length) {
+  if (DETALLE_MAQUINAS && (i.sinFicha.length || i.sinTiempo.length)) {
     h += '<div style="margin-top:14px;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12.5px;color:#991b1b">' +
       '<b>⚠ Estas máquinas NO están incluidas en el pedido:</b>' +
       (i.sinFicha.length ? '<br>Sin ficha de hilo: ' + esc_(i.sinFicha.join(', ')) : '') +
       (i.sinTiempo.length ? '<br>Sin tiempo por tubo: ' + esc_(i.sinTiempo.join(', ')) : '') + '</div>';
   }
 
-  if (i.maquinas.length) {
+  if (DETALLE_MAQUINAS && i.maquinas.length) {
     h += '<h3 style="margin:20px 0 6px;font-size:14px;color:#0f2942">Máquinas montadas</h3>' +
       '<table style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th ' + th + '>Máquina</th><th ' + th + '>Referencia</th><th ' + th + '>Nombre</th><th ' + thr + '>Tubos proyectados</th></tr></thead><tbody>';
     i.maquinas.forEach(function (m, n) {
@@ -280,19 +293,21 @@ function htmlPedido_(i) {
     h += '</tbody></table><div style="font-size:11px;color:#6b7280;margin-top:4px">⏸ = máquina montada pero parada en este momento (se incluye igual).</div>';
   }
 
-  h += '<p style="font-size:11.5px;color:#6b7280;margin-top:18px">Cálculo automático: tubos por hora según el tiempo estándar de cada referencia × horas × eficiencia × peso del tubo × % de cada hilo en la ficha. ' +
+  h += '<p style="font-size:11.5px;color:#6b7280;margin-top:18px">Pedido calculado automáticamente sobre lo que está montado en las máquinas. Cálculo: tubos por hora según el tiempo estándar de cada referencia × horas × eficiencia × peso del tubo × % de cada hilo en la ficha. ' +
     'Es una proyección, no el consumo real. Generado automáticamente por el Ecosistema Swantex.</p></div>';
   return h;
 }
 
 function textoPedido_(i) {
-  var t = 'PEDIDO DE HILO PARA HOY - ' + i.fecha + ' (' + i.hora + ')\n';
-  t += i.maquinas.length + ' maquinas montadas | proyeccion ' + i.horas + ' h al ' + i.eff + '%\n\n';
-  t += 'ITEM | TITULO | LOTE | TIPO | KILOS\n';
-  i.filas.forEach(function (r) { t += itemTxt_(r) + ' | ' + r.titulo + ' | ' + (r.lote || '-') + ' | ' + r.nombre + ' | ' + kg_(r.gramos) + '\n'; });
+  var t = 'PEDIDO DE HILO - ' + i.fecha + '\n';
+  t += 'Total a despachar: ' + kg_(i.totalKg * 1000) + ' kg en ' + i.filas.length + ' renglones\n\n';
+  t += 'ITEM | TITULO | LOTE | KILOS\n';
+  i.filas.forEach(function (r) { t += itemTxt_(r) + ' | ' + r.titulo + ' (' + r.nombre + ') | ' + (r.lote || '-') + ' | ' + kg_(r.gramos) + '\n'; });
   t += '\nTOTAL: ' + kg_(i.totalKg * 1000) + ' kg\n';
-  if (i.sinFicha.length) t += '\nSin ficha de hilo (no incluidas): ' + i.sinFicha.join(', ') + '\n';
-  if (i.sinTiempo.length) t += 'Sin tiempo por tubo (no incluidas): ' + i.sinTiempo.join(', ') + '\n';
+  if (DETALLE_MAQUINAS) {
+    if (i.sinFicha.length) t += '\nSin ficha de hilo (no incluidas): ' + i.sinFicha.join(', ') + '\n';
+    if (i.sinTiempo.length) t += 'Sin tiempo por tubo (no incluidas): ' + i.sinTiempo.join(', ') + '\n';
+  }
   return t;
 }
 
