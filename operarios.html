@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Swantex - Eficiencia por operario</title>
+<meta name="theme-color" content="#0f2942">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#f3f5f7;color:#111827;min-height:100vh;padding-bottom:40px;font-size:14px}
+header{background:#0f2942;color:#fff;padding:12px 16px;position:sticky;top:0;z-index:5}
+header h1{font-size:17px}
+header .sub{font-size:11.5px;color:#8ea3b8;margin-top:2px}
+header a.volver{color:#c3ccd6;font-size:12px;text-decoration:none;float:right;margin-top:-16px}
+.tabs{display:flex;gap:6px;margin-top:10px}
+.tab{border:1px solid rgba(255,255,255,.25);background:none;color:#c3ccd6;border-radius:20px;padding:7px 16px;font-size:13px;cursor:pointer;font-family:inherit}
+.tab.on{background:#c9a227;border-color:#c9a227;color:#111;font-weight:700}
+main{padding:14px 12px;max-width:1250px;margin:0 auto}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid #cbd2d9;border-radius:8px;background:#fff}
+.btn{border:0;border-radius:8px;padding:9px 14px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;background:#0f2942;color:#fff}
+.btn.o{background:#fff;color:#334155;border:1px solid #cbd2d9}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border:1px solid #dde1e6;border-radius:10px;padding:12px 14px}
+.kpi span{display:block;font-size:11px;color:#6b7785;text-transform:uppercase;letter-spacing:.4px}
+.kpi b{font-size:24px;font-variant-numeric:tabular-nums}
+.wrap{overflow:auto;max-height:70vh;border:1px solid #dde1e6;border-radius:10px;background:#fff}
+table{border-collapse:collapse;width:100%;font-size:12.8px}
+th,td{border:1px solid #e4e7eb;padding:6px 8px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th{background:#eef1f4;position:sticky;top:0;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;color:#475569;z-index:1}
+td.l,th.l{text-align:left}
+tr.tot td{background:#fff7ed;font-weight:700;border-top:2px solid #c9a227}
+.pill{display:inline-block;border-radius:10px;padding:2px 9px;font-weight:700;font-size:12.5px}
+.e-alta{background:#d1fae5;color:#065f46}.e-med{background:#fef3c7;color:#92400e}.e-baja{background:#fee2e2;color:#b91c1c}.e-na{background:#eef1f4;color:#64748b}
+.barra{height:7px;border-radius:4px;background:#e5e7eb;overflow:hidden;min-width:70px;display:inline-block;vertical-align:middle}
+.barra i{display:block;height:100%}
+.muted{color:#6b7785;font-size:12px}
+.card{background:#fff;border:1px solid #dde1e6;border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.dia{min-width:30px;font-size:11px;cursor:default}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#6b7785;margin-top:8px;align-items:center}
+.leg i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111;color:#fff;border-radius:8px;padding:9px 16px;display:none;z-index:50}
+.ov{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;z-index:20;overflow:auto;padding:20px 10px}
+.ov.on{display:block}
+.sheet{background:#fff;border-radius:14px;max-width:900px;margin:0 auto;padding:16px}
+.sheet h2{font-size:19px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>Eficiencia por operario</h1>
+  <div class="sub" id="net">Cargando…</div>
+  <a class="volver" href="panel.html">← Panel</a>
+  <div class="tabs" id="tabs"></div>
+</header>
+<main id="main"></main>
+<div class="ov" id="ov" onclick="if(event.target===this)cerrar()"><div class="sheet" id="sheet"></div></div>
+<div id="toast"></div>
+
+<script>
+var CFG={apiKey:'AIzaSyAZkeIEa2xhXeyV6Ndy18FFJ3a6msCEyWQ',authDomain:'swantex-produccion.firebaseapp.com',projectId:'swantex-produccion',storageBucket:'swantex-produccion.firebasestorage.app',messagingSenderId:'952859382279',appId:'1:952859382279:web:c7d7190cc6a5c5eafa90a2'};
+var db=null,col=null,OPS=[],MAQS=[],LOTES=[],tab='dia',dia='',mes='',cargando=false;
+var EFF_MIN=75, EFF_OK=90;
+
+function $(i){return document.getElementById(i);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function pad(n){return ('0'+n).slice(-2);}
+function hoy(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function fmt(f){var p=(f||'').split('-');return p.length===3?p[2]+'/'+p[1]:f||'';}
+function toast(t){var e=$('toast');e.textContent=t;e.style.display='block';setTimeout(function(){e.style.display='none';},2300);}
+function dimes(m){var p=m.split('-');return new Date(+p[0],+p[1],0).getDate();}
+function h1(m){return (m/60).toFixed(1).replace('.0','');}
+function nomOp(id){var o=OPS.filter(function(x){return x.id===id;})[0];return o?o.name:(id||'—');}
+function eqDe(maq){var m=MAQS.filter(function(x){return x.id===maq;})[0];return m?(m.teamId||''):'';}
+
+/* ---------- carga ---------- */
+function init(){
+  dia=hoy(); mes=hoy().slice(0,7);
+  try{ firebase.initializeApp(CFG); db=firebase.firestore(); col=db.collection('fichas'); }
+  catch(e){ $('net').textContent='Sin conexión a la base de datos'; }
+  pintar();
+  if(col){ col.doc('SWAN2-OPS-CONFIG').get().then(function(d){
+      if(!d.exists)return; var x=d.data();
+      if(x.ops&&x.ops.length)OPS=x.ops;
+      if(x.maqs&&x.maqs.length)MAQS=x.maqs.filter(function(m){return m&&m.id;});
+      pintar();
+    }).catch(function(){});
+    cargar();
+  }
+}
+/* Trae solo los lotes cerrados del periodo que se está mirando (no toda la historia) */
+function cargar(){
+  if(!col||cargando)return;
+  cargando=true; $('net').textContent='Consultando…';
+  var desde = tab==='dia' ? dia : mes+'-01';
+  var hasta = tab==='dia' ? dia : mes+'-'+pad(dimes(mes));
+  col.where('tipo','==','lote').where('fecha','>=',desde).where('fecha','<=',hasta).get().then(function(s){
+    LOTES=[]; s.forEach(function(d){var x=d.data(); if(x&&!x._del&&x.status==='cerrado')LOTES.push(x);});
+    cargando=false;
+    $('net').textContent='● '+LOTES.length+' lotes cerrados · '+(tab==='dia'?('día '+fmt(dia)):('mes '+mes))+' · '+new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    pintar();
+  }).catch(function(e){
+    cargando=false; $('net').textContent='No se pudo consultar: '+(e&&e.message||e);
+  });
+}
+
+/* ---------- cálculo ----------
+   La eficiencia de un operario NO es el promedio de las eficiencias de sus lotes:
+   un lote de 20 minutos pesaría igual que uno de 10 horas. Se calcula con los
+   totales del periodo: minutos estándar producidos sobre minutos realmente
+   trabajados, descontando los paros. Es el mismo criterio del lote individual. */
+function resumen(lotes){
+  var r={lotes:0,tubos:0,dur:0,paros:0,std:0,maqs:{},mot:{},dias:{},porDia:{}};
+  lotes.forEach(function(l){
+    r.lotes++;
+    r.tubos += (+l.tubos||0);
+    var dur=+l.dur||0, pm=+l.parosMin||0, std=+l.std||0;
+    r.dur+=dur; r.paros+=pm;
+    if(std>0&&dur>pm){ r.std+=std; }
+    if(l.maqId)r.maqs[l.maqId]=1;
+    if(l.fecha){ r.dias[l.fecha]=1;
+      var d=r.porDia[l.fecha]||(r.porDia[l.fecha]={std:0,prod:0,tubos:0});
+      d.tubos+=(+l.tubos||0);
+      if(std>0&&dur>pm){ d.std+=std; d.prod+=(dur-pm); } }
+    (l.paros||[]).forEach(function(p){ if(p&&p.mot) r.mot[p.mot]=(r.mot[p.mot]||0)+(+p.dur||0); });
+    if(l.parado&&l.parado.mot) r.mot[l.parado.mot]=(r.mot[l.parado.mot]||0)+0;
+  });
+  r.prod = r.dur - r.paros;
+  r.eff = (r.std>0&&r.prod>0) ? Math.round(r.std/r.prod*1000)/10 : null;
+  r.nMaqs = Object.keys(r.maqs).length;
+  r.nDias = Object.keys(r.dias).length;
+  return r;
+}
+function effDia(d){ return (d&&d.std>0&&d.prod>0) ? Math.round(d.std/d.prod*1000)/10 : null; }
+function porOperario(lotes){
+  var g={};
+  lotes.forEach(function(l){ var k=l.opId||'—'; (g[k]=g[k]||[]).push(l); });
+  return Object.keys(g).map(function(k){
+    var r=resumen(g[k]); r.op=k; r.nombre=nomOp(k);
+    var eqs={}; g[k].forEach(function(l){var e=eqDe(l.maqId); if(e)eqs[e]=1;});
+    r.equipos=Object.keys(eqs).sort().join(', ');
+    return r;
+  }).sort(function(a,b){ return (b.eff===null?-1:b.eff)-(a.eff===null?-1:a.eff); });
+}
+function clase(e){ return e===null?'e-na':e>=EFF_OK?'e-alta':e>=EFF_MIN?'e-med':'e-baja'; }
+function colorEff(e){ return e===null?'#cbd5e1':e>=EFF_OK?'#10b981':e>=EFF_MIN?'#f59e0b':'#ef4444'; }
+function pillEff(e){ return '<span class="pill '+clase(e)+'">'+(e===null?'—':e.toFixed(1)+'%')+'</span>'; }
+function barra(e){ if(e===null)return ''; var w=Math.max(2,Math.min(100,e));
+  return '<span class="barra"><i style="width:'+w+'%;background:'+colorEff(e)+'"></i></span>'; }
+
+/* ---------- vistas ---------- */
+function pintar(){
+  $('tabs').innerHTML=[['dia','📅 Reporte del día'],['mes','📊 Resumen del mes']]
+    .map(function(t){return '<button class="tab'+(tab===t[0]?' on':'')+'" onclick="cambiar(\''+t[0]+'\')">'+t[1]+'</button>';}).join('');
+  $('main').innerHTML = tab==='dia' ? vDia() : vMes();
+}
+function cambiar(t){ if(tab===t)return; tab=t; pintar(); cargar(); }
+function setDia(v){ dia=v; cargar(); }
+function setMes(v){ mes=v; cargar(); }
+
+function vDia(){
+  var l=porOperario(LOTES), tot=resumen(LOTES);
+  var h='<div class="bar"><b>Día:</b><input type="date" value="'+dia+'" onchange="setDia(this.value)">'+
+    '<button class="btn o" onclick="cargar()">↻ Actualizar</button>'+
+    '<button class="btn o" onclick="exportar()">⬇ Excel</button></div>';
+  if(!LOTES.length) return h+'<div class="card muted">No hay lotes cerrados ese día. La eficiencia solo se puede calcular con lotes ya cerrados.</div>';
+  h+='<div class="kpis">'+
+    kpi('Operarios',l.length)+kpi('Lotes cerrados',tot.lotes)+kpi('Tubos',tot.tubos.toLocaleString('es-CO'))+
+    kpi('Horas trabajadas',h1(tot.prod))+kpi('Horas de paro',h1(tot.paros))+
+    '<div class="kpi"><span>Eficiencia de la planta</span><b style="color:'+colorEff(tot.eff)+'">'+(tot.eff===null?'—':tot.eff.toFixed(1)+'%')+'</b></div></div>';
+  h+='<div class="wrap"><table><tr><th class="l">Operario</th><th class="l">Equipo</th><th>Lotes</th><th>Máq.</th><th>Tubos</th>'+
+     '<th>Horas trab.</th><th>Paro (min)</th><th>Min estándar</th><th>Eficiencia</th><th class="l">Comparación</th></tr>';
+  l.forEach(function(r){
+    h+='<tr><td class="l"><a style="cursor:pointer;color:#0f2942;font-weight:700" onclick="detalle(\''+esc(r.op)+'\')">'+esc(r.nombre)+'</a></td>'+
+       '<td class="l">'+esc(r.equipos||'—')+'</td><td>'+r.lotes+'</td><td>'+r.nMaqs+'</td><td>'+r.tubos.toLocaleString('es-CO')+'</td>'+
+       '<td>'+h1(r.prod)+'</td><td>'+r.paros+'</td><td>'+Math.round(r.std)+'</td><td>'+pillEff(r.eff)+'</td><td class="l">'+barra(r.eff)+'</td></tr>';
+  });
+  h+='<tr class="tot"><td class="l">TOTAL</td><td></td><td>'+tot.lotes+'</td><td>'+tot.nMaqs+'</td><td>'+tot.tubos.toLocaleString('es-CO')+'</td>'+
+     '<td>'+h1(tot.prod)+'</td><td>'+tot.paros+'</td><td>'+Math.round(tot.std)+'</td><td>'+pillEff(tot.eff)+'</td><td></td></tr></table></div>';
+  h+=leyenda()+motivos(tot);
+  return h;
+}
+
+function vMes(){
+  var l=porOperario(LOTES), tot=resumen(LOTES), n=dimes(mes);
+  var h='<div class="bar"><b>Mes:</b><input type="month" value="'+mes+'" onchange="setMes(this.value)">'+
+    '<button class="btn o" onclick="cargar()">↻ Actualizar</button>'+
+    '<button class="btn o" onclick="exportar()">⬇ Excel</button></div>';
+  if(!LOTES.length) return h+'<div class="card muted">No hay lotes cerrados en ese mes.</div>';
+  h+='<div class="kpis">'+
+    kpi('Operarios',l.length)+kpi('Lotes cerrados',tot.lotes)+kpi('Tubos',tot.tubos.toLocaleString('es-CO'))+
+    kpi('Horas trabajadas',h1(tot.prod))+
+    '<div class="kpi"><span>Eficiencia del mes</span><b style="color:'+colorEff(tot.eff)+'">'+(tot.eff===null?'—':tot.eff.toFixed(1)+'%')+'</b></div></div>';
+  /* Tabla resumen */
+  h+='<div class="wrap" style="max-height:none;margin-bottom:14px"><table><tr><th class="l">Operario</th><th class="l">Equipo</th><th>Días</th><th>Lotes</th><th>Tubos</th>'+
+     '<th>Horas trab.</th><th>Paro (h)</th><th>Eficiencia</th><th>Mejor día</th><th>Peor día</th><th class="l">Comparación</th></tr>';
+  l.forEach(function(r){
+    var dd=Object.keys(r.porDia).map(function(f){return {f:f,e:effDia(r.porDia[f])};}).filter(function(x){return x.e!==null;});
+    dd.sort(function(a,b){return b.e-a.e;});
+    var mej=dd[0], peo=dd[dd.length-1];
+    h+='<tr><td class="l"><a style="cursor:pointer;color:#0f2942;font-weight:700" onclick="detalle(\''+esc(r.op)+'\')">'+esc(r.nombre)+'</a></td>'+
+       '<td class="l">'+esc(r.equipos||'—')+'</td><td>'+r.nDias+'</td><td>'+r.lotes+'</td><td>'+r.tubos.toLocaleString('es-CO')+'</td>'+
+       '<td>'+h1(r.prod)+'</td><td>'+h1(r.paros)+'</td><td>'+pillEff(r.eff)+'</td>'+
+       '<td>'+(mej?fmt(mej.f)+' · '+mej.e.toFixed(0)+'%':'—')+'</td><td>'+(peo&&dd.length>1?fmt(peo.f)+' · '+peo.e.toFixed(0)+'%':'—')+'</td>'+
+       '<td class="l">'+barra(r.eff)+'</td></tr>';
+  });
+  h+='<tr class="tot"><td class="l">TOTAL</td><td></td><td></td><td>'+tot.lotes+'</td><td>'+tot.tubos.toLocaleString('es-CO')+'</td>'+
+     '<td>'+h1(tot.prod)+'</td><td>'+h1(tot.paros)+'</td><td>'+pillEff(tot.eff)+'</td><td></td><td></td><td></td></tr></table></div>';
+  /* Calendario operario × día */
+  h+='<div class="card" style="padding:0;overflow:hidden"><div style="padding:10px 14px"><b>Día por día</b> <span class="muted">— eficiencia de cada operario en cada día del mes</span></div>'+
+     '<div class="wrap" style="border:0;border-top:1px solid #dde1e6;border-radius:0"><table><tr><th class="l" style="min-width:150px">Operario</th>';
+  for(var d=1;d<=n;d++){ var wd=new Date(+mes.slice(0,4),+mes.slice(5)-1,d).getDay();
+    h+='<th class="dia"'+(wd===0?' style="background:#fef3c7"':'')+'>'+d+'</th>'; }
+  h+='<th>Mes</th></tr>';
+  l.forEach(function(r){
+    h+='<tr><td class="l">'+esc(r.nombre)+'</td>';
+    for(var d=1;d<=n;d++){
+      var f=mes+'-'+pad(d), e=effDia(r.porDia[f]);
+      h+='<td class="dia" title="'+f+(e===null?'':' · '+e.toFixed(1)+'%')+'" style="'+(e===null?'color:#cbd5e1':'background:'+colorEff(e)+'22;color:'+colorEff(e)+';font-weight:700')+'">'+(e===null?'·':Math.round(e))+'</td>';
+    }
+    h+='<td>'+pillEff(r.eff)+'</td></tr>';
+  });
+  h+='</table></div></div>';
+  h+=leyenda()+motivos(tot);
+  return h;
+}
+
+function kpi(t,v){ return '<div class="kpi"><span>'+t+'</span><b>'+v+'</b></div>'; }
+function leyenda(){
+  return '<div class="leg"><span><i style="background:#10b981"></i>'+EFF_OK+'% o más</span>'+
+    '<span><i style="background:#f59e0b"></i>entre '+EFF_MIN+'% y '+EFF_OK+'%</span>'+
+    '<span><i style="background:#ef4444"></i>menos de '+EFF_MIN+'%</span>'+
+    '<span><i style="background:#cbd5e1"></i>sin dato para calcular</span>'+
+    '<span>La eficiencia se calcula con los totales del periodo: minutos estándar ÷ minutos trabajados sin paros.</span></div>';
+}
+function motivos(r){
+  var m=Object.keys(r.mot).map(function(k){return {k:k,v:r.mot[k]};}).filter(function(x){return x.v>0;}).sort(function(a,b){return b.v-a.v;}).slice(0,8);
+  if(!m.length)return '';
+  var tot=m.reduce(function(a,b){return a+b.v;},0);
+  return '<div class="card" style="margin-top:14px"><b>Motivos de paro</b> <span class="muted">— minutos perdidos en el periodo</span>'+
+    '<table style="margin-top:8px"><tr><th class="l">Motivo</th><th>Minutos</th><th>Horas</th><th>% del paro</th></tr>'+
+    m.map(function(x){return '<tr><td class="l">'+esc(x.k)+'</td><td>'+x.v+'</td><td>'+h1(x.v)+'</td><td>'+Math.round(x.v/tot*100)+'%</td></tr>';}).join('')+
+    '</table></div>';
+}
+
+/* ---------- detalle de un operario ---------- */
+function detalle(op){
+  var ls=LOTES.filter(function(l){return (l.opId||'—')===op;}).sort(function(a,b){return (a.fecha+(a.hi||'')).localeCompare(b.fecha+(b.hi||''));});
+  var r=resumen(ls);
+  var h='<h2><span>'+esc(nomOp(op))+'</span><button class="btn o" onclick="cerrar()">✕</button></h2>'+
+    '<div class="muted" style="margin-bottom:10px">'+(tab==='dia'?('Día '+fmt(dia)):('Mes '+mes))+' · '+r.lotes+' lotes · '+r.nMaqs+' máquinas · eficiencia '+(r.eff===null?'—':r.eff.toFixed(1)+'%')+'</div>'+
+    '<div class="wrap"><table><tr><th>Fecha</th><th class="l">Máq.</th><th class="l">Referencia</th><th>Turno</th><th>Inicio</th><th>Fin</th><th>Tubos</th><th>Dur (min)</th><th>Paro</th><th>Estándar</th><th>Eficiencia</th></tr>'+
+    ls.map(function(l){
+      var dur=+l.dur||0,pm=+l.parosMin||0,std=+l.std||0;
+      var e=(std>0&&dur>pm)?Math.round(std/(dur-pm)*1000)/10:null;
+      return '<tr><td>'+fmt(l.fecha)+'</td><td class="l">'+esc(l.maqId||'')+'</td><td class="l">'+esc(l.refId||'')+'</td><td>'+esc(l.turno||'')+'</td>'+
+        '<td>'+esc(l.hi||'')+'</td><td>'+esc(l.hf||'')+'</td><td>'+(l.tubos||0)+'</td><td>'+dur+'</td><td>'+pm+'</td><td>'+Math.round(std)+'</td><td>'+pillEff(e)+'</td></tr>';
+    }).join('')+'</table></div>';
+  $('sheet').innerHTML=h; $('ov').classList.add('on');
+}
+function cerrar(){ $('ov').classList.remove('on'); }
+
+/* ---------- Excel ---------- */
+function exportar(){
+  if(!LOTES.length){toast('No hay datos para exportar');return;}
+  var l=porOperario(LOTES);
+  var res=[['Operario','Equipo','Dias','Lotes','Maquinas','Tubos','Horas trabajadas','Horas de paro','Minutos estandar','Eficiencia %']];
+  l.forEach(function(r){ res.push([r.nombre,r.equipos,r.nDias,r.lotes,r.nMaqs,r.tubos,+h1(r.prod),+h1(r.paros),Math.round(r.std),r.eff===null?'':r.eff]); });
+  var det=[['Operario','Fecha','Maquina','Referencia','Turno','Inicio','Fin','Tubos','Duracion (min)','Paro (min)','Estandar (min)','Eficiencia %']];
+  LOTES.slice().sort(function(a,b){return (a.fecha+(a.hi||'')).localeCompare(b.fecha+(b.hi||''));}).forEach(function(x){
+    var dur=+x.dur||0,pm=+x.parosMin||0,std=+x.std||0;
+    var e=(std>0&&dur>pm)?Math.round(std/(dur-pm)*1000)/10:'';
+    det.push([nomOp(x.opId),x.fecha,x.maqId||'',x.refId||'',x.turno||'',x.hi||'',x.hf||'',+x.tubos||0,dur,pm,Math.round(std),e]);
+  });
+  var dias=[['Operario']]; var n=dimes(mes);
+  if(tab==='mes'){ for(var d=1;d<=n;d++)dias[0].push(d);
+    l.forEach(function(r){ var fila=[r.nombre];
+      for(var d2=1;d2<=n;d2++){ var e=effDia(r.porDia[mes+'-'+pad(d2)]); fila.push(e===null?'':e); }
+      dias.push(fila); }); }
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(res),'Resumen');
+  if(tab==='mes')XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(dias),'Dia por dia');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(det),'Lotes');
+  XLSX.writeFile(wb,'Eficiencia_'+(tab==='dia'?dia:mes)+'.xlsx');
+}
+init();
+</script>
+</body>
+</html>
