@@ -152,45 +152,42 @@ function setNet(ok){document.getElementById('net').textContent = ok ? '● En l�
 function notasDe(id){return NOTAS.filter(function(n){return n.maqId===id;}).sort(function(a,b){return (b.fecha+(b.ts||0)).localeCompare(a.fecha+(a.ts||0));});}
 function ultMant(id){var l=notasDe(id).filter(function(n){return n.tipoN==='Mantenimiento';});return l.length?l[0].fecha:null;}
 
+// Misma distribucion del Dashboard: por equipo y en el orden de la configuracion de maquinas
+var EQS = [{id:'E2',name:'Equipo 2',type:'lonati'},{id:'E3',name:'Equipo 3',type:'lonati'},{id:'E5',name:'Equipo 5',type:'santoni'},{id:'E6',name:'Equipo 6',type:'santoni'},{id:'E7',name:'Equipo 7',type:'santoni'},{id:'E8',name:'Equipo 8',type:'santoni'}];
 function grupos(){
-  var g = {}, ord = [];
-  MAQS.filter(function(m){return m.active!==false;}).forEach(function(m){
-    var k = m.type==='lonati' ? 'Lonati' : 'Santoni';
-    if(!g[k]){g[k]=[];ord.push(k);}
-    g[k].push(m);
+  var act = MAQS.filter(function(m){return m.active!==false;}), out = [], usados = {};
+  EQS.forEach(function(e){
+    var l = act.filter(function(m){return m.teamId===e.id;});
+    l.forEach(function(m){usados[m.id]=1;});
+    if(l.length) out.push({n:e.name, tipo:e.type==='lonati'?'Lonati':'Santoni', l:l});
   });
-  return ord.sort().map(function(k){return {n:k,l:g[k]};});
+  var resto = act.filter(function(m){return !usados[m.id];});
+  if(resto.length) out.push({n:'Sin equipo', tipo:'', l:resto});
+  return out;
 }
 function render(){
   var gs = grupos();
   var ch = '<button class="chip'+(filtro==='Todas'?' on':'')+'" onclick="setF(\'Todas\')">Todas</button>';
-  gs.forEach(function(g){ch+='<button class="chip'+(filtro===g.n?' on':'')+'" onclick="setF(\''+g.n+'\')">'+g.n+'</button>';});
+  ['Lonati','Santoni'].forEach(function(t){ch+='<button class="chip'+(filtro===t?' on':'')+'" onclick="setF(\''+t+'\')">'+t+'</button>';});
   ch+='<button class="chip'+(filtro==='Atrasadas'?' on':'')+'" onclick="setF(\'Atrasadas\')">⚠ Atrasadas</button>';
   document.getElementById('chips').innerHTML = ch;
   var q = document.getElementById('q').value.trim().toUpperCase(), h = '';
   if(!MAQS.length) h = '<div class="empty">No se encontró la lista de máquinas. Abre primero la app de Registrar Producción en este equipo y vuelve.</div>';
   gs.forEach(function(g){
-    if(filtro!=='Todas' && filtro!=='Atrasadas' && filtro!==g.n) return;
+    if(filtro!=='Todas' && filtro!=='Atrasadas' && filtro!==g.tipo) return;
     var items = g.l.filter(function(m){
       if(q && String(m.id).toUpperCase().indexOf(q)<0) return false;
       if(filtro==='Atrasadas'){var u=ultMant(m.id);return !u || dias(u)>120;}
       return true;
-    }).sort(function(a,b){return String(a.id).localeCompare(String(b.id),undefined,{numeric:true});});
+    });
     if(!items.length) return;
-    h += '<div class="eq">'+g.n+' · '+items.length+'</div>';
-    var mods = {}, om = [];
-    items.forEach(function(m){ var k = String(m.model||'Sin modelo').trim().toUpperCase(); if(!mods[k]){mods[k]=[];om.push(k);} mods[k].push(m); });
-    om.sort(function(a,b){ return String(mods[a][0].id).localeCompare(String(mods[b][0].id),undefined,{numeric:true}); });
-    om.forEach(function(k){
-    var ds = {}; mods[k].forEach(function(m){ if(m.diam) ds[m.diam]=1; });
-    h += '<div class="mod">'+esc(k)+' <span>'+mods[k].length+' máq.'+(Object.keys(ds).length?' · '+esc(Object.keys(ds).sort(function(a,b){return parseFloat(a)-parseFloat(b);}).join(' / ')):'')+'</span></div><div class="grid">';
-    mods[k].forEach(function(m){
+    h += '<div class="eq">'+esc(g.n)+(g.tipo?' · '+g.tipo:'')+' · '+items.length+' máq.</div><div class="grid">';
+    items.forEach(function(m){
       var u = ultMant(m.id), d = u!==null ? dias(u) : null, c = d===null ? '' : (d<60?'ok':d<=120?'warn':'late');
       var nn = notasDe(m.id).length;
       h += '<button class="m '+c+'" onclick="abrir(\''+esc(m.id)+'\')"><b>'+esc(m.id)+'</b><small>'+esc((m.model||'')+' '+(m.diam||''))+'</small><div class="u">'+(u?('🛠 '+fmt(u)):'Sin mantenimiento')+(nn?' · '+nn+' 📝':'')+(notasDe(m.id).some(function(x){return x.fotos&&x.fotos.length;})?' 📷':'')+'</div></button>';
     });
     h += '</div>';
-    });
   });
   document.getElementById('list').innerHTML = h;
 }
