@@ -24,7 +24,10 @@ main{padding:14px 12px;max-width:1100px;margin:0 auto}
 .m{background:#fff;border:1px solid #dde1e6;border-left:5px solid #cbd2d9;border-radius:8px;padding:9px 10px;text-align:left;cursor:pointer;font-family:inherit;min-height:74px}
 .m:active{background:#eef1f4}
 .m b{font-size:17px;display:block}
-.m small{display:block;font-size:11px;color:#6b7785;margin-top:1px;line-height:1.3}
+.m small{display:block;font-size:11px;color:#6b7785;margin-top:1px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mod{font-size:12px;font-weight:700;color:#0f2942;margin:12px 4px 6px;display:flex;align-items:center;gap:8px}
+.mod span{font-weight:400;color:#6b7785}
+.mod:after{content:'';flex:1;height:1px;background:#dde1e6}
 .m .u{font-size:10.5px;margin-top:4px;color:#374151}
 .m.ok{border-left-color:#10b981}.m.warn{border-left-color:#f59e0b}.m.late{border-left-color:#ef4444}
 .leg{font-size:11.5px;color:#6b7785;margin:2px 4px 0;display:flex;gap:12px;flex-wrap:wrap}
@@ -174,13 +177,20 @@ function render(){
       return true;
     }).sort(function(a,b){return String(a.id).localeCompare(String(b.id),undefined,{numeric:true});});
     if(!items.length) return;
-    h += '<div class="eq">'+g.n+' · '+items.length+'</div><div class="grid">';
-    items.forEach(function(m){
+    h += '<div class="eq">'+g.n+' · '+items.length+'</div>';
+    var mods = {}, om = [];
+    items.forEach(function(m){ var k = String(m.model||'Sin modelo').trim().toUpperCase(); if(!mods[k]){mods[k]=[];om.push(k);} mods[k].push(m); });
+    om.sort(function(a,b){ return String(mods[a][0].id).localeCompare(String(mods[b][0].id),undefined,{numeric:true}); });
+    om.forEach(function(k){
+    var ds = {}; mods[k].forEach(function(m){ if(m.diam) ds[m.diam]=1; });
+    h += '<div class="mod">'+esc(k)+' <span>'+mods[k].length+' máq.'+(Object.keys(ds).length?' · '+esc(Object.keys(ds).sort(function(a,b){return parseFloat(a)-parseFloat(b);}).join(' / ')):'')+'</span></div><div class="grid">';
+    mods[k].forEach(function(m){
       var u = ultMant(m.id), d = u!==null ? dias(u) : null, c = d===null ? '' : (d<60?'ok':d<=120?'warn':'late');
       var nn = notasDe(m.id).length;
       h += '<button class="m '+c+'" onclick="abrir(\''+esc(m.id)+'\')"><b>'+esc(m.id)+'</b><small>'+esc((m.model||'')+' '+(m.diam||''))+'</small><div class="u">'+(u?('🛠 '+fmt(u)):'Sin mantenimiento')+(nn?' · '+nn+' 📝':'')+(notasDe(m.id).some(function(x){return x.fotos&&x.fotos.length;})?' 📷':'')+'</div></button>';
     });
     h += '</div>';
+    });
   });
   document.getElementById('list').innerHTML = h;
 }
